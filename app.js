@@ -206,7 +206,15 @@ restartBtn.addEventListener("click", () => {
 });
 
 // ====== 起動 ======
-CSVUtil.load("./questions.csv")
+
+// GitHub Pagesで「/kobun-quiz/」配下にいる前提で、絶対URLを組み立てる
+// 例）https://naoki496.github.io/kobun-quiz/ + questions.csv
+const baseUrl = new URL("./", location.href).toString();
+const csvUrl = new URL("questions.csv", baseUrl).toString();
+
+progressEl.textContent = `読み込み中… (${csvUrl})`;
+
+CSVUtil.load(csvUrl)
   .then((data) => {
     questions = data;
 
@@ -222,8 +230,14 @@ CSVUtil.load("./questions.csv")
   })
   .catch((err) => {
     console.error(err);
+
+    // 画面に「原因が特定できる情報」を出す
     progressEl.textContent = "読み込み失敗";
-    questionEl.textContent = "questions.csv の読み込みに失敗しました（Console参照）";
+    questionEl.textContent =
+      `CSVの取得に失敗しました。\n` +
+      `URL: ${csvUrl}\n` +
+      `詳細: ${err?.message ?? err}`;
+
     disableChoices(true);
     nextBtn.disabled = true;
   });
