@@ -8,32 +8,39 @@
 </head>
 
 <body>
-  <h1>古文4択クイズ</h1>
-
-  <div id="quiz">
-    <div id="meta">
-      <div id="progress">読み込み中…</div>
-      <div id="score">Score: 0</div>
+  <header class="topbar">
+    <h1 class="title">古文4択クイズ</h1>
+    <div class="meta">
+      <div id="progress" class="pill">読み込み中…</div>
+      <div id="score" class="pill">Score: 0</div>
     </div>
+  </header>
 
-    <div id="question">CSVを読み込んでいます。</div>
+  <main id="quiz" class="container" aria-live="polite">
+    <section class="card">
+      <div id="status" class="status">準備中…</div>
 
-    <button class="choice" data-idx="0">---</button>
-    <button class="choice" data-idx="1">---</button>
-    <button class="choice" data-idx="2">---</button>
-    <button class="choice" data-idx="3">---</button>
+      <div id="question" class="question">CSVを読み込んでいます。</div>
+      <div id="source" class="source"></div>
 
-    <div id="status"></div>
+      <div id="choices" class="choices">
+        <button class="choice" data-idx="1" disabled>---</button>
+        <button class="choice" data-idx="2" disabled>---</button>
+        <button class="choice" data-idx="3" disabled>---</button>
+        <button class="choice" data-idx="4" disabled>---</button>
+      </div>
 
-    <div id="controls">
-      <button class="ctrl" id="nextBtn" disabled>次へ</button>
-      <button class="ctrl" id="restartBtn">最初から</button>
-    </div>
-  </div>
+      <div id="result" class="result"></div>
 
-  <!-- csv.js → app.js の順（依存関係） -->
-  <script src="./csv.js?v=20260123"></script>
-  <script src="./app.js?v=20260123"></script>
+      <div class="controls">
+        <button class="ctrl" id="nextBtn" disabled>次へ</button>
+        <button class="ctrl secondary" id="restartBtn" disabled>最初から</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 依存関係：csv.js → app.js -->
+  <script src="./csv.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
-
