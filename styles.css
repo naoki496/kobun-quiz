@@ -145,3 +145,22 @@ body{
   .choices{ grid-template-columns: 1fr 1fr; }
   .choice{ min-height: 64px; }
 }
+.toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 10px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.06);
+  user-select:none;
+}
+.toggle input{
+  width: 18px;
+  height: 18px;
+}
+#combo{
+  color: var(--text);
+}
