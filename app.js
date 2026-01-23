@@ -1,129 +1,178 @@
-if (window.__QUIZ_APP_LOADED__) {
-  throw new Error("app.js loaded twice");
-}
-window.__QUIZ_APP_LOADED__ = true;
-const TOTAL_QUESTIONS = 10;
+(() => {
+  const TOTAL_QUESTIONS = 10;
 
-let questions = [];
-let order = [];
-let index = 0;
-let correct = 0;
+  let questions = [];
+  let order = [];
+  let idx = 0;
+  let correct = 0;
+  let locked = false;
 
-const qEl = document.getElementById("question");
-const progressEl = document.getElementById("progress");
-const scoreEl = document.getElementById("score");
-const statusEl = document.getElementById("status");
-const nextBtn = document.getElementById("nextBtn");
-const restartBtn = document.getElementById("restartBtn");
+  const progressEl = document.getElementById("progress");
+  const scoreEl = document.getElementById("score");
+  const statusEl = document.getElementById("status");
+  const questionEl = document.getElementById("question");
+  const sourceEl = document.getElementById("source");
+  const resultEl = document.getElementById("result");
+  const choicesWrap = document.getElementById("choices");
 
-const choiceBtns = Array.from(document.querySelectorAll("button.choice"));
+  const nextBtn = document.getElementById("nextBtn");
+  const restartBtn = document.getElementById("restartBtn");
 
-function shuffle(arr) {
-  // Fisher–Yates
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+  function setLoading(on, msg) {
+    progressEl.textContent = msg ?? (on ? "読み込み中…" : "");
+    nextBtn.disabled = on;
+    restartBtn.disabled = on;
   }
-  return arr;
-}
 
-function normalizeAnswer(a) {
-  // CSVの answer が "1"〜"4" を想定
-  const n = Number(String(a).trim());
-  return Number.isFinite(n) ? n : NaN;
-}
-
-function setChoicesEnabled(enabled) {
-  choiceBtns.forEach(b => (b.disabled = !enabled));
-}
-
-function clearChoiceStyles() {
-  choiceBtns.forEach(b => {
-    b.classList.remove("correct", "wrong");
-  });
-}
-
-function start() {
-  if (!questions.length) return;
-
-  order = shuffle([...questions]).slice(0, Math.min(TOTAL_QUESTIONS, questions.length));
-  index = 0;
-  correct = 0;
-
-  scoreEl.textContent = `Score: ${correct}`;
-  statusEl.textContent = "";
-  nextBtn.disabled = true;
-
-  show();
-}
-
-function show() {
-  const q = order[index];
-  clearChoiceStyles();
-  setChoicesEnabled(true);
-  nextBtn.disabled = true;
-
-  progressEl.textContent = `第${index + 1}問 / ${order.length}`;
-  qEl.textContent = q.question ?? "";
-
-  // choice1..4 を既存ボタンに反映
-  choiceBtns[0].textContent = q.choice1 ?? "---";
-  choiceBtns[1].textContent = q.choice2 ?? "---";
-  choiceBtns[2].textContent = q.choice3 ?? "---";
-  choiceBtns[3].textContent = q.choice4 ?? "---";
-
-  // クリック時の判定を付け替え
-  const ans = normalizeAnswer(q.answer); // 1..4
-  choiceBtns.forEach((btn, i) => {
-    btn.onclick = () => judge(i + 1, ans);
-  });
-}
-
-function judge(selected, answer) {
-  setChoicesEnabled(false);
-
-  if (selected === answer) {
-    correct++;
-    choiceBtns[selected - 1].classList.add("correct");
-    statusEl.textContent = "正解";
-  } else {
-    choiceBtns[selected - 1].classList.add("wrong");
-    if (answer >= 1 && answer <= 4) {
-      choiceBtns[answer - 1].classList.add("correct");
+  function shuffle(arr) {
+    // Fisher–Yates
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    statusEl.textContent = "不正解";
+    return arr;
   }
 
-  scoreEl.textContent = `Score: ${correct}`;
-  nextBtn.disabled = false;
-}
+  function normalizeRow(q) {
+    // answer は "1"～"4" を想定
+    const a = Number(q.answer);
+    return {
+      id: q.id ?? "",
+      question: q.question ?? "",
+      source: q.source ?? "",
+      choice1: q.choice1 ?? "",
+      choice2: q.choice2 ?? "",
+      choice3: q.choice3 ?? "",
+      choice4: q.choice4 ?? "",
+      answer: Number.isFinite(a) ? a : 0,
+    };
+  }
 
-nextBtn.addEventListener("click", () => {
-  index++;
-  if (index < order.length) {
-    show();
-  } else {
-    progressEl.textContent = `終了（${order.length}問）`;
-    qEl.textContent = `正解 ${correct} / ${order.length}`;
-    statusEl.textContent = "";
-    setChoicesEnabled(false);
+  function start() {
+    locked = false;
+    idx = 0;
+    correct = 0;
+    scoreEl.textContent = `Score: ${correct}`;
+    resultEl.textContent = "";
+    resultEl.className = "result";
+
+    const pool = questions.slice();
+    shuffle(pool);
+    order = pool.slice(0, Math.min(TOTAL_QUESTIONS, pool.length));
+
+    if (order.length === 0) {
+      statusEl.textContent = "問題がありません（CSV内容を確認してください）";
+      questionEl.textContent = "";
+      sourceEl.textContent = "";
+      return;
+    }
+
+    nextBtn.disabled = true;
+    restartBtn.disabled = false;
+    render();
+  }
+
+  function render() {
+    locked = false;
+    const q = order[idx];
+
+    progressEl.textContent = `第${idx + 1}問 / ${order.length}`;
+    statusEl.textContent = "1つ選んでください";
+    questionEl.textContent = q.question;
+    sourceEl.textContent = q.source ? `出典：${q.source}` : "";
+
+    // 4択ボタンを詰め替え
+    const btns = choicesWrap.querySelectorAll(".choice");
+    btns.forEach((b, i) => {
+      const n = i + 1;
+      b.disabled = false;
+      b.classList.remove("correct", "wrong");
+      b.textContent = q[`choice${n}`] || `選択肢${n}`;
+      b.onclick = () => judge(n, b);
+    });
+
+    nextBtn.textContent = "次へ";
     nextBtn.disabled = true;
   }
-});
 
-restartBtn.addEventListener("click", start);
+  function judge(selected, clickedBtn) {
+    if (locked) return;
+    locked = true;
 
-// CSV読み込み
-CSVUtil.load("./questions.csv")
-  .then(data => {
-    questions = data;
-    // 読み込み確認
-    progressEl.textContent = `読み込み完了（${questions.length}問）`;
-    start();
-  })
-  .catch(err => {
-    console.error(err);
-    progressEl.textContent = "読み込み失敗（Consoleを確認）";
-    qEl.textContent = "CSVの読み込みに失敗しました。";
-    statusEl.textContent = String(err);
+    const q = order[idx];
+    const answer = q.answer;
+
+    const btns = Array.from(choicesWrap.querySelectorAll(".choice"));
+    btns.forEach(b => (b.disabled = true));
+
+    const ok = selected === answer;
+    if (ok) {
+      clickedBtn.classList.add("correct");
+      statusEl.textContent = "正解！";
+      correct++;
+      scoreEl.textContent = `Score: ${correct}`;
+    } else {
+      clickedBtn.classList.add("wrong");
+      statusEl.textContent = "不正解…";
+      // 正解を強調
+      const rightBtn = btns[answer - 1];
+      if (rightBtn) rightBtn.classList.add("correct");
+    }
+
+    nextBtn.disabled = false;
+  }
+
+  function next() {
+    if (idx < order.length - 1) {
+      idx++;
+      render();
+      return;
+    }
+    finish();
+  }
+
+  function finish() {
+    progressEl.textContent = `結果`;
+    statusEl.textContent = "終了";
+    questionEl.textContent = "";
+    sourceEl.textContent = "";
+    choicesWrap.querySelectorAll(".choice").forEach(b => {
+      b.disabled = true;
+      b.textContent = "---";
+      b.classList.remove("correct", "wrong");
+      b.onclick = null;
+    });
+
+    resultEl.textContent = `正解 ${correct} / ${order.length}`;
+    resultEl.className = "result done";
+    nextBtn.textContent = "もう一度（シャッフル）";
+    nextBtn.disabled = false;
+  }
+
+  nextBtn.addEventListener("click", () => {
+    if (order.length === 0) return;
+    // 終了画面ならstart、途中ならnext
+    if (progressEl.textContent === "結果") start();
+    else next();
   });
+
+  restartBtn.addEventListener("click", start);
+
+  // 起動
+  (async () => {
+    try {
+      setLoading(true, "読み込み中…");
+      const data = await window.CSVUtil.load("./questions.csv");
+      questions = data.map(normalizeRow).filter(q => q.question && q.answer >= 1 && q.answer <= 4);
+      setLoading(false, "");
+      start();
+    } catch (e) {
+      console.error(e);
+      setLoading(false, "読み込み失敗");
+      statusEl.textContent = "エラー";
+      resultEl.textContent = `CSV読み込みに失敗しました：${e.message}`;
+      nextBtn.disabled = true;
+      restartBtn.disabled = true;
+    }
+  })();
+})();
