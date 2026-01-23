@@ -1,3 +1,4 @@
+document.getElementById("question").textContent = "app.js 読み込みOK（修正版）";
 const TOTAL_QUESTIONS = 10;
 
 let questions = [];
