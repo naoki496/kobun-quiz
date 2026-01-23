@@ -1,26 +1,25 @@
 const TOTAL_QUESTIONS = 10;
+
 let questions = [];
 let order = [];
 let index = 0;
 let correct = 0;
 
 const qEl = document.getElementById("question");
-const sEl = document.getElementById("source");
-const cEl = document.getElementById("choices");
-const rEl = document.getElementById("result");
 const stEl = document.getElementById("status");
 const nextBtn = document.getElementById("nextBtn");
+const choiceBtns = document.querySelectorAll(".choice");
 
+// シャッフル
 function shuffle(arr) {
-  return arr.sort(() => Math.random() - 0.5);
+  return [...arr].sort(() => Math.random() - 0.5);
 }
 
 function start() {
-  order = shuffle([...questions]).slice(0, TOTAL_QUESTIONS);
+  order = shuffle(questions).slice(0, TOTAL_QUESTIONS);
   index = 0;
   correct = 0;
-  rEl.textContent = "";
-  nextBtn.style.display = "none";
+  nextBtn.disabled = true;
   show();
 }
 
@@ -28,28 +27,24 @@ function show() {
   const q = order[index];
   stEl.textContent = `第${index + 1}問 / ${TOTAL_QUESTIONS}`;
   qEl.textContent = q.question;
-  sEl.textContent = q.source;
 
-  cEl.innerHTML = "";
-  for (let i = 1; i <= 4; i++) {
-    const btn = document.createElement("button");
-    btn.className = "choice-btn";
-    btn.textContent = q[`choice${i}`];
-    btn.onclick = () => judge(btn, i, q.answer);
-    cEl.appendChild(btn);
-  }
+  choiceBtns.forEach((btn, i) => {
+    btn.disabled = false;
+    btn.className = "choice";
+    btn.textContent = q[`choice${i + 1}`];
+    btn.onclick = () => judge(i + 1, q.answer, btn);
+  });
 }
 
-function judge(btn, selected, answer) {
-  const buttons = document.querySelectorAll(".choice-btn");
-  buttons.forEach(b => (b.disabled = true));
+function judge(selected, answer, btn) {
+  choiceBtns.forEach(b => (b.disabled = true));
 
   if (selected == answer) {
     btn.classList.add("correct");
     correct++;
   } else {
     btn.classList.add("wrong");
-    buttons[answer - 1].classList.add("correct");
+    choiceBtns[answer - 1].classList.add("correct");
   }
 
   setTimeout(() => {
@@ -63,16 +58,18 @@ function judge(btn, selected, answer) {
 }
 
 function finish() {
-  qEl.textContent = "";
-  sEl.textContent = "";
-  cEl.innerHTML = "";
-  rEl.textContent = `正解 ${correct} / ${TOTAL_QUESTIONS}`;
-  nextBtn.style.display = "block";
+  qEl.textContent = `結果：${correct} / ${TOTAL_QUESTIONS}`;
+  stEl.textContent = "お疲れさまでした";
+  nextBtn.disabled = false;
 }
 
 nextBtn.onclick = start;
 
+// CSV読み込み（BOM対策込み）
 CSVUtil.load("./questions.csv").then(data => {
   questions = data;
   start();
+}).catch(err => {
+  qEl.textContent = "CSVの読み込みに失敗しました";
+  console.error(err);
 });
