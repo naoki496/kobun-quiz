@@ -1,41 +1,26 @@
-// app.js
+// app.js (global)
 
-// ====== 設定（テンポ最適化はここで一括管理） ======
 const TOTAL_QUESTIONS = 10;
 
-// テンポ：判定表示の待ち時間（短くし過ぎると“押し味”が消えるので 520〜650ms 推奨）
-const FEEDBACK_MS = 550;
-
-// 二重タップ事故防止（入力ロック：短時間だけ無視）
-const INPUT_LOCK_MS = 220;
-
-// ====== 状態 ======
 let questions = [];
 let order = [];
-let idx = 0;
+let index = 0;
 let score = 0;
-
-// コンボ（C）
-let combo = 0;
-let maxCombo = 0;
-
-// 入力ロック
 let locked = false;
 
-// ====== DOM ======
 const progressEl = document.getElementById("progress");
 const scoreEl = document.getElementById("score");
-const sourceEl = document.getElementById("source");
 const questionEl = document.getElementById("question");
 const statusEl = document.getElementById("status");
-
 const choiceBtns = Array.from(document.querySelectorAll(".choice"));
-
 const nextBtn = document.getElementById("nextBtn");
 const restartBtn = document.getElementById("restartBtn");
 
-// ====== utils ======
-function shuffle(arr){
+function disableChoices(disabled) {
+  choiceBtns.forEach(b => (b.disabled = disabled));
+}
+
+function shuffle(arr) {
   // Fisher–Yates
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -44,200 +29,141 @@ function shuffle(arr){
   return arr;
 }
 
-// 同じクラスの連続付与でもアニメを確実に発火させる
-function kickAnim(el, className){
-  el.classList.remove(className);
-  void el.offsetWidth; // reflow
-  el.classList.add(className);
+function normalizeRow(r) {
+  // answer は "1"～"4" 想定（CSVの列名は id question source choice1..4 answer）
+  const ans = Number(String(r.answer ?? "").trim());
+  if (!(ans >= 1 && ans <= 4)) {
+    throw new Error(`answer が 1〜4 ではありません: "${r.answer}" (id=${r.id ?? "?"})`);
+  }
+  return {
+    id: String(r.id ?? ""),
+    question: String(r.question ?? ""),
+    source: String(r.source ?? ""),
+    choices: [
+      String(r.choice1 ?? ""),
+      String(r.choice2 ?? ""),
+      String(r.choice3 ?? ""),
+      String(r.choice4 ?? "")
+    ],
+    answer: ans
+  };
 }
 
-function setStatus(text){
-  statusEl.textContent = text || "";
-  kickAnim(statusEl, "status-pop");
-}
+function render() {
+  const q = order[index];
 
-function setLocked(ms){
-  locked = true;
-  setTimeout(() => { locked = false; }, ms);
-}
+  progressEl.textContent = `第${index + 1}問 / ${order.length}`;
+  scoreEl.textContent = `Score: ${score}`;
 
-function disableChoices(disabled){
-  choiceBtns.forEach(b => b.disabled = disabled);
-}
+  // 表示（出典は問題文に軽く埋める。必要ならここを別表示に変えられます）
+  questionEl.textContent = q.source ? `${q.question}（${q.source}）` : q.question;
 
-function clearChoiceClasses(){
-  choiceBtns.forEach(b => {
-    b.classList.remove("correct", "wrong", "choice-hit", "choice-correct", "choice-wrong", "choice-reveal");
+  choiceBtns.forEach((btn, i) => {
+    btn.textContent = q.choices[i] || "---";
+    btn.classList.remove("correct", "wrong");
+    btn.disabled = false;
   });
-}
 
-// ====== 進行 ======
-function start(){
-  // 出題順を作成
-  order = shuffle([...questions]).slice(0, Math.min(TOTAL_QUESTIONS, questions.length));
-  idx = 0;
-  score = 0;
-  combo = 0;
-  maxCombo = 0;
-
+  statusEl.textContent = "";
   nextBtn.disabled = true;
-  progressEl.textContent = "開始します…";
-  scoreEl.textContent = `Score: ${score}`;
-
-  showQuestion();
+  locked = false;
 }
 
-function showQuestion(){
-  clearChoiceClasses();
-  disableChoices(false);
+function start() {
+  score = 0;
+  index = 0;
 
-  const q = order[idx];
-  if (!q){
-    finish();
-    return;
+  const pool = shuffle([...questions]);
+  order = pool.slice(0, Math.min(TOTAL_QUESTIONS, pool.length));
+
+  if (!order.length) {
+    throw new Error("問題が0件です（CSVの内容を確認してください）");
   }
-
-  // 表示更新
-  progressEl.textContent = `第${idx + 1}問 / ${order.length}`;
-  scoreEl.textContent = `Score: ${score}`;
-  questionEl.textContent = q.question || "";
-
-  // source は無ければ空でOK
-  sourceEl.textContent = q.source ? `出典：${q.source}` : "";
-
-  // choices
-  choiceBtns[0].textContent = q.choice1 || "---";
-  choiceBtns[1].textContent = q.choice2 || "---";
-  choiceBtns[2].textContent = q.choice3 || "---";
-  choiceBtns[3].textContent = q.choice4 || "---";
-
-  // ステータス（コンボ表示）
-  if (combo >= 2) {
-    setStatus(`COMBO × ${combo}`);
-  } else {
-    setStatus("");
-  }
+  render();
 }
 
-function judge(selectedIdx){
-  if (locked) return;
-  setLocked(INPUT_LOCK_MS);
-
-  const q = order[idx];
-  if (!q) return;
-
-  // 以後の入力を止める
-  disableChoices(true);
-
-  const answer = Number(q.answer); // 1〜4想定
-  const selected = selectedIdx + 1;
-
-  const selectedBtn = choiceBtns[selectedIdx];
-
-  // ヒット感（押した瞬間）
-  kickAnim(selectedBtn, "choice-hit");
-
-  if (selected === answer) {
-    // 正解
-    selectedBtn.classList.add("correct");
-    kickAnim(selectedBtn, "choice-correct");
-
-    score++;
-    combo++;
-    if (combo > maxCombo) maxCombo = combo;
-
-    // コンボ演出（C）
-    if (combo >= 2) setStatus(`COMBO × ${combo}`);
-    else setStatus("OK");
-
-  } else {
-    // 不正解
-    selectedBtn.classList.add("wrong");
-    kickAnim(selectedBtn, "choice-wrong");
-
-    // 正解を強調して学習導線にする
-    const ansBtn = choiceBtns[answer - 1];
-    if (ansBtn){
-      ansBtn.classList.add("correct");
-      kickAnim(ansBtn, "choice-reveal");
-    }
-
-    // コンボBREAK
-    if (combo >= 2) setStatus(`BREAK（${combo}で途切れ）`);
-    else setStatus("NG");
-    combo = 0;
-  }
-
-  // テンポ最適化：待ち時間は短めに固定
-  setTimeout(() => {
-    idx++;
-    if (idx < order.length) showQuestion();
-    else finish();
-  }, FEEDBACK_MS);
-}
-
-function finish(){
-  clearChoiceClasses();
-  disableChoices(true);
-
+function finish() {
   progressEl.textContent = "終了";
   questionEl.textContent = `結果：${score} / ${order.length}`;
-  sourceEl.textContent = "";
-  setStatus(`Max COMBO × ${maxCombo}`);
-
-  nextBtn.disabled = false; // “次へ”＝もう一周
+  statusEl.textContent = "おつかれさまでした。";
+  disableChoices(true);
+  nextBtn.disabled = true;
 }
 
-// ====== イベント ======
+function judge(selectedIdx) {
+  if (locked) return;
+  locked = true;
+  disableChoices(true);
+
+  const q = order[index];
+  const correctIdx = q.answer - 1;
+
+  if (selectedIdx === correctIdx) {
+    score++;
+    choiceBtns[selectedIdx].classList.add("correct");
+    statusEl.textContent = "正解";
+  } else {
+    choiceBtns[selectedIdx].classList.add("wrong");
+    choiceBtns[correctIdx].classList.add("correct");
+    statusEl.textContent = "不正解";
+  }
+
+  scoreEl.textContent = `Score: ${score}`;
+  nextBtn.disabled = false;
+}
+
 choiceBtns.forEach((btn) => {
-  btn.addEventListener("click", (e) => {
-    const i = Number(e.currentTarget.dataset.idx);
-    if (Number.isNaN(i)) return;
-    judge(i);
-  }, { passive: true });
+  btn.addEventListener("click", () => {
+    const idx = Number(btn.dataset.idx);
+    judge(idx);
+  });
 });
 
 nextBtn.addEventListener("click", () => {
-  start();
+  index++;
+  if (index >= order.length) {
+    finish();
+  } else {
+    render();
+  }
 });
 
 restartBtn.addEventListener("click", () => {
-  start();
+  try {
+    start();
+  } catch (e) {
+    showError(e);
+  }
 });
 
-// ====== 起動 ======
+function showError(err) {
+  console.error(err);
+  progressEl.textContent = "読み込み失敗";
+  scoreEl.textContent = "Score: 0";
+  questionEl.textContent = "CSVを読み込めませんでした。";
+  statusEl.textContent = `詳細: ${err?.message ?? err}`;
+  disableChoices(true);
+  nextBtn.disabled = true;
+}
 
-// GitHub Pagesで「/kobun-quiz/」配下にいる前提で、絶対URLを組み立てる
-// 例）https://naoki496.github.io/kobun-quiz/ + questions.csv
-const baseUrl = new URL("./", location.href).toString();
-const csvUrl = new URL("questions.csv", baseUrl).toString();
-
-progressEl.textContent = `読み込み中… (${csvUrl})`;
-
-CSVUtil.load(csvUrl)
-  .then((data) => {
-    questions = data;
-
-    if (!questions.length) {
-      progressEl.textContent = "CSVが空です";
-      questionEl.textContent = "questions.csv に問題が入っているか確認してください。";
-      disableChoices(true);
-      nextBtn.disabled = true;
-      return;
+(async function boot() {
+  try {
+    if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
+      throw new Error("CSVUtil が見つかりません（csv.js の読み込み順/内容を確認）");
     }
 
+    const baseUrl = new URL("./", location.href).toString();
+    const csvUrl = new URL("questions.csv", baseUrl).toString();
+
+    progressEl.textContent = `読み込み中… (${csvUrl})`;
+
+    const raw = await window.CSVUtil.load(csvUrl);
+
+    // 正規化（ここで変なデータがあると理由付きで落ちる）
+    questions = raw.map(normalizeRow);
+
     start();
-  })
-  .catch((err) => {
-    console.error(err);
-
-    // 画面に「原因が特定できる情報」を出す
-    progressEl.textContent = "読み込み失敗";
-    questionEl.textContent =
-      `CSVの取得に失敗しました。\n` +
-      `URL: ${csvUrl}\n` +
-      `詳細: ${err?.message ?? err}`;
-
-    disableChoices(true);
-    nextBtn.disabled = true;
-  });
+  } catch (e) {
+    showError(e);
+  }
+})();
