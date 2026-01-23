@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古文4択クイズ</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      margin: 10px 0 16px;
+      font-size: 1.2rem;
+    }
+    #quiz {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 16px;
+      border-radius: 14px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+    #meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: #444;
+      margin-bottom: 10px;
+    }
+    #question {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      margin: 10px 0 14px;
+      white-space: pre-wrap;
+    }
+    .choice {
+      display: block;
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 14px 12px;
+      font-size: 1rem;
+      border-radius: 12px;
+      border: 2px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      transition: transform 0.02s ease;
+      touch-action: manipulation;
+    }
+    .choice:active { transform: scale(0.99); }
+    .choice.correct {
+      border-color: #2e7d32;
+      background: #e8f5e9;
+    }
+    .choice.wrong {
+      border-color: #c62828;
+      background: #fdecea;
+    }
+    #status {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: #555;
+      min-height: 1.4em;
+    }
+    #controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    button.ctrl {
+      flex: 1;
+      padding: 12px;
+      border-radius: 12px;
+      border: 2px solid #ddd;
+      background: #fafafa;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button.ctrl:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>古文4択クイズ</h1>
+
+  <div id="quiz">
+    <div id="meta">
+      <div id="progress">読み込み中…</div>
+      <div id="score">Score: 0</div>
+    </div>
+
+    <div id="question">CSVを読み込んでいます。</div>
+
+    <button class="choice" data-idx="0">---</button>
+    <button class="choice" data-idx="1">---</button>
+    <button class="choice" data-idx="2">---</button>
+    <button class="choice" data-idx="3">---</button>
+
+    <div id="status"></div>
+
+    <div id="controls">
+      <button class="ctrl" id="nextBtn" disabled>次へ</button>
+      <button class="ctrl" id="restartBtn">最初から</button>
+    </div>
+  </div>
+
+  <script>
+    // ===== 設定 =====
+    const CSV_PATH = "./questions.csv"; // index.html と同階層に置く
+    const QUESTION_LIMIT = 0; // 0なら全問。10などにすると出題数制限。
+
+    // ===== 状態 =====
+    let questions = [];
+    let currentIndex = 0;
+    let score = 0;
+    let locked = false;
+
+    // ===== DOM =====
+    const elQuestion = document.getElementById("question");
+    const elStatus = document.getElementById("status");
+    const elProgress = document.getElementById("progress");
+    const elScore = document.getElementById("score");
+    const btnNext = document.getElementById("nextBtn");
+    const btnRestart = document.getElementById("restartBtn");
+    const choiceButtons = Array.from(document.querySelectorAll(".choice"));
+
+    // ===== CSVパーサ（ダブルクォート対応）=====
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let field = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        const next = text[i + 1];
+
+        if (c === '"' ) {
+          if (inQuotes && next === '"') { // "" -> "
+            field += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (c === "," && !inQuotes) {
+          row.push(field);
+          field = "";
+        } else if ((c === "\n" || c === "\r") && !inQuotes) {
+          if (c === "\r" && next === "\n") i++;
+          row.push(field);
+          field = "";
+          if (row.length > 1 || row[0] !== "") rows.push(row);
+          row = [];
+        } else {
+          field += c;
+        }
+      }
+      // last field
+      if (field.length > 0 || row.length > 0) {
+        row.push(field);
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    function normalizeHeader(h) {
+      return (h || "").trim().toLowerCase();
+    }
+
+    function buildQuestionObjects(rows) {
+      if (!rows.length) return [];
+      const header = rows[0].map(normalizeHeader);
+
+      // 期待する列名例（多少揺れても拾う）
+      const idx = {
+        id: header.indexOf("id"),
+        text: header.indexOf("text"),
+        choices: header.indexOf("choices"),
+        answer: header.indexOf("answer"),
+        source: header.indexOf("source"),
+        // 旧形式対策（もし列名が違う場合）
+        q: header.indexOf("question"),
+        a: header.indexOf("a"),
+        b: header.indexOf("b"),
+        c: header.indexOf("c"),
+        d: header.indexOf("d"),
+        correct: header.indexOf("correct"),
+      };
+
+      const out = [];
+      for (let r = 1; r < rows.length; r++) {
+        const cols = rows[r];
+
+        // 形式A: choices が "..."|"..."|"..."|"..." のように1列にまとまっている
+        const choicesRaw = idx.choices >= 0 ? (cols[idx.choices] || "") : "";
+        let choices = [];
+        if (choicesRaw) {
+          choices = choicesRaw.split("|").map(s => s.trim()).filter(Boolean);
+        }
+
+        // 形式B: a,b,c,d で4列
+        if (choices.length !== 4 && idx.a >= 0 && idx.b >= 0 && idx.c >= 0 && idx.d >= 0) {
+          choices = [cols[idx.a], cols[idx.b], cols[idx.c], cols[idx.d]].map(s => (s || "").trim());
+        }
+
+        const idVal = (idx.id >= 0 ? cols[idx.id] : "").trim() || String(r);
+        const textVal = (idx.text >= 0 ? cols[idx.text] : (idx.q >= 0 ? cols[idx.q] : "")).trim();
+
+        // answer/correct: 1-4 or 0-3 or "A"/"B"/"C"/"D"
+        const ansRaw =
+          (idx.answer >= 0 ? cols[idx.answer] : (idx.correct >= 0 ? cols[idx.correct] : "")).trim();
+
+        const sourceVal = (idx.source >= 0 ? cols[idx.source] : "").trim();
+
+        if (!textVal || choices.length !== 4 || !ansRaw) continue;
+
+        const ansIndex = (() => {
+          const s = ansRaw.trim().toUpperCase();
+          if (["A","B","C","D"].includes(s)) return ["A","B","C","D"].indexOf(s);
+          const n = Number(s);
+          if (!Number.isNaN(n)) {
+            if (n >= 1 && n <= 4) return n - 1;
+            if (n >= 0 && n <= 3) return n;
+          }
+          return -1;
+        })();
+
+        if (ansIndex < 0) continue;
+
+        out.push({
+          id: idVal,
+          text: textVal,
+          choices,
+          answerIndex: ansIndex,
+          source: sourceVal
+        });
+      }
+      return out;
+    }
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function render() {
+      if (!questions.length) {
+        elQuestion.textContent = "問題がありません（CSV形式・列名を確認してください）。";
+        elProgress.textContent = "";
+        return;
+      }
+
+      const q = questions[currentIndex];
+      elProgress.textContent = `Q ${currentIndex + 1} / ${questions.length}（ID: ${q.id}）`;
+      elScore.textContent = `Score: ${score}`;
+
+      const sourceLine = q.source ? `\n［出典］${q.source}` : "";
+      elQuestion.textContent = q.text + sourceLine;
+
+      choiceButtons.forEach((btn, i) => {
+        btn.textContent = `${i + 1}. ${q.choices[i]}`;
+        btn.classList.remove("correct", "wrong");
+        btn.disabled = false;
+      });
+
+      elStatus.textContent = "選択してください。";
+      btnNext.disabled = true;
+      locked = false;
+    }
+
+    function finish() {
+      elProgress.textContent = `終了（${questions.length}問）`;
+      elQuestion.textContent = `結果：${score} / ${questions.length}\nおつかれさまでした。`;
+      elStatus.textContent = "「最初から」で再挑戦できます。";
+      choiceButtons.forEach(btn => (btn.disabled = true));
+      btnNext.disabled = true;
+      locked = true;
+    }
+
+    function onChoose(choiceIndex) {
+      if (locked) return;
+      locked = true;
+
+      const q = questions[currentIndex];
+      const correct = q.answerIndex;
+
+      choiceButtons.forEach(btn => (btn.disabled = true));
+
+      if (choiceIndex === correct) {
+        score++;
+        choiceButtons[choiceIndex].classList.add("correct");
+        elStatus.textContent = "正解。";
+      } else {
+        choiceButtons[choiceIndex].classList.add("wrong");
+        choiceButtons[correct].classList.add("correct");
+        elStatus.textContent = `不正解。正解は ${correct + 1} です。`;
+      }
+
+      btnNext.disabled = false;
+      btnNext.focus();
+    }
+
+    function next() {
+      if (currentIndex + 1 >= questions.length) {
+        finish();
+        return;
+      }
+      currentIndex++;
+      render();
+    }
+
+    function restart() {
+      score = 0;
+      currentIndex = 0;
+      render();
+    }
+
+    // ===== イベント =====
+    choiceButtons.forEach(btn => {
+      btn.addEventListener("click", () => onChoose(Number(btn.dataset.idx)));
+    });
+    btnNext.addEventListener("click", next);
+    btnRestart.addEventListener("click", restart);
+
+    // ===== 初期ロード =====
+    (async function init() {
+      try {
+        const res = await fetch(CSV_PATH, { cache: "no-store" });
+        if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
+        const text = await res.text();
+
+        const rows = parseCSV(text);
+        questions = buildQuestionObjects(rows);
+
+        // ここを「ランダム出題」にしたいなら有効化
+        // shuffle(questions);
+
+        if (QUESTION_LIMIT > 0 && questions.length > QUESTION_LIMIT) {
+          questions = questions.slice(0, QUESTION_LIMIT);
+        }
+
+        if (!questions.length) {
+          elQuestion.textContent = "CSVは読めましたが、問題が0件でした。列名と形式を確認してください。";
+          elStatus.textContent = "（必要ならCSVの1〜3行目を貼ってください。こちらで合わせます）";
+          elProgress.textContent = "";
+          return;
+        }
+
+        render();
+      } catch (e) {
+        console.error(e);
+        elQuestion.textContent = "CSVの読み込みに失敗しました。";
+        elStatus.textContent =
+          "原因候補：①questions.csvが同階層にない ②GitHub Pagesで未公開 ③ファイル名違い（大文字小文字含む）";
+        elProgress.textContent = "";
+      }
+    })();
+  </script>
+</body>
+</html>
