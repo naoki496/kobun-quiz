@@ -1,3 +1,11 @@
+const qEl = document.getElementById("question");
+qEl.textContent = "app.js 起動";
+
+if (typeof CSVUtil === "undefined") {
+  qEl.textContent = "csv.js が読み込めていません（CSVUtil undefined）";
+  throw new Error("CSVUtil undefined");
+}
+
 const CSVUtil = {
   async load(path) {
     const res = await fetch(path);
