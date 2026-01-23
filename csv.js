@@ -1,90 +1,71 @@
-// csv.js
-// 依存なしの簡易CSVローダ + パーサ（ヘッダ行必須）
+// csv.js (global)
+// window.CSVUtil.load(url) -> Array of objects
 
-const CSVUtil = {
-  async load(path) {
-    const res = await fetch(path, { cache: "no-store" });
+(function () {
+  function stripBOM(text) {
+    return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  }
+
+  function splitCSVLine(line) {
+    // Minimal CSV parser: supports quoted fields and commas inside quotes
+    const out = [];
+    let cur = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+
+      if (ch === '"') {
+        // double quote escape
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === "," && !inQuotes) {
+        out.push(cur);
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map(s => s.trim());
+  }
+
+  function parseCSV(text) {
+    text = stripBOM(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+    const lines = text
+      .split("\n")
+      .map(l => l.trimEnd())
+      .filter(l => l.length > 0);
+
+    if (lines.length < 2) return [];
+
+    const header = splitCSVLine(lines[0]);
+    const rows = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = splitCSVLine(lines[i]);
+      const obj = {};
+      header.forEach((h, idx) => {
+        obj[h] = (cols[idx] ?? "").trim();
+      });
+      rows.push(obj);
+    }
+    return rows;
+  }
+
+  async function load(url) {
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
-      throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} (${path})`);
+      throw new Error(`HTTP ${res.status} ${res.statusText} (${url})`);
     }
     const text = await res.text();
-    return CSVUtil.parse(text);
-  },
-
-  parse(csvText) {
-    const rows = CSVUtil._parseRows(csvText);
-    if (!rows.length) return [];
-
-    const header = rows[0].map(h => (h || "").trim());
-    const data = [];
-
-    for (let i = 1; i < rows.length; i++) {
-      const r = rows[i];
-      if (!r || r.length === 0) continue;
-
-      const obj = {};
-      for (let c = 0; c < header.length; c++) {
-        const key = header[c];
-        if (!key) continue;
-        obj[key] = (r[c] ?? "").toString().trim();
-      }
-
-      // 空行・壊れ行のガード
-      if (!obj.question) continue;
-
-      // answer を数値化（"1"〜"4" を想定）
-      obj.answer = Number(obj.answer);
-
-      data.push(obj);
-    }
-    return data;
-  },
-
-  // RFC4180 “完全準拠”までは不要という前提で、授業用途に十分な堅牢さを確保
-  _parseRows(text) {
-    const s = (text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-    const out = [];
-    let row = [];
-    let cur = "";
-    let inQ = false;
-
-    for (let i = 0; i < s.length; i++) {
-      const ch = s[i];
-
-      if (inQ) {
-        if (ch === '"') {
-          const next = s[i + 1];
-          if (next === '"') { // "" -> "
-            cur += '"';
-            i++;
-          } else {
-            inQ = false;
-          }
-        } else {
-          cur += ch;
-        }
-      } else {
-        if (ch === '"') {
-          inQ = true;
-        } else if (ch === ",") {
-          row.push(cur);
-          cur = "";
-        } else if (ch === "\n") {
-          row.push(cur);
-          out.push(row);
-          row = [];
-          cur = "";
-        } else {
-          cur += ch;
-        }
-      }
-    }
-
-    // last cell
-    row.push(cur);
-    // last row（完全空行は除外）
-    if (row.some(v => (v || "").trim() !== "")) out.push(row);
-
-    return out;
+    return parseCSV(text);
   }
-};
+
+  window.CSVUtil = { load };
+})();
