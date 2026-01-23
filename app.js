@@ -1,238 +1,229 @@
-(() => {
-  const TOTAL_QUESTIONS = 10;
+// app.js
 
-  let questions = [];
-  let order = [];
-  let idx = 0;
-  let correct = 0;
-  let combo = 0;
-  let locked = false;
+// ====== 設定（テンポ最適化はここで一括管理） ======
+const TOTAL_QUESTIONS = 10;
 
-  const progressEl = document.getElementById("progress");
-  const scoreEl = document.getElementById("score");
-  const comboEl = document.getElementById("combo");
-  const statusEl = document.getElementById("status");
-  const questionEl = document.getElementById("question");
-  const sourceEl = document.getElementById("source");
-  const resultEl = document.getElementById("result");
-  const choicesWrap = document.getElementById("choices");
+// テンポ：判定表示の待ち時間（短くし過ぎると“押し味”が消えるので 520〜650ms 推奨）
+const FEEDBACK_MS = 550;
 
-  const nextBtn = document.getElementById("nextBtn");
-  const restartBtn = document.getElementById("restartBtn");
+// 二重タップ事故防止（入力ロック：短時間だけ無視）
+const INPUT_LOCK_MS = 220;
 
-  const soundToggle = document.getElementById("soundToggle");
-  const sourceToggle = document.getElementById("sourceToggle");
+// ====== 状態 ======
+let questions = [];
+let order = [];
+let idx = 0;
+let score = 0;
 
-  function setLoading(on, msg) {
-    progressEl.textContent = msg ?? (on ? "読み込み中…" : "");
-    nextBtn.disabled = on;
-    restartBtn.disabled = on;
+// コンボ（C）
+let combo = 0;
+let maxCombo = 0;
+
+// 入力ロック
+let locked = false;
+
+// ====== DOM ======
+const progressEl = document.getElementById("progress");
+const scoreEl = document.getElementById("score");
+const sourceEl = document.getElementById("source");
+const questionEl = document.getElementById("question");
+const statusEl = document.getElementById("status");
+
+const choiceBtns = Array.from(document.querySelectorAll(".choice"));
+
+const nextBtn = document.getElementById("nextBtn");
+const restartBtn = document.getElementById("restartBtn");
+
+// ====== utils ======
+function shuffle(arr){
+  // Fisher–Yates
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+  return arr;
+}
 
-  function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
+// 同じクラスの連続付与でもアニメを確実に発火させる
+function kickAnim(el, className){
+  el.classList.remove(className);
+  void el.offsetWidth; // reflow
+  el.classList.add(className);
+}
 
-  function normalizeRow(q) {
-    const a = Number(q.answer);
-    return {
-      id: q.id ?? "",
-      question: q.question ?? "",
-      source: q.source ?? "",
-      choice1: q.choice1 ?? "",
-      choice2: q.choice2 ?? "",
-      choice3: q.choice3 ?? "",
-      choice4: q.choice4 ?? "",
-      answer: Number.isFinite(a) ? a : 0,
-    };
-  }
+function setStatus(text){
+  statusEl.textContent = text || "";
+  kickAnim(statusEl, "status-pop");
+}
 
-  // WebAudio：短いSE（外部音源なし）
-  let audioCtx = null;
-  function beep(type) {
-    if (!soundToggle?.checked) return;
+function setLocked(ms){
+  locked = true;
+  setTimeout(() => { locked = false; }, ms);
+}
 
-    try {
-      audioCtx = audioCtx ?? new (window.AudioContext || window.webkitAudioContext)();
-      const ctx = audioCtx;
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
+function disableChoices(disabled){
+  choiceBtns.forEach(b => b.disabled = disabled);
+}
 
-      const now = ctx.currentTime;
-      o.type = "sine";
+function clearChoiceClasses(){
+  choiceBtns.forEach(b => {
+    b.classList.remove("correct", "wrong", "choice-hit", "choice-correct", "choice-wrong", "choice-reveal");
+  });
+}
 
-      // correct: 高め / wrong: 低め
-      const freq = type === "ok" ? 880 : 220;
-      o.frequency.setValueAtTime(freq, now);
+// ====== 進行 ======
+function start(){
+  // 出題順を作成
+  order = shuffle([...questions]).slice(0, Math.min(TOTAL_QUESTIONS, questions.length));
+  idx = 0;
+  score = 0;
+  combo = 0;
+  maxCombo = 0;
 
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.exponentialRampToValueAtTime(0.15, now + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+  nextBtn.disabled = true;
+  progressEl.textContent = "開始します…";
+  scoreEl.textContent = `Score: ${score}`;
 
-      o.connect(g);
-      g.connect(ctx.destination);
-      o.start(now);
-      o.stop(now + 0.2);
-    } catch (_) {
-      // 音が鳴らない端末は黙ってスルー（授業ではこの方が安全）
-    }
-  }
+  showQuestion();
+}
 
-  function updateHUD() {
-    scoreEl.textContent = `Score: ${correct}`;
-    comboEl.textContent = `Combo: ${combo}`;
-  }
+function showQuestion(){
+  clearChoiceClasses();
+  disableChoices(false);
 
-  function start() {
-    locked = false;
-    idx = 0;
-    correct = 0;
-    combo = 0;
-    updateHUD();
-
-    resultEl.textContent = "";
-    resultEl.className = "result";
-
-    const pool = questions.slice();
-    shuffle(pool);
-    order = pool.slice(0, Math.min(TOTAL_QUESTIONS, pool.length));
-
-    if (order.length === 0) {
-      statusEl.textContent = "問題がありません（CSV内容を確認してください）";
-      questionEl.textContent = "";
-      sourceEl.textContent = "";
-      return;
-    }
-
-    nextBtn.disabled = true;
-    restartBtn.disabled = false;
-    render();
-  }
-
-  function render() {
-    locked = false;
-    const q = order[idx];
-
-    progressEl.textContent = `第${idx + 1}問 / ${order.length}`;
-    statusEl.textContent = "1つ選んでください";
-    questionEl.textContent = q.question;
-
-    // 出典ON/OFF
-    if (sourceToggle?.checked && q.source) {
-      sourceEl.textContent = `出典：${q.source}`;
-      sourceEl.style.display = "";
-    } else {
-      sourceEl.textContent = "";
-      sourceEl.style.display = "none";
-    }
-
-    const btns = choicesWrap.querySelectorAll(".choice");
-    btns.forEach((b, i) => {
-      const n = i + 1;
-      b.disabled = false;
-      b.classList.remove("correct", "wrong");
-      b.textContent = q[`choice${n}`] || `選択肢${n}`;
-      b.onclick = () => judge(n, b);
-    });
-
-    nextBtn.textContent = "次へ";
-    nextBtn.disabled = true;
-  }
-
-  function judge(selected, clickedBtn) {
-    if (locked) return;
-    locked = true;
-
-    const q = order[idx];
-    const answer = q.answer;
-
-    const btns = Array.from(choicesWrap.querySelectorAll(".choice"));
-    btns.forEach(b => (b.disabled = true));
-
-    const ok = selected === answer;
-    if (ok) {
-      clickedBtn.classList.add("correct");
-      statusEl.textContent = "正解！";
-      correct++;
-      combo++;
-      beep("ok");
-    } else {
-      clickedBtn.classList.add("wrong");
-      statusEl.textContent = "不正解…";
-      combo = 0;
-      beep("ng");
-
-      const rightBtn = btns[answer - 1];
-      if (rightBtn) rightBtn.classList.add("correct");
-    }
-
-    updateHUD();
-    nextBtn.disabled = false;
-  }
-
-  function next() {
-    if (idx < order.length - 1) {
-      idx++;
-      render();
-      return;
-    }
+  const q = order[idx];
+  if (!q){
     finish();
+    return;
   }
 
-  function finish() {
-    progressEl.textContent = `結果`;
-    statusEl.textContent = "終了";
-    questionEl.textContent = "";
-    sourceEl.textContent = "";
-    sourceEl.style.display = "none";
+  // 表示更新
+  progressEl.textContent = `第${idx + 1}問 / ${order.length}`;
+  scoreEl.textContent = `Score: ${score}`;
+  questionEl.textContent = q.question || "";
 
-    choicesWrap.querySelectorAll(".choice").forEach(b => {
-      b.disabled = true;
-      b.textContent = "---";
-      b.classList.remove("correct", "wrong");
-      b.onclick = null;
-    });
+  // source は無ければ空でOK
+  sourceEl.textContent = q.source ? `出典：${q.source}` : "";
 
-    resultEl.textContent = `正解 ${correct} / ${order.length}`;
-    resultEl.className = "result done";
+  // choices
+  choiceBtns[0].textContent = q.choice1 || "---";
+  choiceBtns[1].textContent = q.choice2 || "---";
+  choiceBtns[2].textContent = q.choice3 || "---";
+  choiceBtns[3].textContent = q.choice4 || "---";
 
-    nextBtn.textContent = "もう一度（シャッフル）";
-    nextBtn.disabled = false;
+  // ステータス（コンボ表示）
+  if (combo >= 2) {
+    setStatus(`COMBO × ${combo}`);
+  } else {
+    setStatus("");
   }
+}
 
-  nextBtn.addEventListener("click", () => {
-    if (order.length === 0) return;
-    if (progressEl.textContent === "結果") start();
-    else next();
-  });
+function judge(selectedIdx){
+  if (locked) return;
+  setLocked(INPUT_LOCK_MS);
 
-  restartBtn.addEventListener("click", start);
+  const q = order[idx];
+  if (!q) return;
 
-  // トグル変更時：表示に反映
-  sourceToggle?.addEventListener("change", () => {
-    if (order.length > 0 && progressEl.textContent !== "結果") render();
-  });
+  // 以後の入力を止める
+  disableChoices(true);
 
-  (async () => {
-    try {
-      setLoading(true, "読み込み中…");
-      const data = await window.CSVUtil.load("./questions.csv");
-      questions = data.map(normalizeRow).filter(q => q.question && q.answer >= 1 && q.answer <= 4);
-      setLoading(false, "");
-      restartBtn.disabled = false;
-      nextBtn.disabled = false;
-      start();
-    } catch (e) {
-      console.error(e);
-      setLoading(false, "読み込み失敗");
-      statusEl.textContent = "エラー";
-      resultEl.textContent = `CSV読み込みに失敗しました：${e.message}`;
-      nextBtn.disabled = true;
-      restartBtn.disabled = true;
+  const answer = Number(q.answer); // 1〜4想定
+  const selected = selectedIdx + 1;
+
+  const selectedBtn = choiceBtns[selectedIdx];
+
+  // ヒット感（押した瞬間）
+  kickAnim(selectedBtn, "choice-hit");
+
+  if (selected === answer) {
+    // 正解
+    selectedBtn.classList.add("correct");
+    kickAnim(selectedBtn, "choice-correct");
+
+    score++;
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+
+    // コンボ演出（C）
+    if (combo >= 2) setStatus(`COMBO × ${combo}`);
+    else setStatus("OK");
+
+  } else {
+    // 不正解
+    selectedBtn.classList.add("wrong");
+    kickAnim(selectedBtn, "choice-wrong");
+
+    // 正解を強調して学習導線にする
+    const ansBtn = choiceBtns[answer - 1];
+    if (ansBtn){
+      ansBtn.classList.add("correct");
+      kickAnim(ansBtn, "choice-reveal");
     }
-  })();
-})();
+
+    // コンボBREAK
+    if (combo >= 2) setStatus(`BREAK（${combo}で途切れ）`);
+    else setStatus("NG");
+    combo = 0;
+  }
+
+  // テンポ最適化：待ち時間は短めに固定
+  setTimeout(() => {
+    idx++;
+    if (idx < order.length) showQuestion();
+    else finish();
+  }, FEEDBACK_MS);
+}
+
+function finish(){
+  clearChoiceClasses();
+  disableChoices(true);
+
+  progressEl.textContent = "終了";
+  questionEl.textContent = `結果：${score} / ${order.length}`;
+  sourceEl.textContent = "";
+  setStatus(`Max COMBO × ${maxCombo}`);
+
+  nextBtn.disabled = false; // “次へ”＝もう一周
+}
+
+// ====== イベント ======
+choiceBtns.forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    const i = Number(e.currentTarget.dataset.idx);
+    if (Number.isNaN(i)) return;
+    judge(i);
+  }, { passive: true });
+});
+
+nextBtn.addEventListener("click", () => {
+  start();
+});
+
+restartBtn.addEventListener("click", () => {
+  start();
+});
+
+// ====== 起動 ======
+CSVUtil.load("./questions.csv")
+  .then((data) => {
+    questions = data;
+
+    if (!questions.length) {
+      progressEl.textContent = "CSVが空です";
+      questionEl.textContent = "questions.csv に問題が入っているか確認してください。";
+      disableChoices(true);
+      nextBtn.disabled = true;
+      return;
+    }
+
+    start();
+  })
+  .catch((err) => {
+    console.error(err);
+    progressEl.textContent = "読み込み失敗";
+    questionEl.textContent = "questions.csv の読み込みに失敗しました（Console参照）";
+    disableChoices(true);
+    nextBtn.disabled = true;
+  });
