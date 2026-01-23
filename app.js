@@ -1,3 +1,7 @@
+if (window.__QUIZ_APP_LOADED__) {
+  throw new Error("app.js loaded twice");
+}
+window.__QUIZ_APP_LOADED__ = true;
 const TOTAL_QUESTIONS = 10;
 
 let questions = [];
