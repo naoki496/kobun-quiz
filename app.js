@@ -20,7 +20,7 @@ let combo = 0;
 let maxCombo = 0;
 
 // BGM/SE
-let bgmOn = true;         // ✅初期ON（ただし再生開始はSTART押下で）
+let bgmOn = true;         // ✅初期ON（ただし再生開始はSTART押下）
 let audioUnlocked = false;
 
 const progressEl = document.getElementById("progress");
@@ -125,7 +125,7 @@ function updateStatusUI(message) {
   statusEl.textContent = `${message}${comboText}`;
 }
 
-// 演出：正解フラッシュ
+// 演出：正解フラッシュ（.panel に当てると確実に見える）
 function flashGood() {
   if (!quizEl) return;
   quizEl.classList.remove("flash-good");
@@ -141,7 +141,7 @@ function shakeBad() {
   quizEl.classList.add("shake");
 }
 
-// 音：初回アンロック（ユーザー操作時に呼ぶ）
+// 音：初回アンロック
 async function unlockAudioOnce() {
   if (audioUnlocked) return;
   audioUnlocked = true;
@@ -277,8 +277,7 @@ function judge(selectedIdx) {
 
 choiceBtns.forEach((btn) => {
   btn.addEventListener("click", async () => {
-    // ここでもアンロック（保険）
-    await unlockAudioOnce();
+    await unlockAudioOnce(); // 保険
     const idx = Number(btn.dataset.idx);
     judge(idx);
   });
@@ -330,34 +329,29 @@ function showQuiz() {
       throw new Error("CSVUtil が見つかりません（csv.js の読み込み順/内容を確認）");
     }
 
+    // 初期表示（BGMはON表示にする）
+    syncBgmButton();
+
     const baseUrl = new URL("./", location.href).toString();
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
     progressEl.textContent = `読み込み中…`;
-    syncBgmButton(); // ✅初期ONの表示反映
-
     const raw = await window.CSVUtil.load(csvUrl);
+
     questions = raw.map(normalizeRow);
 
-    // ✅ここで自動開始はしない（START待ち）
-    // 開始画面が無い場合だけフォールバックで開始
+    // ✅開始画面が無い場合のフォールバック
     if (!startScreenEl || !startBtnEl) {
       showQuiz();
-      // BGMはユーザー操作が無いので silent でON設定のみ（再生開始はしない）
-      await setBgm(bgmOn, { silent: true });
       start();
+      // ユーザー操作無しなので再生はしない（表示だけON）
       return;
     }
 
-    // START押下：ユーザー操作として音声を確実に開始 → 画面切替 → start()
+    // ✅START押下＝ユーザー操作で音を確実に開始
     startBtnEl.addEventListener("click", async () => {
       await unlockAudioOnce();
-
-      // ✅初期ONならここで再生開始（ここならブロックされにくい）
-      if (bgmOn) {
-        await setBgm(true, { silent: true });
-      }
-
+      if (bgmOn) await setBgm(true, { silent: true });
       showQuiz();
       start();
     }, { once: true });
