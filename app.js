@@ -75,22 +75,40 @@ function ensureUIExtras() {
     meterWrapEl = document.createElement("div");
     meterWrapEl.id = "meterWrap";
     meterWrapEl.style.cssText =
-      "margin:10px 0 12px 0; padding:10px; border:1px solid rgba(255,255,255,0.18); border-radius:14px; background:rgba(0,0,0,0.25);";
+      "margin:14px 0 16px 0;" +
+      "padding:14px 16px;" +
+      "border:1px solid rgba(255,255,255,0.18);" +
+      "border-radius:18px;" +
+      "background:rgba(0,0,0,0.28);" +
+      "min-height:70px;";
 
     meterTextEl = document.createElement("div");
     meterTextEl.id = "meterText";
     meterTextEl.style.cssText =
-      "font-size:14px; opacity:0.9; margin-bottom:8px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;";
+      "font-size:15px;" +
+      "line-height:1.5;" +
+      "opacity:0.92;" +
+      "margin-bottom:10px;" +
+      "display:flex;" +
+      "justify-content:space-between;" +
+      "gap:12px;" +
+      "flex-wrap:wrap;";
 
     const barOuter = document.createElement("div");
     barOuter.style.cssText =
-      "height:12px; border-radius:999px; background:rgba(255,255,255,0.12); overflow:hidden;";
+      "height:20px;" +
+      "border-radius:999px;" +
+      "background:rgba(255,255,255,0.14);" +
+      "overflow:hidden;";
 
     meterFillEl = document.createElement("div");
     meterFillEl.id = "meterFill";
     meterFillEl.style.cssText =
-      "height:100%; width:0%; border-radius:999px; background:rgba(255,255,255,0.72); transition:width 220ms ease;";
-
+      "height:100%;" +
+      "width:0%;" +
+      "border-radius:999px;" +
+      "background:rgba(255,255,255,0.78);" +
+      "transition:width 280ms ease;";
     barOuter.appendChild(meterFillEl);
     meterWrapEl.appendChild(meterTextEl);
     meterWrapEl.appendChild(barOuter);
