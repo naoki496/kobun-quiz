@@ -1,358 +1,230 @@
 :root{
-  --bg: #0f1116;
-  --panel: #161a22;
-  --panel2: #10131a;
-  --text: #e9ecf1;
-  --muted: #b7bfcc;
-  --line: rgba(255,255,255,.12);
-
-  --ok: #35d07f;
-  --ng: #ff5b6b;
-  --accent: #6aa5ff;
-
-  --hl-bg: rgba(255, 220, 90, .18);
-  --hl-border: rgba(255, 220, 90, .45);
-
-  --radius: 16px;
+  --bg0:#07090d;
+  --bg1:#0a0f18;
+  --glass: rgba(255,255,255,0.05);
+  --line: rgba(0,255,255,0.28);
+  --glow: rgba(0,255,255,0.24);
+  --cyan: #00ffff;
+  --yellow: #ffd54a;
 }
 
-*{ box-sizing: border-box; }
-
-html, body{
-  margin: 0;
-  padding: 0;
-  background: radial-gradient(1200px 600px at 50% -20%, rgba(106,165,255,.18), transparent 60%),
-              radial-gradient(1000px 600px at 100% 0%, rgba(53,208,127,.12), transparent 55%),
-              var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
-  line-height: 1.4;
+*{ box-sizing:border-box; }
+body{
+  margin:0;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: radial-gradient(1200px 700px at 50% 0%, #0e1630 0%, var(--bg0) 50%, #000 100%);
+  color:#fff;
+  text-align:center;
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1{
-  margin: 18px 16px 10px;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: .02em;
+  margin:18px 0 10px;
+  font-size:22px;
+  letter-spacing:0.03em;
+  text-shadow: 0 0 14px rgba(0,255,255,0.35);
 }
 
-#quiz{
-  max-width: 720px;
-  margin: 0 auto;
+.panel{
+  width: 92%;
+  max-width: 560px;
+  margin: 0 auto 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(0,255,255,0.08);
   padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-inner{
+  border-radius: 16px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(0,255,255,0.18);
+  box-shadow: 0 0 22px rgba(0,255,255,0.12);
+  padding: 14px;
+  margin-top: 12px;
 }
 
 #meta{
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 12px;
-  display: grid;
-  gap: 10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  font-size:14px;
 }
 
-#progress, #score{
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--muted);
-}
-
-/* 進捗メーター */
-#meterWrap{
-  width: 100%;
-  height: 10px;
-  background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.10);
+.pill{
+  padding: 8px 14px;
   border-radius: 999px;
-  overflow: hidden;
-}
-#meterBar{
-  width: 0%;
-  height: 100%;
-  background: linear-gradient(90deg, rgba(106,165,255,.95), rgba(53,208,127,.95));
-  border-radius: 999px;
-  transition: width 180ms ease-out;
+  border: 1px solid rgba(0,255,255,0.25);
+  background: rgba(0,0,0,0.35);
+  color:#fff;
+  box-shadow: 0 0 14px rgba(0,255,255,0.14);
+  cursor:pointer;
 }
 
-#question{
-  margin-top: 12px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 14px;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: .01em;
-  line-height: 1.55;
+.pill.on{
+  border-color: rgba(0,255,255,0.55);
+  box-shadow: 0 0 18px rgba(0,255,255,0.28);
 }
 
-/* 【】ハイライト */
+.question{
+  font-size:18px;
+  line-height:1.65;
+  text-align:left;
+  word-break: break-word;
+}
+
+.subline{
+  margin-top: 8px;
+  text-align:left;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
 .hl{
-  padding: 0 .25em;
-  border-radius: 8px;
-  background: var(--hl-bg);
-  border: 1px solid var(--hl-border);
+  color: var(--yellow);
+  text-shadow:
+    0 0 10px rgba(255,213,74,0.45),
+    0 0 18px rgba(255,213,74,0.25);
+  font-weight: 700;
+}
+
+#meterArea{
+  text-align:left;
+}
+
+#meterText{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  opacity: 0.92;
+}
+
+#meterOuter{
+  width:100%;
+  height: 22px;              /* ✅縦に短すぎ問題対策 */
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  overflow:hidden;
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+#meterInner{
+  height:100%;
+  width:0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(0,255,255,0.75), rgba(0,255,255,0.35));
+  box-shadow: 0 0 18px rgba(0,255,255,0.25);
+  transition: width 220ms ease;
+}
+
+#choicesArea{
+  margin-top: 14px;
 }
 
 .choice{
-  margin-top: 10px;
   width: 100%;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-  color: var(--text);
+  margin: 10px 0;
+  padding: 16px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(0,255,255,0.16);
+  background: rgba(255,255,255,0.04);
+  color:#fff;
   font-size: 18px;
-  font-weight: 800;
-  padding: 14px 12px;
-  text-align: left;
-  cursor: pointer;
-  transition: transform 80ms ease-out, border-color 120ms ease-out, background 120ms ease-out;
+  text-align:left;
+  cursor:pointer;
+  box-shadow:
+    0 0 18px rgba(0,255,255,0.10),
+    inset 0 0 0 1px rgba(255,255,255,0.04);
+  transition: transform 80ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 
 .choice:active{
-  transform: scale(.99);
+  transform: scale(0.985);
 }
 
 .choice:disabled{
-  opacity: .85;
+  opacity: 0.85;
   cursor: default;
 }
 
-/* 正誤の色味（読みやすさ優先：過度に派手にしない） */
 .choice.correct{
-  border-color: rgba(53,208,127,.65);
-  background: linear-gradient(180deg, rgba(53,208,127,.16), rgba(255,255,255,.02));
-}
-.choice.wrong{
-  border-color: rgba(255,91,107,.65);
-  background: linear-gradient(180deg, rgba(255,91,107,.14), rgba(255,255,255,.02));
+  border-color: rgba(80,255,130,0.55);
+  box-shadow: 0 0 22px rgba(80,255,130,0.25);
+  background: rgba(80,255,130,0.10);
 }
 
-#status{
+.choice.wrong{
+  border-color: rgba(255,80,80,0.55);
+  box-shadow: 0 0 22px rgba(255,80,80,0.25);
+  background: rgba(255,80,80,0.10);
+}
+
+.status{
+  min-height: 24px;
   margin-top: 10px;
-  min-height: 28px;
-  font-weight: 900;
-  letter-spacing: .04em;
-  color: var(--muted);
+  font-size: 15px;
+  opacity: 0.95;
 }
 
 #controls{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 10px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-top: 14px;
 }
 
 .ctrl{
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--panel2);
-  color: var(--text);
+  width: 50%;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,255,255,0.16);
+  background: rgba(0,0,0,0.35);
+  color:#fff;
   font-size: 16px;
-  font-weight: 900;
-  padding: 12px;
-  cursor: pointer;
-  transition: transform 80ms ease-out, border-color 120ms ease-out;
+  cursor:pointer;
+  box-shadow: 0 0 18px rgba(0,255,255,0.10);
 }
-.ctrl:active{ transform: scale(.99); }
+
 .ctrl:disabled{
-  opacity: .5;
+  opacity: 0.4;
   cursor: default;
 }
 
 #hint{
-  margin-top: 10px;
-  color: rgba(233,236,241,.75);
+  margin: 10px 0 0;
   font-size: 12px;
+  opacity: 0.65;
+  text-align:left;
 }
 
-/* ===== Feedback Animations ===== */
-@keyframes pop {
-  0%   { transform: translateY(0) scale(1); }
-  35%  { transform: translateY(-1px) scale(1.03); }
-  100% { transform: translateY(0) scale(1); }
+/* ✅正解フラッシュ（画面全体の雰囲気がパッと光る） */
+@keyframes flashGood {
+  0%   { box-shadow: 0 0 0 rgba(0,255,255,0); }
+  20%  { box-shadow: 0 0 60px rgba(0,255,255,0.25), inset 0 0 50px rgba(0,255,255,0.10); }
+  100% { box-shadow: 0 0 0 rgba(0,255,255,0); }
+}
+.flash-good{
+  animation: flashGood 260ms ease-out;
 }
 
+/* ✅不正解揺れ */
 @keyframes shake {
-  0%   { transform: translateX(0); }
-  20%  { transform: translateX(-6px); }
-  40%  { transform: translateX(6px); }
-  60%  { transform: translateX(-4px); }
-  80%  { transform: translateX(4px); }
+  0% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
   100% { transform: translateX(0); }
 }
-
-@keyframes flashOk {
-  0%   { box-shadow: 0 0 0 0 rgba(53,208,127,.0) inset; }
-  30%  { box-shadow: 0 0 0 999px rgba(53,208,127,.07) inset; }
-  100% { box-shadow: 0 0 0 0 rgba(53,208,127,.0) inset; }
-}
-
-@keyframes flashNg {
-  0%   { box-shadow: 0 0 0 0 rgba(255,91,107,.0) inset; }
-  30%  { box-shadow: 0 0 0 999px rgba(255,91,107,.07) inset; }
-  100% { box-shadow: 0 0 0 0 rgba(255,91,107,.0) inset; }
-}
-
-/* ボタンの反応：正解/不正解で必ず動きが出る */
-.choice.correct { animation: pop 220ms ease-out; }
-.choice.wrong   { animation: shake 260ms ease-out; }
-
-/* 画面全体の薄いフラッシュ */
-#quiz.flash-ok { animation: flashOk 220ms ease-out; }
-#quiz.flash-ng { animation: flashNg 220ms ease-out; }
-
-/* 動きが苦手な人のための配慮 */
-@media (prefers-reduced-motion: reduce){
-  .choice.correct, .choice.wrong, #quiz.flash-ok, #quiz.flash-ng { animation: none !important; }
-  #meterBar { transition: none !important; }
-}
-
-/* =========================
-   GAME METER (Glow / Pulse)
-   ========================= */
-
-/* メーターパネル */
-#meterWrap {
-  margin: 14px 0 16px 0;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  min-height: 78px;
-
-  /* 外周のうっすらネオン */
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-    0 0 18px rgba(255, 255, 255, 0.10);
-}
-
-/* テキスト行 */
-#meterText {
-  font-size: 15px;
-  line-height: 1.55;
-  opacity: 0.92;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-/* バー外側 */
-#meterBarOuter {
-  height: 22px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  overflow: hidden;
-  position: relative;
-}
-
-/* バーの「光の筋」レイヤ（走るハイライト） */
-#meterBarOuter::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    110deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,0.12) 35%,
-    rgba(255,255,255,0.0) 60%
-  );
-  transform: translateX(-60%);
-  opacity: 0;
-}
-
-/* 進捗フィル */
-#meterFill {
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  transition: width 280ms ease;
-
-  /* ネオン発光（デフォルト） */
-  background: linear-gradient(90deg,
-    rgba(255,255,255,0.45),
-    rgba(255,255,255,0.90),
-    rgba(255,255,255,0.55)
-  );
-  box-shadow:
-    0 0 14px rgba(255, 255, 255, 0.35),
-    0 0 28px rgba(255, 255, 255, 0.18);
-}
-
-/* 正解状態：明るめで発光強化 */
-.meter--good #meterFill {
-  background: linear-gradient(90deg,
-    rgba(120,255,255,0.35),
-    rgba(120,255,255,0.95),
-    rgba(120,255,255,0.45)
-  );
-  box-shadow:
-    0 0 14px rgba(120,255,255,0.55),
-    0 0 34px rgba(120,255,255,0.25);
-}
-
-/* 不正解状態：赤系 */
-.meter--bad #meterFill {
-  background: linear-gradient(90deg,
-    rgba(255,90,90,0.35),
-    rgba(255,90,90,0.95),
-    rgba(255,90,90,0.45)
-  );
-  box-shadow:
-    0 0 14px rgba(255,90,90,0.55),
-    0 0 34px rgba(255,90,90,0.25);
-}
-
-/* コンボ中：パネルが脈動＆バーに走る光 */
-@keyframes neonPulse {
-  0%   { box-shadow: 0 0 18px rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.08) inset; }
-  50%  { box-shadow: 0 0 30px rgba(255,255,255,0.22), 0 0 0 1px rgba(255,255,255,0.12) inset; }
-  100% { box-shadow: 0 0 18px rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.08) inset; }
-}
-
-@keyframes sweep {
-  0%   { transform: translateX(-60%); opacity: 0; }
-  20%  { opacity: 1; }
-  100% { transform: translateX(60%); opacity: 0; }
-}
-
-.meter--combo #meterWrap {
-  animation: neonPulse 1.0s ease-in-out infinite;
-}
-
-.meter--combo #meterBarOuter::after {
-  animation: sweep 0.9s linear infinite;
-  opacity: 1;
-}
-
-/* =========================
-   Screen flash & shake
-   ========================= */
-
-#flash {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 120ms ease;
-  mix-blend-mode: screen;
-  z-index: 9999;
-}
-
-.flash--good { background: rgba(120,255,255,0.18); }
-.flash--bad  { background: rgba(255,90,90,0.18); }
-
-@keyframes shake {
-  0% { transform: translate(0, 0); }
-  20% { transform: translate(-6px, 2px); }
-  40% { transform: translate(6px, -2px); }
-  60% { transform: translate(-4px, -1px); }
-  80% { transform: translate(4px, 1px); }
-  100% { transform: translate(0, 0); }
-}
-
-.shake {
-  animation: shake 180ms linear 1;
+.shake{
+  animation: shake 260ms ease-out;
 }
