@@ -304,3 +304,10 @@ h1{
   height: 44px;
   border-radius: 14px;
 }
+
+.start-title{
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 16px rgba(0,255,255,0.35);
+}
