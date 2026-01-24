@@ -8,6 +8,10 @@ let index = 0;
 let score = 0;
 let locked = false;
 
+// Combo
+let combo = 0;
+let maxCombo = 0;
+
 const progressEl = document.getElementById("progress");
 const scoreEl = document.getElementById("score");
 const questionEl = document.getElementById("question");
@@ -49,11 +53,21 @@ function normalizeRow(r) {
   };
 }
 
+function updateScoreUI() {
+  scoreEl.textContent = `Score: ${score}`;
+}
+
+function updateStatusUI(message) {
+  // コンボ表示を統一的にここで処理
+  const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
+  statusEl.textContent = `${message}${comboText}`;
+}
+
 function render() {
   const q = order[index];
 
   progressEl.textContent = `第${index + 1}問 / ${order.length}`;
-  scoreEl.textContent = `Score: ${score}`;
+  updateScoreUI();
 
   // 表示（出典は問題文に軽く埋める。必要ならここを別表示に変えられます）
   questionEl.textContent = q.source ? `${q.question}（${q.source}）` : q.question;
@@ -73,6 +87,9 @@ function start() {
   score = 0;
   index = 0;
 
+  combo = 0;
+  maxCombo = 0;
+
   const pool = shuffle([...questions]);
   order = pool.slice(0, Math.min(TOTAL_QUESTIONS, pool.length));
 
@@ -85,7 +102,7 @@ function start() {
 function finish() {
   progressEl.textContent = "終了";
   questionEl.textContent = `結果：${score} / ${order.length}`;
-  statusEl.textContent = "おつかれさまでした。";
+  statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
   nextBtn.disabled = true;
 }
@@ -100,15 +117,20 @@ function judge(selectedIdx) {
 
   if (selectedIdx === correctIdx) {
     score++;
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+
     choiceBtns[selectedIdx].classList.add("correct");
-    statusEl.textContent = "正解";
+    updateStatusUI("正解");
   } else {
+    combo = 0;
+
     choiceBtns[selectedIdx].classList.add("wrong");
     choiceBtns[correctIdx].classList.add("correct");
-    statusEl.textContent = "不正解";
+    updateStatusUI("不正解");
   }
 
-  scoreEl.textContent = `Score: ${score}`;
+  updateScoreUI();
   nextBtn.disabled = false;
 }
 
