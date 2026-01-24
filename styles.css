@@ -1,212 +1,169 @@
-/* =========================================================
-   古文4択クイズ UI（スマホ最適化：押しやすさ・視認性重視）
-   index.htmlの構造：
-   #quiz, #meta, #progress, #score, #question, .choice, #status,
-   #controls, .ctrl
-   ========================================================= */
-
-:root{
-  --bg: #0b0f17;
-  --panel: #111827;
-  --panel2:#0f172a;
-  --text: #e5e7eb;
-  --muted:#9ca3af;
-  --border:#273244;
-
-  --accent:#60a5fa;
-  --ok:#34d399;
-  --ng:#fb7185;
-  --warn:#fbbf24;
-
-  --radius: 16px;
-  --shadow: 0 12px 28px rgba(0,0,0,.35);
+/* ===== Base ===== */
+:root {
+  --bg: #0f1115;
+  --panel: rgba(255,255,255,0.06);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.70);
+  --border: rgba(255,255,255,0.16);
+  --shadow: rgba(0,0,0,0.35);
 }
 
-*{ box-sizing: border-box; }
-html, body{
-  height: 100%;
-}
-body{
+* { box-sizing: border-box; }
+
+body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-  background: radial-gradient(1200px 800px at 50% -10%, rgba(96,165,250,.18), transparent 55%),
-              linear-gradient(180deg, #070a12, var(--bg));
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+  background: var(--bg);
   color: var(--text);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
-/* 余計なダブルタップ拡大や遅延を抑える（体感が軽くなる） */
-button{
-  touch-action: manipulation;
-}
-
-h1{
+h1 {
   margin: 16px 12px 10px;
   font-size: 20px;
   font-weight: 800;
-  letter-spacing: .02em;
-  text-align: center;
-  color: var(--text);
+  letter-spacing: 0.04em;
 }
 
-/* メイン枠 */
-#quiz{
-  width: min(720px, 92vw);
-  margin: 0 auto 18px;
+#quiz {
+  width: min(720px, calc(100vw - 24px));
+  margin: 0 12px 24px;
   padding: 14px;
-  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(8px);
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 40px var(--shadow);
+
+  position: relative; /* comboFxの基準 */
 }
 
-/* 上部メタ情報 */
-#meta{
-  display: grid;
-  grid-template-columns: 1fr auto;
+#meta {
+  display: flex;
+  justify-content: space-between;
   gap: 10px;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-#progress{
-  font-size: 13px;
+  margin-bottom: 12px;
+  font-size: 14px;
   color: var(--muted);
-  background: rgba(17,24,39,.65);
-  border: 1px solid rgba(255,255,255,.06);
-  padding: 8px 10px;
-  border-radius: 12px;
 }
 
-#score{
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(229,231,235,.95);
-  background: rgba(96,165,250,.14);
-  border: 1px solid rgba(96,165,250,.26);
-  padding: 8px 10px;
+#question {
+  padding: 12px 12px;
   border-radius: 12px;
-}
-
-/* 問題文 */
-#question{
-  margin: 10px 0 12px;
-  padding: 14px 14px;
-  background: rgba(15,23,42,.7);
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 14px;
-  line-height: 1.55;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.18);
+  margin-bottom: 12px;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
   font-size: 16px;
-  font-weight: 700;
-  letter-spacing: .01em;
-  word-break: break-word;
+  line-height: 1.45;
 }
 
-/* 4択ボタン（スマホで押しやすい高さ） */
-.choice{
+.choice {
   width: 100%;
-  margin: 10px 0;
-  padding: 14px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(17,24,39,.55);
+  text-align: left;
+  padding: 14px 12px;
+  margin: 8px 0;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.12);
   color: var(--text);
   font-size: 16px;
-  font-weight: 700;
-  letter-spacing: .01em;
-  text-align: left;
+  font-weight: 650;
   cursor: pointer;
-  user-select: none;
-
-  /* 押した感 */
-  transition: transform .06s ease, border-color .12s ease, background-color .12s ease, filter .12s ease;
 }
 
-.choice:hover{
-  border-color: rgba(96,165,250,.35);
-  background: rgba(17,24,39,.72);
-}
-
-.choice:active{
-  transform: translateY(1px) scale(.995);
-}
-
-/* 無効化時の視認性 */
-.choice:disabled{
+.choice:disabled {
+  opacity: 0.92;
   cursor: default;
-  opacity: .78;
-  filter: saturate(.9);
 }
 
-/* 正誤の色（既存JSで correct/wrong クラスを付ける前提） */
-.choice.correct{
-  border-color: rgba(52,211,153,.55);
-  background: rgba(52,211,153,.14);
-}
-.choice.wrong{
-  border-color: rgba(251,113,133,.6);
-  background: rgba(251,113,133,.14);
+.choice.correct {
+  border-color: rgba(80, 220, 140, 0.7);
+  background: rgba(80, 220, 140, 0.16);
 }
 
-/* ステータス */
-#status{
-  margin-top: 12px;
-  min-height: 24px;
+.choice.wrong {
+  border-color: rgba(255, 100, 100, 0.75);
+  background: rgba(255, 100, 100, 0.16);
+}
+
+#status {
+  margin: 10px 2px 6px;
+  min-height: 22px;
   font-size: 14px;
-  font-weight: 800;
-  color: rgba(229,231,235,.92);
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: rgba(17,24,39,.52);
-  border: 1px solid rgba(255,255,255,.06);
+  color: var(--muted);
 }
 
-/* 下部コントロール */
-#controls{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+#controls {
+  display: flex;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
-.ctrl{
+.ctrl {
+  flex: 1;
   padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(96,165,250,.16);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.16);
   color: var(--text);
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 800;
   cursor: pointer;
-  transition: transform .06s ease, background-color .12s ease, border-color .12s ease, opacity .12s ease;
 }
 
-.ctrl:hover{
-  background: rgba(96,165,250,.24);
-  border-color: rgba(96,165,250,.36);
-}
-
-.ctrl:active{
-  transform: translateY(1px) scale(.995);
-}
-
-.ctrl:disabled{
-  opacity: .55;
+.ctrl:disabled {
+  opacity: 0.55;
   cursor: default;
 }
 
-/* PC/タブレットで少し余白を増やす */
-@media (min-width: 700px){
-  h1{ font-size: 22px; margin-top: 22px; }
-  #quiz{ padding: 18px; }
-  #question{ font-size: 17px; padding: 16px; }
-  .choice{ font-size: 16.5px; padding: 15px 16px; }
+/* ===== Combo FX ===== */
+#comboFx {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%) scale(0.92);
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+
+  padding: 10px 14px;
+  border-radius: 999px;
+
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  font-size: 14px;
+  line-height: 1;
+
+  background: rgba(20, 20, 24, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-/* アニメーションは軽いものだけ（後でコンボ演出に転用しやすい） */
-@keyframes pop{
-  from{ transform: scale(.98); }
-  to{ transform: scale(1); }
+#comboFx.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
 }
+
+#comboFx.pop {
+  animation: comboPop 260ms ease-out;
+}
+
+@keyframes comboPop {
+  0%   { transform: translateX(-50%) scale(0.92); }
+  60%  { transform: translateX(-50%) scale(1.10); }
+  100% { transform: translateX(-50%) scale(1.00); }
+}
+
+#comboFx.power {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+}
+
+#comboFx.fade {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.96);
+}
+/* ===== /Combo FX ===== */
