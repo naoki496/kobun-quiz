@@ -10,56 +10,64 @@
 <body>
   <h1>古文4択クイズ</h1>
 
-  <!-- ✅開始画面：画像＋START（ここでユーザー操作を作り、BGMを確実に開始できる） -->
+  <!-- ✅開始画面 -->
   <div id="startScreen" class="start-screen">
     <div class="start-inner">
       <img id="startImage" class="start-image" src="./assets/kaishi.gif" alt="開始画面" />
       <button id="startBtn" class="start-btn" type="button">▶ START</button>
-      <div class="start-note">STARTで開始します（BGMは初期ONです）</div>
+      <div class="start-note">STARTで開始（BGMは初期ON）</div>
     </div>
   </div>
 
-  <!-- ✅クイズ本体：最初は非表示（STARTで表示） -->
-  <div id="quiz" style="display:none;">
+  <!-- ✅クイズ本体（STARTで表示） -->
+  <div id="quiz" class="panel" style="display:none;">
+
+    <!-- meta（左：進捗＆スコア / 右：BGM） -->
     <div id="meta">
-      <div id="progress">読み込み中…</div>
-      <div id="score">Score: 0</div>
+      <div id="metaLeft">
+        <div id="progress">読み込み中…</div>
+        <div id="score">Score: 0</div>
+      </div>
+
+      <!-- ✅あなたのCSSの .pill を使う -->
+      <button id="bgmToggle" class="pill" type="button">BGM: OFF</button>
     </div>
 
-    <!-- BGMトグル（横長になりすぎないようCSSで幅を制御） -->
-    <button id="bgmToggle" class="bgm-btn" type="button">BGM: OFF</button>
+    <div class="panel-inner">
 
-    <!-- 進捗メーター（ラベル＋バー＋最大コンボ表示） -->
-    <div class="meter-wrap">
-      <div class="meter-head">
-        <div id="meterLabel" class="meter-label">進捗 0/0 (0%)</div>
-        <div id="comboLabel" class="combo-label">最大COMBO x0</div>
+      <!-- ✅進捗メーター：あなたのCSSの #meterArea 一式を使う -->
+      <div id="meterArea">
+        <div id="meterText">
+          <div id="meterLabel">進捗 0/0 (0%)</div>
+          <div id="comboLabel">最大COMBO x0</div>
+        </div>
+        <div id="meterOuter">
+          <div id="meterInner"></div>
+        </div>
       </div>
-      <div class="meter-bar">
-        <div id="meterInner" class="meter-inner"></div>
-      </div>
-    </div>
 
-    <!-- ✅問題文表示はここ（上の枠）に統一 -->
-    <div class="question-box">
-      <div id="question">CSVを読み込んでいます。</div>
+      <!-- ✅問題文（上の枠に統一） -->
+      <div id="question" class="question">CSVを読み込んでいます。</div>
       <div id="subline" class="subline"></div>
+
+      <!-- ✅選択肢 -->
+      <div id="choicesArea">
+        <button class="choice" data-idx="0">---</button>
+        <button class="choice" data-idx="1">---</button>
+        <button class="choice" data-idx="2">---</button>
+        <button class="choice" data-idx="3">---</button>
+      </div>
+
+      <div id="status" class="status"></div>
+
+      <div id="controls">
+        <button class="ctrl" id="nextBtn" disabled>次へ</button>
+        <button class="ctrl" id="restartBtn">最初から</button>
+      </div>
+
+      <div id="hint">ヒント：問題文の【】内が黄色発光でハイライトされます。</div>
+
     </div>
-
-    <!-- 選択肢 -->
-    <button class="choice" data-idx="0">---</button>
-    <button class="choice" data-idx="1">---</button>
-    <button class="choice" data-idx="2">---</button>
-    <button class="choice" data-idx="3">---</button>
-
-    <div id="status"></div>
-
-    <div id="controls">
-      <button class="ctrl" id="nextBtn" disabled>次へ</button>
-      <button class="ctrl" id="restartBtn">最初から</button>
-    </div>
-
-    <div class="hint">ヒント：問題文の【】内が黄色発光でハイライトされます。</div>
   </div>
 
   <!-- csv.js → app.js の順 -->
