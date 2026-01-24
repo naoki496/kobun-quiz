@@ -1,4 +1,4 @@
-// app.js (global)
+// app.js (global)  ※Start画面 + BGM初期ON対応（全文・コピペ用）
 
 const TOTAL_QUESTIONS = 10;
 
@@ -20,9 +20,14 @@ let combo = 0;
 let maxCombo = 0;
 
 // BGM/SE
-let bgmOn = true;         // ✅初期ON（ただし再生開始はSTART押下）
+let bgmOn = false;
 let audioUnlocked = false;
 
+// Start Screen
+let started = false;        // ✅Start押下で true
+let csvLoaded = false;      // ✅CSV読み込み完了で true
+
+// ===== DOM =====
 const progressEl = document.getElementById("progress");
 const scoreEl = document.getElementById("score");
 const questionEl = document.getElementById("question");
@@ -39,11 +44,11 @@ const comboLabel = document.getElementById("comboLabel");
 const quizEl = document.getElementById("quiz");
 const bgmToggleBtn = document.getElementById("bgmToggle");
 
-// ✅開始画面
+// Start Screen DOM
 const startScreenEl = document.getElementById("startScreen");
 const startBtnEl = document.getElementById("startBtn");
 
-// Audio objects
+// ===== Audio objects =====
 const bgmAudio = new Audio(AUDIO_FILES.bgm);
 bgmAudio.loop = true;
 bgmAudio.preload = "auto";
@@ -57,6 +62,7 @@ const seWrong = new Audio(AUDIO_FILES.wrong);
 seWrong.preload = "auto";
 seWrong.volume = 0.9;
 
+// ===== Utilities =====
 function disableChoices(disabled) {
   choiceBtns.forEach(b => (b.disabled = disabled));
 }
@@ -106,6 +112,7 @@ function highlightBrackets(str) {
   return safe.replace(/【(.*?)】/g, '【<span class="hl">$1</span>】');
 }
 
+// ===== UI update =====
 function updateScoreUI() {
   scoreEl.textContent = `Score: ${score}`;
 }
@@ -115,9 +122,9 @@ function updateMeterUI() {
   const cur = Math.min(index + 1, total);
   const percent = Math.round((cur / total) * 100);
 
-  if (meterLabel) meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
-  if (comboLabel) comboLabel.textContent = `最大COMBO x${maxCombo}`;
-  if (meterInner) meterInner.style.width = `${percent}%`;
+  meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
+  comboLabel.textContent = `最大COMBO x${maxCombo}`;
+  meterInner.style.width = `${percent}%`;
 }
 
 function updateStatusUI(message) {
@@ -125,9 +132,9 @@ function updateStatusUI(message) {
   statusEl.textContent = `${message}${comboText}`;
 }
 
-// 演出：正解フラッシュ（.panel に当てると確実に見える）
+// ===== Effects =====
+// 演出：正解フラッシュ
 function flashGood() {
-  if (!quizEl) return;
   quizEl.classList.remove("flash-good");
   void quizEl.offsetWidth;
   quizEl.classList.add("flash-good");
@@ -135,13 +142,13 @@ function flashGood() {
 
 // 演出：不正解揺れ
 function shakeBad() {
-  if (!quizEl) return;
   quizEl.classList.remove("shake");
   void quizEl.offsetWidth;
   quizEl.classList.add("shake");
 }
 
-// 音：初回アンロック
+// ===== Audio =====
+// 音：初回アンロック（ユーザー操作の中で呼ぶ）
 async function unlockAudioOnce() {
   if (audioUnlocked) return;
   audioUnlocked = true;
@@ -157,15 +164,11 @@ async function unlockAudioOnce() {
   }
 }
 
-function syncBgmButton() {
-  if (!bgmToggleBtn) return;
+async function setBgm(on) {
+  bgmOn = on;
+
   bgmToggleBtn.classList.toggle("on", bgmOn);
   bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
-}
-
-async function setBgm(on, { silent = false } = {}) {
-  bgmOn = on;
-  syncBgmButton();
 
   if (!bgmOn) {
     try { bgmAudio.pause(); } catch (_) {}
@@ -177,11 +180,10 @@ async function setBgm(on, { silent = false } = {}) {
     await bgmAudio.play();
   } catch (e) {
     console.warn(e);
-    if (!silent) {
-      statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
-    }
+    statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
     bgmOn = false;
-    syncBgmButton();
+    bgmToggleBtn.classList.remove("on");
+    bgmToggleBtn.textContent = "BGM: OFF";
   }
 }
 
@@ -193,6 +195,7 @@ function playSE(which) {
   } catch (_) {}
 }
 
+// ===== Game core =====
 function render() {
   const q = order[index];
 
@@ -203,7 +206,7 @@ function render() {
   const text = q.source ? `${q.question}（${q.source}）` : q.question;
   questionEl.innerHTML = highlightBrackets(text);
 
-  if (sublineEl) sublineEl.textContent = "";
+  sublineEl.textContent = "";
 
   choiceBtns.forEach((btn, i) => {
     btn.textContent = q.choices[i] || "---";
@@ -235,7 +238,7 @@ function start() {
 function finish() {
   progressEl.textContent = "終了";
   questionEl.textContent = `結果：${score} / ${order.length}`;
-  if (sublineEl) sublineEl.textContent = "";
+  sublineEl.textContent = "";
   statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
   nextBtn.disabled = true;
@@ -271,19 +274,25 @@ function judge(selectedIdx) {
   updateScoreUI();
   updateMeterUI();
 
-  // 自動遷移OFF：必ず「次へ」で進む
+  // ✅自動遷移OFF：必ず「次へ」で進む
   nextBtn.disabled = false;
 }
 
+// ===== Events =====
 choiceBtns.forEach((btn) => {
   btn.addEventListener("click", async () => {
-    await unlockAudioOnce(); // 保険
+    // ✅Start前は操作無効（安全策）
+    if (!started) return;
+
+    await unlockAudioOnce();
     const idx = Number(btn.dataset.idx);
     judge(idx);
   });
 });
 
 nextBtn.addEventListener("click", () => {
+  if (!started) return;
+
   index++;
   if (index >= order.length) {
     finish();
@@ -293,6 +302,8 @@ nextBtn.addEventListener("click", () => {
 });
 
 restartBtn.addEventListener("click", () => {
+  if (!started) return;
+
   try {
     start();
   } catch (e) {
@@ -300,62 +311,96 @@ restartBtn.addEventListener("click", () => {
   }
 });
 
-if (bgmToggleBtn) {
-  bgmToggleBtn.addEventListener("click", async () => {
-    await unlockAudioOnce();
-    await setBgm(!bgmOn);
+bgmToggleBtn.addEventListener("click", async () => {
+  if (!started) return;
+
+  await unlockAudioOnce();
+  await setBgm(!bgmOn);
+});
+
+// ✅Startボタン：ここで音声アンロック → BGM ON → 画面を閉じる → ゲーム開始
+if (startBtnEl) {
+  startBtnEl.addEventListener("click", async () => {
+    if (!csvLoaded) return;     // CSV未読なら開始不可
+    if (started) return;
+
+    try {
+      // 1) まずユーザー操作の中で音声をアンロック
+      await unlockAudioOnce();
+
+      // 2) BGMを初期ONで再生
+      await setBgm(true);
+
+      // 3) 開始画面を消す
+      if (startScreenEl) startScreenEl.style.display = "none";
+
+      // 4) ゲーム開始
+      started = true;
+      start();
+    } catch (e) {
+      console.error(e);
+      // Start失敗時の表示（開始画面があるので status に補助）
+      statusEl.textContent = "開始に失敗しました。もう一度STARTを押してください。";
+    }
   });
 }
 
+// ===== Error =====
 function showError(err) {
   console.error(err);
   progressEl.textContent = "読み込み失敗";
   scoreEl.textContent = "Score: 0";
   questionEl.textContent = "CSVを読み込めませんでした。";
-  if (sublineEl) sublineEl.textContent = "";
+  sublineEl.textContent = "";
   statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
   nextBtn.disabled = true;
+
+  // Startも無効化
+  csvLoaded = false;
+  if (startBtnEl) {
+    startBtnEl.disabled = true;
+    startBtnEl.textContent = "START（読み込み失敗）";
+  }
 }
 
-function showQuiz() {
-  if (startScreenEl) startScreenEl.style.display = "none";
-  if (quizEl) quizEl.style.display = "block";
-}
-
+// ===== Boot =====
 (async function boot() {
   try {
+    // 初期状態：ゲーム部分は触れないようにしておく
+    disableChoices(true);
+    nextBtn.disabled = true;
+
+    // StartボタンはCSVロード完了まで無効
+    if (startBtnEl) {
+      startBtnEl.disabled = true;
+      startBtnEl.textContent = "読み込み中…";
+    }
+
     if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
       throw new Error("CSVUtil が見つかりません（csv.js の読み込み順/内容を確認）");
     }
 
-    // 初期表示（BGMはON表示にする）
-    syncBgmButton();
-
     const baseUrl = new URL("./", location.href).toString();
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
-    progressEl.textContent = `読み込み中…`;
+    progressEl.textContent = "読み込み中…";
     const raw = await window.CSVUtil.load(csvUrl);
 
     questions = raw.map(normalizeRow);
 
-    // ✅開始画面が無い場合のフォールバック
-    if (!startScreenEl || !startBtnEl) {
-      showQuiz();
-      start();
-      // ユーザー操作無しなので再生はしない（表示だけON）
-      return;
+    // ✅CSVロード完了：Startを押せるようにする
+    csvLoaded = true;
+    progressEl.textContent = "準備OK（STARTで開始）";
+    statusEl.textContent = "";
+
+    if (startBtnEl) {
+      startBtnEl.disabled = false;
+      startBtnEl.textContent = "▶ START";
     }
 
-    // ✅START押下＝ユーザー操作で音を確実に開始
-    startBtnEl.addEventListener("click", async () => {
-      await unlockAudioOnce();
-      if (bgmOn) await setBgm(true, { silent: true });
-      showQuiz();
-      start();
-    }, { once: true });
-
+    // ✅ここでは start() を呼ばない（Start画面方式なので）
+    // started = false のまま待機
   } catch (e) {
     showError(e);
   }
