@@ -1,4 +1,3 @@
-/* ===== Base ===== */
 :root {
   --bg: #0f1115;
   --panel: rgba(255,255,255,0.06);
@@ -6,15 +5,22 @@
   --muted: rgba(255,255,255,0.70);
   --border: rgba(255,255,255,0.16);
   --shadow: rgba(0,0,0,0.35);
+
+  --ok: rgba(80, 220, 140, 1);
+  --ng: rgba(255, 100, 100, 1);
 }
 
 * { box-sizing: border-box; }
+
+html, body { height: 100%; }
 
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
   background: var(--bg);
   color: var(--text);
+  /* ✅ モバイルでの“変な選択”抑制 */
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1 {
@@ -32,7 +38,10 @@ h1 {
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: 0 14px 40px var(--shadow);
-  position: relative; /* comboFxの基準 */
+  position: relative;
+  overflow: hidden;
+  /* ✅ タップ操作を快適に：ダブルタップ拡大などの事故を減らす */
+  touch-action: manipulation;
 }
 
 #meta {
@@ -63,9 +72,7 @@ h1 {
   line-height: 1;
 }
 
-.mini[aria-pressed="false"] {
-  opacity: 0.55;
-}
+.mini[aria-pressed="false"] { opacity: 0.55; }
 
 #question {
   padding: 12px 12px;
@@ -92,12 +99,14 @@ h1 {
   font-size: 16px;
   font-weight: 650;
   cursor: pointer;
+
+  transform: translateZ(0);
+  transition: transform 90ms ease, filter 120ms ease;
+  touch-action: manipulation;
 }
 
-.choice:disabled {
-  opacity: 0.92;
-  cursor: default;
-}
+.choice:active { transform: scale(0.985); }
+.choice:disabled { opacity: 0.92; cursor: default; }
 
 .choice.correct {
   border-color: rgba(80, 220, 140, 0.7);
@@ -107,6 +116,22 @@ h1 {
 .choice.wrong {
   border-color: rgba(255, 100, 100, 0.75);
   background: rgba(255, 100, 100, 0.16);
+}
+
+.choice.hit { animation: hitPop 220ms ease-out; }
+@keyframes hitPop {
+  0%   { transform: scale(1.00); }
+  55%  { transform: scale(1.02); }
+  100% { transform: scale(1.00); }
+}
+
+.choice.shake { animation: shake 240ms ease-out; }
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  55% { transform: translateX(5px); }
+  80% { transform: translateX(-3px); }
+  100% { transform: translateX(0); }
 }
 
 #status {
@@ -134,58 +159,114 @@ h1 {
   cursor: pointer;
 }
 
-.ctrl:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
+.ctrl:disabled { opacity: 0.55; cursor: default; }
 
-/* ===== Combo FX ===== */
+/* ===== Combo Badge FX ===== */
 #comboFx {
   position: absolute;
   left: 50%;
   top: 14px;
-  transform: translateX(-50%) scale(0.92);
+  transform: translateX(-50%) scale(0.94);
   opacity: 0;
   pointer-events: none;
   user-select: none;
+  z-index: 3;
 
   padding: 10px 14px;
   border-radius: 999px;
 
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  font-size: 13px;
   line-height: 1;
 
-  background: rgba(20, 20, 24, 0.85);
+  background: rgba(20, 20, 26, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 10px 25px rgba(0,0,0,0.35);
   backdrop-filter: blur(6px);
 
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition: opacity 140ms ease, transform 140ms ease, filter 140ms ease;
 }
 
 #comboFx.show {
   opacity: 1;
-  transform: translateX(-50%) scale(1);
+  transform: translateX(-50%) scale(1.00);
 }
 
-#comboFx.pop {
-  animation: comboPop 260ms ease-out;
-}
-
+#comboFx.pop { animation: comboPop 260ms ease-out; }
 @keyframes comboPop {
-  0%   { transform: translateX(-50%) scale(0.92); }
-  60%  { transform: translateX(-50%) scale(1.10); }
-  100% { transform: translateX(-50%) scale(1.00); }
+  0%   { transform: translateX(-50%) scale(0.94); filter: brightness(1.0); }
+  60%  { transform: translateX(-50%) scale(1.10); filter: brightness(1.15); }
+  100% { transform: translateX(-50%) scale(1.00); filter: brightness(1.0); }
 }
 
-#comboFx.power {
+#comboFx.max {
+  border-color: rgba(255, 255, 255, 0.28);
   box-shadow: 0 12px 30px rgba(0,0,0,0.45);
 }
 
 #comboFx.fade {
   opacity: 0;
-  transform: translateX(-50%) scale(0.96);
+  transform: translateX(-50%) scale(0.98);
 }
-/* ===== /Combo FX ===== */
+
+/* ===== Screen Flash ===== */
+#flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: transparent;
+}
+
+#flash.ok {
+  background: radial-gradient(circle at 30% 20%, rgba(80,220,140,0.18), transparent 55%);
+  animation: flash 220ms ease-out;
+}
+
+#flash.ng {
+  background: radial-gradient(circle at 30% 20%, rgba(255,100,100,0.18), transparent 55%);
+  animation: flash 220ms ease-out;
+}
+
+@keyframes flash {
+  0%   { opacity: 0; }
+  35%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ✅ テンポ最適化：回答後「どこでも次へ」 */
+#tapToNext {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: none; /* hidden by default */
+  align-items: flex-end;
+  justify-content: center;
+  padding: 14px;
+  pointer-events: none; /* show時にON */
+}
+
+#tapToNext.show {
+  display: flex;
+  pointer-events: auto;
+}
+
+.tapToNext-inner {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.45);
+  color: rgba(255,255,255,0.88);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  backdrop-filter: blur(6px);
+  animation: ttn 900ms ease-in-out infinite;
+}
+
+@keyframes ttn {
+  0%, 100% { transform: translateY(0); opacity: 0.78; }
+  50% { transform: translateY(-3px); opacity: 1; }
+}
