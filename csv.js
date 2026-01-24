@@ -5,7 +5,6 @@
   "use strict";
 
   function parseCSV(text) {
-    // RFC4180の完全実装ではないが、授業用CSV（ダブルクォート対応）として十分実用的なパーサ
     const rows = [];
     let row = [];
     let cur = "";
@@ -43,11 +42,9 @@
       }
     }
 
-    // last cell
     row.push(cur);
     rows.push(row);
 
-    // 空行の除去
     const cleaned = rows.filter(r => r.some(cell => String(cell).trim() !== ""));
     return cleaned;
   }
@@ -56,9 +53,7 @@
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`CSV fetch failed: ${res.status} ${res.statusText}`);
 
-    // UTF-8前提（文字化けが解消済みとのことなので）
     const text = await res.text();
-
     const table = parseCSV(text);
     if (!table.length) return [];
 
