@@ -29,11 +29,13 @@
 
     <div id="status"></div>
 
-    <!-- Combo演出（バッジ） -->
     <div id="comboFx" aria-hidden="true"></div>
-
-    <!-- 画面フラッシュ（正解/不正解） -->
     <div id="flash" aria-hidden="true"></div>
+
+    <!-- ✅ テンポ最適化：回答後「どこでも次へ」用オーバーレイ（自動遷移ではなく、ユーザーのタップで進む） -->
+    <div id="tapToNext" aria-hidden="true">
+      <div class="tapToNext-inner">タップで次へ</div>
+    </div>
 
     <div id="controls">
       <button class="ctrl" id="nextBtn" disabled>次へ</button>
@@ -41,7 +43,6 @@
     </div>
   </div>
 
-  <!-- csv.js → app.js の順（依存関係） -->
   <script src="./csv.js"></script>
   <script src="./app.js"></script>
 </body>
