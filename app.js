@@ -4,9 +4,9 @@ const TOTAL_QUESTIONS = 10;
 
 // ✅音声ファイル（必要に応じてファイル名を変更）
 const AUDIO_FILES = {
-  bgm: "asset/bgm.mp3",        // 例: bgm.mp3
-  correct: "asset/correct.mp3",// 例: correct.mp3
-  wrong: "asset//wrong.mp3"     // 例: wrong.mp3
+  bgm: "bgm.mp3",        // 例: bgm.mp3
+  correct: "correct.mp3",// 例: correct.mp3
+  wrong: "wrong.mp3"     // 例: wrong.mp3
 };
 
 let questions = [];
@@ -40,16 +40,16 @@ const quizEl = document.getElementById("quiz");
 const bgmToggleBtn = document.getElementById("bgmToggle");
 
 // Audio objects
-const bgmAudio = new Audio(asset/bgm.mp3);
+const bgmAudio = new Audio(bgm.mp3);
 bgmAudio.loop = true;
 bgmAudio.preload = "auto";
 bgmAudio.volume = 0.45;
 
-const seCorrect = new Audio(asset/correct.mp3);
+const seCorrect = new Audio(correct.mp3);
 seCorrect.preload = "auto";
 seCorrect.volume = 0.9;
 
-const seWrong = new Audio(asset/wrong,mp3);
+const seWrong = new Audio(wrong,mp3);
 seWrong.preload = "auto";
 seWrong.volume = 0.9;
 
