@@ -16,19 +16,16 @@
       <div id="score">Score: 0</div>
     </div>
 
-    <!-- 出典表示を追加（なければ空でOK） -->
-    <div id="source" class="source"></div>
-
     <div id="question">CSVを読み込んでいます。</div>
 
-    <!-- 4択ボタン（HTML直置き方式） -->
     <button class="choice" data-idx="0">---</button>
     <button class="choice" data-idx="1">---</button>
     <button class="choice" data-idx="2">---</button>
     <button class="choice" data-idx="3">---</button>
 
-    <!-- ステータス：コンボ/判定表示 -->
     <div id="status"></div>
+    <!-- Combo演出（バッジ） -->
+    <div id="comboFx" aria-hidden="true"></div>
 
     <div id="controls">
       <button class="ctrl" id="nextBtn" disabled>次へ</button>
