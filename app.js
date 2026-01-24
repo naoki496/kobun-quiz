@@ -2,10 +2,10 @@
 
 const TOTAL_QUESTIONS = 10;
 
-// ✅音声ファイル（root/asset/ 配下）
+// ✅音声ファイル（root/assets/ 配下）
 const AUDIO_FILES = {
   bgm: "./assets/bgm.mp3",
-  correct: "./assets/correct.mp3", // ご指定のファイル名をそのまま使用
+  correct: "./assets/correct.mp3",
   wrong: "./assets/wrong.mp3"
 };
 
@@ -20,7 +20,7 @@ let combo = 0;
 let maxCombo = 0;
 
 // BGM/SE
-let bgmOn = false;
+let bgmOn = true;         // ✅初期ON（ただし再生開始はSTART押下で）
 let audioUnlocked = false;
 
 const progressEl = document.getElementById("progress");
@@ -38,6 +38,10 @@ const comboLabel = document.getElementById("comboLabel");
 
 const quizEl = document.getElementById("quiz");
 const bgmToggleBtn = document.getElementById("bgmToggle");
+
+// ✅開始画面
+const startScreenEl = document.getElementById("startScreen");
+const startBtnEl = document.getElementById("startBtn");
 
 // Audio objects
 const bgmAudio = new Audio(AUDIO_FILES.bgm);
@@ -111,9 +115,9 @@ function updateMeterUI() {
   const cur = Math.min(index + 1, total);
   const percent = Math.round((cur / total) * 100);
 
-  meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
-  comboLabel.textContent = `最大COMBO x${maxCombo}`;
-  meterInner.style.width = `${percent}%`;
+  if (meterLabel) meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
+  if (comboLabel) comboLabel.textContent = `最大COMBO x${maxCombo}`;
+  if (meterInner) meterInner.style.width = `${percent}%`;
 }
 
 function updateStatusUI(message) {
@@ -123,6 +127,7 @@ function updateStatusUI(message) {
 
 // 演出：正解フラッシュ
 function flashGood() {
+  if (!quizEl) return;
   quizEl.classList.remove("flash-good");
   void quizEl.offsetWidth;
   quizEl.classList.add("flash-good");
@@ -130,12 +135,13 @@ function flashGood() {
 
 // 演出：不正解揺れ
 function shakeBad() {
+  if (!quizEl) return;
   quizEl.classList.remove("shake");
   void quizEl.offsetWidth;
   quizEl.classList.add("shake");
 }
 
-// 音：初回アンロック
+// 音：初回アンロック（ユーザー操作時に呼ぶ）
 async function unlockAudioOnce() {
   if (audioUnlocked) return;
   audioUnlocked = true;
@@ -151,11 +157,15 @@ async function unlockAudioOnce() {
   }
 }
 
-async function setBgm(on) {
-  bgmOn = on;
-
+function syncBgmButton() {
+  if (!bgmToggleBtn) return;
   bgmToggleBtn.classList.toggle("on", bgmOn);
   bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
+}
+
+async function setBgm(on, { silent = false } = {}) {
+  bgmOn = on;
+  syncBgmButton();
 
   if (!bgmOn) {
     try { bgmAudio.pause(); } catch (_) {}
@@ -167,10 +177,11 @@ async function setBgm(on) {
     await bgmAudio.play();
   } catch (e) {
     console.warn(e);
-    statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
+    if (!silent) {
+      statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
+    }
     bgmOn = false;
-    bgmToggleBtn.classList.remove("on");
-    bgmToggleBtn.textContent = "BGM: OFF";
+    syncBgmButton();
   }
 }
 
@@ -192,7 +203,7 @@ function render() {
   const text = q.source ? `${q.question}（${q.source}）` : q.question;
   questionEl.innerHTML = highlightBrackets(text);
 
-  sublineEl.textContent = "";
+  if (sublineEl) sublineEl.textContent = "";
 
   choiceBtns.forEach((btn, i) => {
     btn.textContent = q.choices[i] || "---";
@@ -224,7 +235,7 @@ function start() {
 function finish() {
   progressEl.textContent = "終了";
   questionEl.textContent = `結果：${score} / ${order.length}`;
-  sublineEl.textContent = "";
+  if (sublineEl) sublineEl.textContent = "";
   statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
   nextBtn.disabled = true;
@@ -266,6 +277,7 @@ function judge(selectedIdx) {
 
 choiceBtns.forEach((btn) => {
   btn.addEventListener("click", async () => {
+    // ここでもアンロック（保険）
     await unlockAudioOnce();
     const idx = Number(btn.dataset.idx);
     judge(idx);
@@ -289,20 +301,27 @@ restartBtn.addEventListener("click", () => {
   }
 });
 
-bgmToggleBtn.addEventListener("click", async () => {
-  await unlockAudioOnce();
-  await setBgm(!bgmOn);
-});
+if (bgmToggleBtn) {
+  bgmToggleBtn.addEventListener("click", async () => {
+    await unlockAudioOnce();
+    await setBgm(!bgmOn);
+  });
+}
 
 function showError(err) {
   console.error(err);
   progressEl.textContent = "読み込み失敗";
   scoreEl.textContent = "Score: 0";
   questionEl.textContent = "CSVを読み込めませんでした。";
-  sublineEl.textContent = "";
+  if (sublineEl) sublineEl.textContent = "";
   statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
   nextBtn.disabled = true;
+}
+
+function showQuiz() {
+  if (startScreenEl) startScreenEl.style.display = "none";
+  if (quizEl) quizEl.style.display = "block";
 }
 
 (async function boot() {
@@ -315,10 +334,34 @@ function showError(err) {
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
     progressEl.textContent = `読み込み中…`;
-    const raw = await window.CSVUtil.load(csvUrl);
+    syncBgmButton(); // ✅初期ONの表示反映
 
+    const raw = await window.CSVUtil.load(csvUrl);
     questions = raw.map(normalizeRow);
-    start();
+
+    // ✅ここで自動開始はしない（START待ち）
+    // 開始画面が無い場合だけフォールバックで開始
+    if (!startScreenEl || !startBtnEl) {
+      showQuiz();
+      // BGMはユーザー操作が無いので silent でON設定のみ（再生開始はしない）
+      await setBgm(bgmOn, { silent: true });
+      start();
+      return;
+    }
+
+    // START押下：ユーザー操作として音声を確実に開始 → 画面切替 → start()
+    startBtnEl.addEventListener("click", async () => {
+      await unlockAudioOnce();
+
+      // ✅初期ONならここで再生開始（ここならブロックされにくい）
+      if (bgmOn) {
+        await setBgm(true, { silent: true });
+      }
+
+      showQuiz();
+      start();
+    }, { once: true });
+
   } catch (e) {
     showError(e);
   }
