@@ -32,17 +32,39 @@ h1 {
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: 0 14px 40px var(--shadow);
-
   position: relative; /* comboFxの基準 */
 }
 
 #meta {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 10px;
   margin-bottom: 12px;
   font-size: 14px;
   color: var(--muted);
+}
+
+.meta-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mini {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.16);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.mini[aria-pressed="false"] {
+  opacity: 0.55;
 }
 
 #question {
