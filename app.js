@@ -20,92 +20,12 @@ const choiceBtns = Array.from(document.querySelectorAll(".choice"));
 const nextBtn = document.getElementById("nextBtn");
 const restartBtn = document.getElementById("restartBtn");
 
-// Combo / Flash elements
-const comboFxEl = document.getElementById("comboFx");
-const flashEl = document.getElementById("flash");
-
-// Tempo: tap-anywhere-to-next
-const tapToNextEl = document.getElementById("tapToNext");
-
-// Sound button
+// optional buttons
 const soundBtn = document.getElementById("soundBtn");
-
-/* =========================
-   Sound (SE) - low latency
-   ========================= */
-const Sound = (() => {
-  const SE_CORRECT = "./assets/correct.mp3";
-  const SE_WRONG   = "./assets/wrong.mp3";
-
-  let enabled = true;
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  const ctx = AudioCtx ? new AudioCtx() : null;
-
-  let bufCorrect = null;
-  let bufWrong = null;
-  let loaded = false;
-  let volume = 0.7;
-
-  function setEnabled(v) { enabled = !!v; }
-  function isEnabled() { return enabled; }
-  function setVolume(v) {
-    const nv = Number(v);
-    if (!Number.isFinite(nv)) return;
-    volume = Math.max(0, Math.min(1, nv));
-  }
-
-  async function unlock() {
-    if (ctx && ctx.state === "suspended") {
-      try { await ctx.resume(); } catch (_) {}
-    }
-  }
-
-  async function load() {
-    if (!ctx) { loaded = false; return; }
-    if (loaded) return;
-
-    const [a, b] = await Promise.all([
-      fetch(SE_CORRECT, { cache: "no-store" }).then(r => {
-        if (!r.ok) throw new Error(`SE fetch failed: correct (${r.status})`);
-        return r.arrayBuffer();
-      }),
-      fetch(SE_WRONG, { cache: "no-store" }).then(r => {
-        if (!r.ok) throw new Error(`SE fetch failed: wrong (${r.status})`);
-        return r.arrayBuffer();
-      })
-    ]);
-
-    bufCorrect = await ctx.decodeAudioData(a.slice(0));
-    bufWrong   = await ctx.decodeAudioData(b.slice(0));
-    loaded = true;
-  }
-
-  function playBuffer(buffer) {
-    if (!ctx || !loaded || !enabled || !buffer) return;
-
-    const src = ctx.createBufferSource();
-    src.buffer = buffer;
-
-    const gain = ctx.createGain();
-    gain.gain.value = volume;
-
-    src.connect(gain);
-    gain.connect(ctx.destination);
-
-    try { src.start(0); } catch (_) {}
-  }
-
-  function correct() { playBuffer(bufCorrect); }
-  function wrong()   { playBuffer(bufWrong); }
-
-  return { load, unlock, correct, wrong, setEnabled, isEnabled, setVolume };
-})();
-/* =========================
-   /Sound
-   ========================= */
+const bgmBtn = document.getElementById("bgmBtn");
 
 function disableChoices(disabled) {
-  for (const b of choiceBtns) b.disabled = disabled;
+  choiceBtns.forEach(b => (b.disabled = disabled));
 }
 
 function shuffle(arr) {
@@ -118,6 +38,7 @@ function shuffle(arr) {
 }
 
 function normalizeRow(r) {
+  // answer は "1"～"4" 想定（CSV: id,question,source,choice1..4,answer）
   const ans = Number(String(r.answer ?? "").trim());
   if (!(ans >= 1 && ans <= 4)) {
     throw new Error(`answer が 1〜4 ではありません: "${r.answer}" (id=${r.id ?? "?"})`);
@@ -145,71 +66,97 @@ function updateStatusUI(message) {
   statusEl.textContent = `${message}${comboText}`;
 }
 
-/* ===== Combo + Flash FX ===== */
-function flash(kind) {
-  if (!flashEl) return;
-  flashEl.classList.remove("ok", "ng");
-  void flashEl.offsetWidth;
-  flashEl.classList.add(kind);
-}
+/* =========================
+   SE (Sound Effects)
+   ========================= */
+const Sound = (() => {
+  // ファイルは必要に応じて差し替え
+  const correct = new Audio("./assets/correct.mp3");
+  const wrong = new Audio("./assets/wrong.mp3");
 
-function hideComboFx() {
-  if (!comboFxEl) return;
-  comboFxEl.classList.remove("show", "pop", "max", "fade");
-  comboFxEl.textContent = "";
-}
+  let unlocked = false;
+  let enabled = true;
 
-function showComboFx(isNewMax) {
-  if (!comboFxEl) return;
+  function setEnabled(v) { enabled = !!v; }
+  function isEnabled() { return enabled; }
 
-  if (combo >= 2) {
-    comboFxEl.textContent = `COMBO x${combo}`;
-    comboFxEl.classList.add("show");
-    comboFxEl.classList.toggle("max", !!isNewMax);
+  async function unlock() {
+    if (unlocked) return;
+    try {
+      // iOS/Safari対策：ユーザー操作で“音”を一度解錠
+      correct.muted = true;
+      await correct.play();
+      correct.pause();
+      correct.currentTime = 0;
+      correct.muted = false;
 
-    comboFxEl.classList.remove("pop");
-    void comboFxEl.offsetWidth;
-    comboFxEl.classList.add("pop");
-  } else {
-    hideComboFx();
+      wrong.muted = true;
+      await wrong.play();
+      wrong.pause();
+      wrong.currentTime = 0;
+      wrong.muted = false;
+
+      unlocked = true;
+    } catch (e) {
+      unlocked = true;
+    }
   }
-}
 
-function hitButton(btn) {
-  if (!btn) return;
-  btn.classList.remove("hit");
-  void btn.offsetWidth;
-  btn.classList.add("hit");
-}
+  async function playCorrect() {
+    if (!enabled) return;
+    try {
+      correct.currentTime = 0;
+      await correct.play();
+    } catch (e) {}
+  }
 
-function shakeButton(btn) {
-  if (!btn) return;
-  btn.classList.remove("shake");
-  void btn.offsetWidth;
-  btn.classList.add("shake");
-}
-/* ===== /Combo + Flash FX ===== */
+  async function playWrong() {
+    if (!enabled) return;
+    try {
+      wrong.currentTime = 0;
+      await wrong.play();
+    } catch (e) {}
+  }
 
-/* ===== Tempo: Tap to Next ===== */
-function setTapToNextVisible(visible) {
-  if (!tapToNextEl) return;
-  tapToNextEl.classList.toggle("show", !!visible);
-  tapToNextEl.setAttribute("aria-hidden", String(!visible));
-}
+  return { unlock, playCorrect, playWrong, setEnabled, isEnabled };
+})();
 
-function enableProceedUI() {
-  nextBtn.disabled = false;
-  setTapToNextVisible(true);
+/* =========================
+   BGM (Explicit ON only)
+   ========================= */
+const BGM = (() => {
+  const audio = new Audio("./assets/bgm.mp3");
+  audio.loop = true;
+  audio.volume = 0.25;
 
-  // ✅ 体感テンポ：次へにフォーカス（Enter/Spaceが即効く）
-  try { nextBtn.focus({ preventScroll: true }); } catch (_) {}
-}
+  let enabled = false; // ★初期OFF（明示ONの人だけ）
 
-function disableProceedUI() {
-  nextBtn.disabled = true;
-  setTapToNextVisible(false);
-}
-/* ===== /Tempo ===== */
+  async function play() {
+    enabled = true;
+    try {
+      await audio.play();
+    } catch (e) {
+      // autoplay制限：ユーザーの“ボタン操作”で呼ばれるので通常はOK
+      console.warn("BGM play blocked:", e);
+      enabled = false;
+    }
+  }
+
+  function stop() {
+    enabled = false;
+    audio.pause();
+    audio.currentTime = 0;
+  }
+
+  async function toggle() {
+    if (enabled) stop();
+    else await play();
+  }
+
+  function isEnabled() { return enabled; }
+
+  return { play, stop, toggle, isEnabled };
+})();
 
 function render() {
   const q = order[index];
@@ -219,33 +166,31 @@ function render() {
 
   questionEl.textContent = q.source ? `${q.question}（${q.source}）` : q.question;
 
-  // ✅ DOM更新の回数を抑える（ボタンの生成はしない、既存4つを使い回す）
-  for (let i = 0; i < 4; i++) {
-    const btn = choiceBtns[i];
+  choiceBtns.forEach((btn, i) => {
     btn.textContent = q.choices[i] || "---";
-    btn.classList.remove("correct", "wrong", "hit", "shake");
+    btn.classList.remove("correct", "wrong");
     btn.disabled = false;
-  }
+  });
 
   statusEl.textContent = "";
-  disableProceedUI();
+  nextBtn.disabled = true;
   locked = false;
-
-  hideComboFx();
 }
 
 function start() {
   score = 0;
   index = 0;
+
   combo = 0;
   maxCombo = 0;
 
   const pool = shuffle([...questions]);
   order = pool.slice(0, Math.min(TOTAL_QUESTIONS, pool.length));
 
-  if (!order.length) throw new Error("問題が0件です（CSVの内容を確認してください）");
+  if (!order.length) {
+    throw new Error("問題が0件です（CSVの内容を確認してください）");
+  }
 
-  hideComboFx();
   render();
 }
 
@@ -254,25 +199,16 @@ function finish() {
   questionEl.textContent = `結果：${score} / ${order.length}`;
   statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
-  disableProceedUI();
-  hideComboFx();
+  nextBtn.disabled = true;
 }
 
-/* ✅ “次へ”処理を関数化（タップ/キー/ボタンで共通利用） */
-function goNext() {
-  if (!locked) return;
-
-  index++;
-  if (index >= order.length) {
-    finish();
-  } else {
-    render();
-  }
-}
-
-function judge(selectedIdx) {
+async function judge(selectedIdx) {
   if (locked) return;
   locked = true;
+
+  // 最初のユーザー操作で音の解錠（SE/BGM共通の前提作り）
+  await Sound.unlock();
+
   disableChoices(true);
 
   const q = order[index];
@@ -281,91 +217,76 @@ function judge(selectedIdx) {
   if (selectedIdx === correctIdx) {
     score++;
     combo++;
-    const isNewMax = combo > maxCombo;
-    if (isNewMax) maxCombo = combo;
+    if (combo > maxCombo) maxCombo = combo;
 
-    const btn = choiceBtns[selectedIdx];
-    btn.classList.add("correct");
-    hitButton(btn);
-
-    updateStatusUI(isNewMax ? "正解（MAX更新）" : "正解");
-
-    Sound.correct();
-    flash("ok");
-    showComboFx(isNewMax);
+    choiceBtns[selectedIdx].classList.add("correct");
+    updateStatusUI("正解");
+    Sound.playCorrect();
   } else {
     combo = 0;
 
-    const btn = choiceBtns[selectedIdx];
-    btn.classList.add("wrong");
-    shakeButton(btn);
-
+    choiceBtns[selectedIdx].classList.add("wrong");
     choiceBtns[correctIdx].classList.add("correct");
     updateStatusUI("不正解");
-
-    Sound.wrong();
-    flash("ng");
-    hideComboFx();
+    Sound.playWrong();
   }
 
   updateScoreUI();
 
-  // ✅ 自動遷移OFF：ここでは進めない。進む手段だけ“押しやすく”開放する。
-  enableProceedUI();
+  // ★自動遷移OFF：次へボタンを押したら進む
+  nextBtn.disabled = false;
 }
 
-/* ===== Input handling (Pointer-first) ===== */
-for (const btn of choiceBtns) {
-  btn.addEventListener("pointerup", async (e) => {
-    // 余計なスクロール/ダブルタップ挙動を抑える
-    e.preventDefault();
-    await Sound.unlock();
+choiceBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
     const idx = Number(btn.dataset.idx);
     judge(idx);
-  }, { passive: false });
-}
+  });
+});
 
-// 次へボタン
-nextBtn.addEventListener("pointerup", async (e) => {
-  e.preventDefault();
-  await Sound.unlock();
-  goNext();
-}, { passive: false });
+nextBtn.addEventListener("click", () => {
+  index++;
+  if (index >= order.length) finish();
+  else render();
+});
 
-// 回答後「どこでも次へ」（overlay）
-if (tapToNextEl) {
-  tapToNextEl.addEventListener("pointerup", async (e) => {
-    e.preventDefault();
-    await Sound.unlock();
-    goNext();
-  }, { passive: false });
-}
-
-// キーボード：Space/Enterで次へ（PC検証が爆速になる）
-document.addEventListener("keydown", (e) => {
-  if (e.repeat) return;
-
-  const key = e.key;
-  if (key === "Enter" || key === " ") {
-    // 回答後のみ有効
-    if (locked && !nextBtn.disabled) {
-      e.preventDefault();
-      goNext();
-    }
+restartBtn.addEventListener("click", () => {
+  try {
+    start();
+  } catch (e) {
+    showError(e);
   }
 });
 
-// 最初から
-restartBtn.addEventListener("pointerup", async (e) => {
-  e.preventDefault();
-  await Sound.unlock();
-  try {
-    start();
-  } catch (err) {
-    showError(err);
-  }
-}, { passive: false });
-/* ===== /Input handling ===== */
+// SEボタン（ON/OFF）
+if (soundBtn) {
+  soundBtn.addEventListener("pointerup", async (e) => {
+    e.preventDefault();
+    await Sound.unlock();
+
+    const on = !Sound.isEnabled();
+    Sound.setEnabled(on);
+
+    soundBtn.setAttribute("aria-pressed", String(on));
+    soundBtn.textContent = on ? "🔊 SE" : "🔇 SE";
+  }, { passive: false });
+}
+
+// BGMボタン（明示ON/OFF）
+if (bgmBtn) {
+  bgmBtn.addEventListener("pointerup", async (e) => {
+    e.preventDefault();
+
+    // ボタン操作 = ユーザー操作なので、ここで確実に解錠
+    await Sound.unlock();
+
+    await BGM.toggle();
+
+    const on = BGM.isEnabled();
+    bgmBtn.setAttribute("aria-pressed", String(on));
+    bgmBtn.textContent = on ? "🎵 BGM" : "🎵 OFF";
+  }, { passive: false });
+}
 
 function showError(err) {
   console.error(err);
@@ -374,20 +295,7 @@ function showError(err) {
   questionEl.textContent = "CSVを読み込めませんでした。";
   statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
-  disableProceedUI();
-  hideComboFx();
-}
-
-// SE ON/OFF
-if (soundBtn) {
-  soundBtn.addEventListener("pointerup", async (e) => {
-    e.preventDefault();
-    await Sound.unlock();
-    const next = !Sound.isEnabled();
-    Sound.setEnabled(next);
-    soundBtn.setAttribute("aria-pressed", String(next));
-    soundBtn.textContent = next ? "🔊 SE" : "🔇 SE";
-  }, { passive: false });
+  nextBtn.disabled = true;
 }
 
 (async function boot() {
@@ -396,22 +304,10 @@ if (soundBtn) {
       throw new Error("CSVUtil が見つかりません（csv.js の読み込み順/内容を確認）");
     }
 
-    // SE先読み（失敗してもゲームは動かす）
-    try {
-      await Sound.load();
-    } catch (e) {
-      console.warn("SE load failed:", e);
-      if (soundBtn) {
-        soundBtn.setAttribute("aria-pressed", "false");
-        soundBtn.textContent = "🔇 SE";
-      }
-      Sound.setEnabled(false);
-    }
-
     const baseUrl = new URL("./", location.href).toString();
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
-    progressEl.textContent = `読み込み中… (${csvUrl})`;
+    progressEl.textContent = "読み込み中…";
 
     const raw = await window.CSVUtil.load(csvUrl);
     questions = raw.map(normalizeRow);
