@@ -2,11 +2,11 @@
 
 const TOTAL_QUESTIONS = 10;
 
-// ✅音声ファイル（必要に応じてファイル名を変更）
+// ✅音声ファイル（root/asset/ 配下）
 const AUDIO_FILES = {
-  bgm: "bgm.mp3",        // 例: bgm.mp3
-  correct: "correct.mp3",// 例: correct.mp3
-  wrong: "wrong.mp3"     // 例: wrong.mp3
+  bgm: "./asset/bgm.mp3",
+  correct: "./asset/orrect.mp3", // ご指定のファイル名をそのまま使用
+  wrong: "./asset/wrong.mp3"
 };
 
 let questions = [];
@@ -40,16 +40,16 @@ const quizEl = document.getElementById("quiz");
 const bgmToggleBtn = document.getElementById("bgmToggle");
 
 // Audio objects
-const bgmAudio = new Audio(bgm.mp3);
+const bgmAudio = new Audio(AUDIO_FILES.bgm);
 bgmAudio.loop = true;
 bgmAudio.preload = "auto";
 bgmAudio.volume = 0.45;
 
-const seCorrect = new Audio(correct.mp3);
+const seCorrect = new Audio(AUDIO_FILES.correct);
 seCorrect.preload = "auto";
 seCorrect.volume = 0.9;
 
-const seWrong = new Audio(wrong,mp3);
+const seWrong = new Audio(AUDIO_FILES.wrong);
 seWrong.preload = "auto";
 seWrong.volume = 0.9;
 
@@ -86,7 +86,7 @@ function normalizeRow(r) {
   };
 }
 
-// ✅HTMLエスケープ（安全のため）
+// HTMLエスケープ
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -96,9 +96,8 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-// ✅【】の中だけ黄色発光でハイライト
+// 【】の中だけ黄色発光でハイライト
 function highlightBrackets(str) {
-  // エスケープ後に【】をspanに変換
   const safe = escapeHtml(str);
   return safe.replace(/【(.*?)】/g, '【<span class="hl">$1</span>】');
 }
@@ -122,27 +121,25 @@ function updateStatusUI(message) {
   statusEl.textContent = `${message}${comboText}`;
 }
 
-// ✅演出：正解フラッシュ
+// 演出：正解フラッシュ
 function flashGood() {
   quizEl.classList.remove("flash-good");
-  // reflow
   void quizEl.offsetWidth;
   quizEl.classList.add("flash-good");
 }
 
-// ✅演出：不正解揺れ
+// 演出：不正解揺れ
 function shakeBad() {
   quizEl.classList.remove("shake");
   void quizEl.offsetWidth;
   quizEl.classList.add("shake");
 }
 
-// ✅音：ユーザー操作が発生するまで一部ブラウザで音が鳴らないため、最初にアンロック
+// 音：初回アンロック
 async function unlockAudioOnce() {
   if (audioUnlocked) return;
   audioUnlocked = true;
 
-  // 小さく再生→即停止でアンロック狙い（失敗しても無害）
   try {
     bgmAudio.muted = true;
     await bgmAudio.play();
@@ -150,7 +147,6 @@ async function unlockAudioOnce() {
     bgmAudio.currentTime = 0;
     bgmAudio.muted = false;
   } catch (_) {
-    // ブラウザによってはここで弾かれるが、以降のクリックで鳴るのでOK
     bgmAudio.muted = false;
   }
 }
@@ -166,12 +162,10 @@ async function setBgm(on) {
     return;
   }
 
-  // ONのときだけ再生（規制対策：必ずユーザー操作後に実行される想定）
   try {
     await unlockAudioOnce();
     await bgmAudio.play();
   } catch (e) {
-    // 自動再生規制等で失敗した場合、ステータスでさりげなく通知
     console.warn(e);
     statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
     bgmOn = false;
@@ -181,7 +175,6 @@ async function setBgm(on) {
 }
 
 function playSE(which) {
-  // 回答ボタンはユーザー操作なので、SEは基本通る
   try {
     const a = which === "correct" ? seCorrect : seWrong;
     a.currentTime = 0;
@@ -196,11 +189,9 @@ function render() {
   updateScoreUI();
   updateMeterUI();
 
-  // ✅上の枠に出す（下側はそもそも存在しない）
   const text = q.source ? `${q.question}（${q.source}）` : q.question;
   questionEl.innerHTML = highlightBrackets(text);
 
-  // 出典を別行に出したい場合の余地（今は空でもOK）
   sublineEl.textContent = "";
 
   choiceBtns.forEach((btn, i) => {
@@ -253,39 +244,29 @@ function judge(selectedIdx) {
     if (combo > maxCombo) maxCombo = combo;
 
     choiceBtns[selectedIdx].classList.add("correct");
-
-    // ✅演出
     flashGood();
-
-    // ✅SE
     playSE("correct");
-
     updateStatusUI("正解");
   } else {
     combo = 0;
 
     choiceBtns[selectedIdx].classList.add("wrong");
     choiceBtns[correctIdx].classList.add("correct");
-
-    // ✅演出
     shakeBad();
-
-    // ✅SE
     playSE("wrong");
-
     updateStatusUI("不正解");
   }
 
   updateScoreUI();
   updateMeterUI();
 
-  // ✅自動遷移OFF：必ず「次へ」で進む
+  // 自動遷移OFF：必ず「次へ」で進む
   nextBtn.disabled = false;
 }
 
 choiceBtns.forEach((btn) => {
   btn.addEventListener("click", async () => {
-    await unlockAudioOnce(); // 最初のクリックで音の権限を取りに行く
+    await unlockAudioOnce();
     const idx = Number(btn.dataset.idx);
     judge(idx);
   });
