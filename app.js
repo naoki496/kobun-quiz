@@ -5,7 +5,7 @@ const TOTAL_QUESTIONS = 10;
 // ✅音声ファイル（root/asset/ 配下）
 const AUDIO_FILES = {
   bgm: "./assets/bgm.mp3",
-  correct: "./assets/orrect.mp3", // ご指定のファイル名をそのまま使用
+  correct: "./assets/correct.mp3", // ご指定のファイル名をそのまま使用
   wrong: "./assets/wrong.mp3"
 };
 
