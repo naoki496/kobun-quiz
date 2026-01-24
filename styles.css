@@ -207,3 +207,152 @@ h1{
   .choice.correct, .choice.wrong, #quiz.flash-ok, #quiz.flash-ng { animation: none !important; }
   #meterBar { transition: none !important; }
 }
+
+/* =========================
+   GAME METER (Glow / Pulse)
+   ========================= */
+
+/* メーターパネル */
+#meterWrap {
+  margin: 14px 0 16px 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  min-height: 78px;
+
+  /* 外周のうっすらネオン */
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 0 18px rgba(255, 255, 255, 0.10);
+}
+
+/* テキスト行 */
+#meterText {
+  font-size: 15px;
+  line-height: 1.55;
+  opacity: 0.92;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* バー外側 */
+#meterBarOuter {
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  position: relative;
+}
+
+/* バーの「光の筋」レイヤ（走るハイライト） */
+#meterBarOuter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.12) 35%,
+    rgba(255,255,255,0.0) 60%
+  );
+  transform: translateX(-60%);
+  opacity: 0;
+}
+
+/* 進捗フィル */
+#meterFill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  transition: width 280ms ease;
+
+  /* ネオン発光（デフォルト） */
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.45),
+    rgba(255,255,255,0.90),
+    rgba(255,255,255,0.55)
+  );
+  box-shadow:
+    0 0 14px rgba(255, 255, 255, 0.35),
+    0 0 28px rgba(255, 255, 255, 0.18);
+}
+
+/* 正解状態：明るめで発光強化 */
+.meter--good #meterFill {
+  background: linear-gradient(90deg,
+    rgba(120,255,255,0.35),
+    rgba(120,255,255,0.95),
+    rgba(120,255,255,0.45)
+  );
+  box-shadow:
+    0 0 14px rgba(120,255,255,0.55),
+    0 0 34px rgba(120,255,255,0.25);
+}
+
+/* 不正解状態：赤系 */
+.meter--bad #meterFill {
+  background: linear-gradient(90deg,
+    rgba(255,90,90,0.35),
+    rgba(255,90,90,0.95),
+    rgba(255,90,90,0.45)
+  );
+  box-shadow:
+    0 0 14px rgba(255,90,90,0.55),
+    0 0 34px rgba(255,90,90,0.25);
+}
+
+/* コンボ中：パネルが脈動＆バーに走る光 */
+@keyframes neonPulse {
+  0%   { box-shadow: 0 0 18px rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.08) inset; }
+  50%  { box-shadow: 0 0 30px rgba(255,255,255,0.22), 0 0 0 1px rgba(255,255,255,0.12) inset; }
+  100% { box-shadow: 0 0 18px rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.08) inset; }
+}
+
+@keyframes sweep {
+  0%   { transform: translateX(-60%); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateX(60%); opacity: 0; }
+}
+
+.meter--combo #meterWrap {
+  animation: neonPulse 1.0s ease-in-out infinite;
+}
+
+.meter--combo #meterBarOuter::after {
+  animation: sweep 0.9s linear infinite;
+  opacity: 1;
+}
+
+/* =========================
+   Screen flash & shake
+   ========================= */
+
+#flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  mix-blend-mode: screen;
+  z-index: 9999;
+}
+
+.flash--good { background: rgba(120,255,255,0.18); }
+.flash--bad  { background: rgba(255,90,90,0.18); }
+
+@keyframes shake {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-6px, 2px); }
+  40% { transform: translate(6px, -2px); }
+  60% { transform: translate(-4px, -1px); }
+  80% { transform: translate(4px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.shake {
+  animation: shake 180ms linear 1;
+}
