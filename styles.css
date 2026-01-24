@@ -40,6 +40,24 @@ h1{
   overflow: hidden;
 }
 
+/* ✅BGMボタンが横に伸びないよう、metaを固定レイアウトに */
+#meta{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  font-size:14px;
+}
+
+#metaLeft{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:flex-start;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .panel-inner{
   border-radius: 16px;
   background: rgba(0,0,0,0.35);
@@ -49,15 +67,14 @@ h1{
   margin-top: 12px;
 }
 
-#meta{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  font-size:14px;
-}
-
+/* ✅ボタンが幅100%化しない/改行しない/伸びない */
 .pill{
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid rgba(0,255,255,0.25);
@@ -109,7 +126,7 @@ h1{
 
 #meterOuter{
   width:100%;
-  height: 22px;              /* ✅縦に短すぎ問題対策 */
+  height: 22px;
   border-radius: 999px;
   background: rgba(255,255,255,0.07);
   overflow:hidden;
@@ -205,7 +222,7 @@ h1{
   text-align:left;
 }
 
-/* ✅正解フラッシュ（画面全体の雰囲気がパッと光る） */
+/* 正解フラッシュ */
 @keyframes flashGood {
   0%   { box-shadow: 0 0 0 rgba(0,255,255,0); }
   20%  { box-shadow: 0 0 60px rgba(0,255,255,0.25), inset 0 0 50px rgba(0,255,255,0.10); }
@@ -215,7 +232,7 @@ h1{
   animation: flashGood 260ms ease-out;
 }
 
-/* ✅不正解揺れ */
+/* 不正解揺れ */
 @keyframes shake {
   0% { transform: translateX(0); }
   15% { transform: translateX(-6px); }
