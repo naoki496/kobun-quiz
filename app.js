@@ -2,6 +2,12 @@
 
 const TOTAL_QUESTIONS = 10;
 
+// ====== テンポ最適化設定（ここだけ触れば体感を調整できます） ======
+const AUTO_NEXT_ENABLED = true;      // true: 回答後に自動で次へ
+const AUTO_NEXT_DELAY_MS = 700;      // 正誤表示の余韻（500〜900推奨）
+const MIN_LOCK_MS = 250;            // 連打・誤タップ抑止の最低ロック時間
+// =========================================================
+
 let questions = [];
 let order = [];
 let index = 0;
@@ -11,6 +17,11 @@ let locked = false;
 // Combo
 let combo = 0;
 let maxCombo = 0;
+
+// timers（テンポ最適化）
+let lockTimer = null;
+let autoNextTimer = null;
+let lastJudgeAt = 0;
 
 const progressEl = document.getElementById("progress");
 const scoreEl = document.getElementById("score");
@@ -63,7 +74,27 @@ function updateStatusUI(message) {
   statusEl.textContent = `${message}${comboText}`;
 }
 
+// ====== テンポ最適化：タイマー管理 ======
+function clearTimers() {
+  if (lockTimer) {
+    clearTimeout(lockTimer);
+    lockTimer = null;
+  }
+  if (autoNextTimer) {
+    clearTimeout(autoNextTimer);
+    autoNextTimer = null;
+  }
+}
+
+function setLocked(value) {
+  locked = value;
+  disableChoices(value);
+}
+// =========================================
+
 function render() {
+  clearTimers();
+
   const q = order[index];
 
   progressEl.textContent = `第${index + 1}問 / ${order.length}`;
@@ -80,10 +111,13 @@ function render() {
 
   statusEl.textContent = "";
   nextBtn.disabled = true;
-  locked = false;
+
+  setLocked(false);
 }
 
 function start() {
+  clearTimers();
+
   score = 0;
   index = 0;
 
@@ -100,17 +134,36 @@ function start() {
 }
 
 function finish() {
+  clearTimers();
+
   progressEl.textContent = "終了";
   questionEl.textContent = `結果：${score} / ${order.length}`;
   statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
   nextBtn.disabled = true;
+  locked = true;
 }
+
+// ====== 次へ共通処理（手動/自動で同じ道を通す） ======
+function goNext() {
+  index++;
+  if (index >= order.length) {
+    finish();
+  } else {
+    render();
+  }
+}
+// =================================================
 
 function judge(selectedIdx) {
   if (locked) return;
-  locked = true;
-  disableChoices(true);
+
+  // 連打・二重発火の抑止（イベントの二重飛び対策）
+  const now = Date.now();
+  if (now - lastJudgeAt < 50) return;
+  lastJudgeAt = now;
+
+  setLocked(true);
 
   const q = order[index];
   const correctIdx = q.answer - 1;
@@ -126,12 +179,25 @@ function judge(selectedIdx) {
     combo = 0;
 
     choiceBtns[selectedIdx].classList.add("wrong");
-    choiceBtns[correctIdx].classList.add("correct");
+    if (choiceBtns[correctIdx]) choiceBtns[correctIdx].classList.add("correct");
     updateStatusUI("不正解");
   }
 
   updateScoreUI();
-  nextBtn.disabled = false;
+  nextBtn.disabled = false; // 保険として残す（自動遷移中でも押せる）
+
+  // 最低ロック時間の確保（見た目の安定・誤タップ抑止）
+  lockTimer = setTimeout(() => {
+    // 自動遷移を使わない場合のみ解除
+    if (!AUTO_NEXT_ENABLED) setLocked(false);
+  }, MIN_LOCK_MS);
+
+  // テンポ最適化：自動で次へ
+  if (AUTO_NEXT_ENABLED) {
+    autoNextTimer = setTimeout(() => {
+      goNext();
+    }, AUTO_NEXT_DELAY_MS);
+  }
 }
 
 choiceBtns.forEach((btn) => {
@@ -142,12 +208,16 @@ choiceBtns.forEach((btn) => {
 });
 
 nextBtn.addEventListener("click", () => {
-  index++;
-  if (index >= order.length) {
-    finish();
-  } else {
-    render();
+  // 自動遷移中に押されたら、先に自動タイマーを止めて即次へ
+  if (AUTO_NEXT_ENABLED && locked) {
+    clearTimers();
+    goNext();
+    return;
   }
+
+  // 従来の手動運用
+  if (nextBtn.disabled) return;
+  goNext();
 });
 
 restartBtn.addEventListener("click", () => {
@@ -166,6 +236,8 @@ function showError(err) {
   statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
   nextBtn.disabled = true;
+  locked = true;
+  clearTimers();
 }
 
 (async function boot() {
