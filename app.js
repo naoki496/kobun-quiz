@@ -1,6 +1,13 @@
-// app.js (global) - GAME UI meter / glow / flash / shake
+// app.js (global)
 
 const TOTAL_QUESTIONS = 10;
+
+// ✅音声ファイル（必要に応じてファイル名を変更）
+const AUDIO_FILES = {
+  bgm: "./bgm.mp3",        // 例: bgm.mp3
+  correct: "./correct.mp3",// 例: correct.mp3
+  wrong: "./wrong.mp3"     // 例: wrong.mp3
+};
 
 let questions = [];
 let order = [];
@@ -12,102 +19,39 @@ let locked = false;
 let combo = 0;
 let maxCombo = 0;
 
-// UI refs
+// BGM/SE
+let bgmOn = false;
+let audioUnlocked = false;
+
 const progressEl = document.getElementById("progress");
 const scoreEl = document.getElementById("score");
 const questionEl = document.getElementById("question");
+const sublineEl = document.getElementById("subline");
 const statusEl = document.getElementById("status");
 const choiceBtns = Array.from(document.querySelectorAll(".choice"));
 const nextBtn = document.getElementById("nextBtn");
 const restartBtn = document.getElementById("restartBtn");
 
-// Flash overlay
-const flashEl = document.getElementById("flash");
+const meterInner = document.getElementById("meterInner");
+const meterLabel = document.getElementById("meterLabel");
+const comboLabel = document.getElementById("comboLabel");
 
-// ====== Meter DOM (created in JS, styled by CSS) ======
-let meterWrapEl, meterTextEl, meterBarOuterEl, meterFillEl;
+const quizEl = document.getElementById("quiz");
+const bgmToggleBtn = document.getElementById("bgmToggle");
 
-// 状態クラスを付与する先（quiz全体 or bodyでもOK）
-const rootEl = document.getElementById("quiz") || document.body;
+// Audio objects
+const bgmAudio = new Audio(asset/bgm.mp3);
+bgmAudio.loop = true;
+bgmAudio.preload = "auto";
+bgmAudio.volume = 0.45;
 
-function ensureMeter() {
-  if (meterWrapEl) return;
+const seCorrect = new Audio(asset/correct.mp3);
+seCorrect.preload = "auto";
+seCorrect.volume = 0.9;
 
-  meterWrapEl = document.createElement("div");
-  meterWrapEl.id = "meterWrap";
-
-  meterTextEl = document.createElement("div");
-  meterTextEl.id = "meterText";
-
-  meterBarOuterEl = document.createElement("div");
-  meterBarOuterEl.id = "meterBarOuter";
-
-  meterFillEl = document.createElement("div");
-  meterFillEl.id = "meterFill";
-
-  meterBarOuterEl.appendChild(meterFillEl);
-  meterWrapEl.appendChild(meterTextEl);
-  meterWrapEl.appendChild(meterBarOuterEl);
-
-  // 既存UIの中で、progress/scoreの下に挿入
-  const meta = document.getElementById("meta");
-  if (meta && meta.parentNode) {
-    meta.parentNode.insertBefore(meterWrapEl, meta.nextSibling);
-  } else {
-    // フォールバック
-    document.body.insertBefore(meterWrapEl, document.body.firstChild);
-  }
-
-  // 初期表示
-  meterTextEl.textContent = "";
-  meterFillEl.style.width = "0%";
-}
-
-function setMeterState(state) {
-  // state: "good" | "bad" | "neutral"
-  rootEl.classList.remove("meter--good", "meter--bad");
-  if (state === "good") rootEl.classList.add("meter--good");
-  if (state === "bad") rootEl.classList.add("meter--bad");
-}
-
-function setComboState(isCombo) {
-  rootEl.classList.toggle("meter--combo", !!isCombo);
-}
-
-function updateMeterUI() {
-  ensureMeter();
-
-  const total = order.length || TOTAL_QUESTIONS;
-  const done = Math.min(index, total); // 現在の index は「表示中の問題番号 - 1」なので、進捗は index を基準
-  const pct = total ? Math.round((done / total) * 100) : 0;
-
-  meterTextEl.textContent =
-    `進捗 ${done}/${total}（${pct}%） / 最大COMBO x${maxCombo}`;
-
-  meterFillEl.style.width = `${pct}%`;
-
-  // コンボ2以上で発光・脈動
-  setComboState(combo >= 2);
-}
-
-function flash(type) {
-  if (!flashEl) return;
-  flashEl.className = ""; // reset
-  flashEl.classList.add(type === "good" ? "flash--good" : "flash--bad");
-  flashEl.style.opacity = "1";
-
-  // すぐ消える（短く強い方が「ゲーム感」）
-  setTimeout(() => {
-    flashEl.style.opacity = "0";
-  }, 120);
-}
-
-function shakeRoot() {
-  rootEl.classList.remove("shake");
-  // reflow to restart animation
-  void rootEl.offsetWidth;
-  rootEl.classList.add("shake");
-}
+const seWrong = new Audio(asset/wrong,mp3);
+seWrong.preload = "auto";
+seWrong.volume = 0.9;
 
 function disableChoices(disabled) {
   choiceBtns.forEach(b => (b.disabled = disabled));
@@ -123,6 +67,7 @@ function shuffle(arr) {
 }
 
 function normalizeRow(r) {
+  // answer は "1"～"4" 想定（CSV: id question source choice1..4 answer）
   const ans = Number(String(r.answer ?? "").trim());
   if (!(ans >= 1 && ans <= 4)) {
     throw new Error(`answer が 1〜4 ではありません: "${r.answer}" (id=${r.id ?? "?"})`);
@@ -141,8 +86,35 @@ function normalizeRow(r) {
   };
 }
 
+// ✅HTMLエスケープ（安全のため）
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ✅【】の中だけ黄色発光でハイライト
+function highlightBrackets(str) {
+  // エスケープ後に【】をspanに変換
+  const safe = escapeHtml(str);
+  return safe.replace(/【(.*?)】/g, '【<span class="hl">$1</span>】');
+}
+
 function updateScoreUI() {
   scoreEl.textContent = `Score: ${score}`;
+}
+
+function updateMeterUI() {
+  const total = order.length || 1;
+  const cur = Math.min(index + 1, total);
+  const percent = Math.round((cur / total) * 100);
+
+  meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
+  comboLabel.textContent = `最大COMBO x${maxCombo}`;
+  meterInner.style.width = `${percent}%`;
 }
 
 function updateStatusUI(message) {
@@ -150,14 +122,86 @@ function updateStatusUI(message) {
   statusEl.textContent = `${message}${comboText}`;
 }
 
+// ✅演出：正解フラッシュ
+function flashGood() {
+  quizEl.classList.remove("flash-good");
+  // reflow
+  void quizEl.offsetWidth;
+  quizEl.classList.add("flash-good");
+}
+
+// ✅演出：不正解揺れ
+function shakeBad() {
+  quizEl.classList.remove("shake");
+  void quizEl.offsetWidth;
+  quizEl.classList.add("shake");
+}
+
+// ✅音：ユーザー操作が発生するまで一部ブラウザで音が鳴らないため、最初にアンロック
+async function unlockAudioOnce() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+
+  // 小さく再生→即停止でアンロック狙い（失敗しても無害）
+  try {
+    bgmAudio.muted = true;
+    await bgmAudio.play();
+    bgmAudio.pause();
+    bgmAudio.currentTime = 0;
+    bgmAudio.muted = false;
+  } catch (_) {
+    // ブラウザによってはここで弾かれるが、以降のクリックで鳴るのでOK
+    bgmAudio.muted = false;
+  }
+}
+
+async function setBgm(on) {
+  bgmOn = on;
+
+  bgmToggleBtn.classList.toggle("on", bgmOn);
+  bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
+
+  if (!bgmOn) {
+    try { bgmAudio.pause(); } catch (_) {}
+    return;
+  }
+
+  // ONのときだけ再生（規制対策：必ずユーザー操作後に実行される想定）
+  try {
+    await unlockAudioOnce();
+    await bgmAudio.play();
+  } catch (e) {
+    // 自動再生規制等で失敗した場合、ステータスでさりげなく通知
+    console.warn(e);
+    statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
+    bgmOn = false;
+    bgmToggleBtn.classList.remove("on");
+    bgmToggleBtn.textContent = "BGM: OFF";
+  }
+}
+
+function playSE(which) {
+  // 回答ボタンはユーザー操作なので、SEは基本通る
+  try {
+    const a = which === "correct" ? seCorrect : seWrong;
+    a.currentTime = 0;
+    a.play();
+  } catch (_) {}
+}
+
 function render() {
   const q = order[index];
 
   progressEl.textContent = `第${index + 1}問 / ${order.length}`;
   updateScoreUI();
+  updateMeterUI();
 
-  // 出典は軽く埋め込み
-  questionEl.textContent = q.source ? `${q.question}（${q.source}）` : q.question;
+  // ✅上の枠に出す（下側はそもそも存在しない）
+  const text = q.source ? `${q.question}（${q.source}）` : q.question;
+  questionEl.innerHTML = highlightBrackets(text);
+
+  // 出典を別行に出したい場合の余地（今は空でもOK）
+  sublineEl.textContent = "";
 
   choiceBtns.forEach((btn, i) => {
     btn.textContent = q.choices[i] || "---";
@@ -168,10 +212,6 @@ function render() {
   statusEl.textContent = "";
   nextBtn.disabled = true;
   locked = false;
-
-  // メーター更新：この時点の進捗（表示中は未回答なので index をそのまま）
-  setMeterState("neutral");
-  updateMeterUI();
 }
 
 function start() {
@@ -187,25 +227,16 @@ function start() {
   if (!order.length) {
     throw new Error("問題が0件です（CSVの内容を確認してください）");
   }
-
-  ensureMeter();
-  setMeterState("neutral");
-  setComboState(false);
-  updateMeterUI();
   render();
 }
 
 function finish() {
   progressEl.textContent = "終了";
   questionEl.textContent = `結果：${score} / ${order.length}`;
+  sublineEl.textContent = "";
   statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
   nextBtn.disabled = true;
-
-  // 100%にして締め
-  index = order.length;
-  setMeterState("neutral");
-  updateMeterUI();
 }
 
 function judge(selectedIdx) {
@@ -222,44 +253,39 @@ function judge(selectedIdx) {
     if (combo > maxCombo) maxCombo = combo;
 
     choiceBtns[selectedIdx].classList.add("correct");
-    updateStatusUI("正解");
 
-    // 演出（正解）
-    setMeterState("good");
-    flash("good");
+    // ✅演出
+    flashGood();
+
+    // ✅SE
+    playSE("correct");
+
+    updateStatusUI("正解");
   } else {
     combo = 0;
 
     choiceBtns[selectedIdx].classList.add("wrong");
     choiceBtns[correctIdx].classList.add("correct");
-    updateStatusUI("不正解");
 
-    // 演出（不正解）
-    setMeterState("bad");
-    flash("bad");
-    shakeRoot();
+    // ✅演出
+    shakeBad();
+
+    // ✅SE
+    playSE("wrong");
+
+    updateStatusUI("不正解");
   }
 
   updateScoreUI();
+  updateMeterUI();
 
-  // ※自動遷移はOFF：次へボタンで進む
+  // ✅自動遷移OFF：必ず「次へ」で進む
   nextBtn.disabled = false;
-
-  // 進捗は「解答した」時点で +1 進めたいので、メーター更新だけ先に反映
-  // 表示上の done を index+1 相当へ寄せるため、一時的に index を使わず計算するなら別関数でもOK
-  // ここでは「回答済み」を反映したいので、meterTextの done を index+1 で表示する
-  const total = order.length || TOTAL_QUESTIONS;
-  const done = Math.min(index + 1, total);
-  const pct = total ? Math.round((done / total) * 100) : 0;
-  meterTextEl.textContent = `進捗 ${done}/${total}（${pct}%） / 最大COMBO x${maxCombo}`;
-  meterFillEl.style.width = `${pct}%`;
-
-  // コンボ状態更新
-  setComboState(combo >= 2);
 }
 
 choiceBtns.forEach((btn) => {
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
+    await unlockAudioOnce(); // 最初のクリックで音の権限を取りに行く
     const idx = Number(btn.dataset.idx);
     judge(idx);
   });
@@ -282,11 +308,17 @@ restartBtn.addEventListener("click", () => {
   }
 });
 
+bgmToggleBtn.addEventListener("click", async () => {
+  await unlockAudioOnce();
+  await setBgm(!bgmOn);
+});
+
 function showError(err) {
   console.error(err);
   progressEl.textContent = "読み込み失敗";
   scoreEl.textContent = "Score: 0";
   questionEl.textContent = "CSVを読み込めませんでした。";
+  sublineEl.textContent = "";
   statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
   nextBtn.disabled = true;
@@ -302,11 +334,9 @@ function showError(err) {
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
     progressEl.textContent = `読み込み中…`;
-    statusEl.textContent = "";
-
     const raw = await window.CSVUtil.load(csvUrl);
-    questions = raw.map(normalizeRow);
 
+    questions = raw.map(normalizeRow);
     start();
   } catch (e) {
     showError(e);
