@@ -1,74 +1,82 @@
 // csv.js (global)
-// window.CSVUtil.load(url) -> Promise<Array<Object>>
+// window.CSVUtil.load(url) -> Array<Object>
 
 (function () {
   "use strict";
 
   function parseCSV(text) {
+    // RFC4180 っぽい最低限：カンマ区切り、改行区切り、"..." 内のカンマ/改行、"" エスケープ対応
     const rows = [];
     let row = [];
     let cur = "";
     let inQuotes = false;
 
     for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
+      const c = text[i];
       const next = text[i + 1];
 
       if (inQuotes) {
-        if (ch === '"' && next === '"') {
+        if (c === '"' && next === '"') {
           cur += '"';
           i++;
-        } else if (ch === '"') {
+        } else if (c === '"') {
           inQuotes = false;
         } else {
-          cur += ch;
+          cur += c;
         }
       } else {
-        if (ch === '"') {
+        if (c === '"') {
           inQuotes = true;
-        } else if (ch === ",") {
+        } else if (c === ",") {
           row.push(cur);
           cur = "";
-        } else if (ch === "\n") {
+        } else if (c === "\r") {
+          // ignore
+        } else if (c === "\n") {
           row.push(cur);
           rows.push(row);
           row = [];
           cur = "";
-        } else if (ch === "\r") {
-          // ignore
         } else {
-          cur += ch;
+          cur += c;
         }
       }
     }
 
+    // last
     row.push(cur);
     rows.push(row);
 
-    const cleaned = rows.filter(r => r.some(cell => String(cell).trim() !== ""));
-    return cleaned;
+    // 末尾の空行を落とす
+    while (rows.length && rows[rows.length - 1].every(v => String(v).trim() === "")) {
+      rows.pop();
+    }
+    return rows;
+  }
+
+  function rowsToObjects(rows) {
+    if (!rows.length) return [];
+    const header = rows[0].map(h => String(h).trim());
+    const out = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const obj = {};
+      for (let j = 0; j < header.length; j++) {
+        obj[header[j]] = r[j] ?? "";
+      }
+      out.push(obj);
+    }
+    return out;
   }
 
   async function load(url) {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`CSV fetch failed: ${res.status} ${res.statusText}`);
-
-    const text = await res.text();
-    const table = parseCSV(text);
-    if (!table.length) return [];
-
-    const header = table[0].map(h => String(h).trim());
-    const data = [];
-
-    for (let i = 1; i < table.length; i++) {
-      const r = table[i];
-      const obj = {};
-      for (let c = 0; c < header.length; c++) {
-        obj[header[c]] = r[c] ?? "";
-      }
-      data.push(obj);
+    if (!res.ok) {
+      throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} (${url})`);
     }
-    return data;
+    const text = await res.text();
+    const rows = parseCSV(text);
+    return rowsToObjects(rows);
   }
 
   window.CSVUtil = { load };
