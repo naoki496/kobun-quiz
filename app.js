@@ -24,6 +24,9 @@ const restartBtn = document.getElementById("restartBtn");
 const comboFxEl = document.getElementById("comboFx");
 const flashEl = document.getElementById("flash");
 
+// Tempo: tap-anywhere-to-next
+const tapToNextEl = document.getElementById("tapToNext");
+
 // Sound button
 const soundBtn = document.getElementById("soundBtn");
 
@@ -102,7 +105,7 @@ const Sound = (() => {
    ========================= */
 
 function disableChoices(disabled) {
-  choiceBtns.forEach(b => (b.disabled = disabled));
+  for (const b of choiceBtns) b.disabled = disabled;
 }
 
 function shuffle(arr) {
@@ -142,19 +145,17 @@ function updateStatusUI(message) {
   statusEl.textContent = `${message}${comboText}`;
 }
 
-/* ===== Combo + Flash FX (enhanced) ===== */
+/* ===== Combo + Flash FX ===== */
 function flash(kind) {
   if (!flashEl) return;
   flashEl.classList.remove("ok", "ng");
-  // reflow
   void flashEl.offsetWidth;
   flashEl.classList.add(kind);
 }
 
-function hideComboFx(quick = false) {
+function hideComboFx() {
   if (!comboFxEl) return;
-  if (quick) comboFxEl.classList.add("fade");
-  comboFxEl.classList.remove("show", "pop", "max");
+  comboFxEl.classList.remove("show", "pop", "max", "fade");
   comboFxEl.textContent = "";
 }
 
@@ -164,16 +165,13 @@ function showComboFx(isNewMax) {
   if (combo >= 2) {
     comboFxEl.textContent = `COMBO x${combo}`;
     comboFxEl.classList.add("show");
-
     comboFxEl.classList.toggle("max", !!isNewMax);
 
     comboFxEl.classList.remove("pop");
     void comboFxEl.offsetWidth;
     comboFxEl.classList.add("pop");
-
-    comboFxEl.classList.remove("fade");
   } else {
-    hideComboFx(true);
+    hideComboFx();
   }
 }
 
@@ -192,6 +190,27 @@ function shakeButton(btn) {
 }
 /* ===== /Combo + Flash FX ===== */
 
+/* ===== Tempo: Tap to Next ===== */
+function setTapToNextVisible(visible) {
+  if (!tapToNextEl) return;
+  tapToNextEl.classList.toggle("show", !!visible);
+  tapToNextEl.setAttribute("aria-hidden", String(!visible));
+}
+
+function enableProceedUI() {
+  nextBtn.disabled = false;
+  setTapToNextVisible(true);
+
+  // ✅ 体感テンポ：次へにフォーカス（Enter/Spaceが即効く）
+  try { nextBtn.focus({ preventScroll: true }); } catch (_) {}
+}
+
+function disableProceedUI() {
+  nextBtn.disabled = true;
+  setTapToNextVisible(false);
+}
+/* ===== /Tempo ===== */
+
 function render() {
   const q = order[index];
 
@@ -200,34 +219,33 @@ function render() {
 
   questionEl.textContent = q.source ? `${q.question}（${q.source}）` : q.question;
 
-  choiceBtns.forEach((btn, i) => {
+  // ✅ DOM更新の回数を抑える（ボタンの生成はしない、既存4つを使い回す）
+  for (let i = 0; i < 4; i++) {
+    const btn = choiceBtns[i];
     btn.textContent = q.choices[i] || "---";
     btn.classList.remove("correct", "wrong", "hit", "shake");
     btn.disabled = false;
-  });
+  }
 
   statusEl.textContent = "";
-  nextBtn.disabled = true;
+  disableProceedUI();
   locked = false;
 
-  hideComboFx(true);
+  hideComboFx();
 }
 
 function start() {
   score = 0;
   index = 0;
-
   combo = 0;
   maxCombo = 0;
 
   const pool = shuffle([...questions]);
   order = pool.slice(0, Math.min(TOTAL_QUESTIONS, pool.length));
 
-  if (!order.length) {
-    throw new Error("問題が0件です（CSVの内容を確認してください）");
-  }
+  if (!order.length) throw new Error("問題が0件です（CSVの内容を確認してください）");
 
-  hideComboFx(true);
+  hideComboFx();
   render();
 }
 
@@ -236,8 +254,20 @@ function finish() {
   questionEl.textContent = `結果：${score} / ${order.length}`;
   statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
-  nextBtn.disabled = true;
-  hideComboFx(true);
+  disableProceedUI();
+  hideComboFx();
+}
+
+/* ✅ “次へ”処理を関数化（タップ/キー/ボタンで共通利用） */
+function goNext() {
+  if (!locked) return;
+
+  index++;
+  if (index >= order.length) {
+    finish();
+  } else {
+    render();
+  }
 }
 
 function judge(selectedIdx) {
@@ -250,7 +280,6 @@ function judge(selectedIdx) {
 
   if (selectedIdx === correctIdx) {
     score++;
-
     combo++;
     const isNewMax = combo > maxCombo;
     if (isNewMax) maxCombo = combo;
@@ -261,7 +290,6 @@ function judge(selectedIdx) {
 
     updateStatusUI(isNewMax ? "正解（MAX更新）" : "正解");
 
-    // SE + Flash + Combo FX
     Sound.correct();
     flash("ok");
     showComboFx(isNewMax);
@@ -275,46 +303,69 @@ function judge(selectedIdx) {
     choiceBtns[correctIdx].classList.add("correct");
     updateStatusUI("不正解");
 
-    // SE + Flash + Combo FX
     Sound.wrong();
     flash("ng");
-    hideComboFx(true);
+    hideComboFx();
   }
 
   updateScoreUI();
 
-  // 自動遷移OFF：次へボタンを有効化するだけ
-  nextBtn.disabled = false;
+  // ✅ 自動遷移OFF：ここでは進めない。進む手段だけ“押しやすく”開放する。
+  enableProceedUI();
 }
 
-choiceBtns.forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    await Sound.unlock(); // iOS対策
+/* ===== Input handling (Pointer-first) ===== */
+for (const btn of choiceBtns) {
+  btn.addEventListener("pointerup", async (e) => {
+    // 余計なスクロール/ダブルタップ挙動を抑える
+    e.preventDefault();
+    await Sound.unlock();
     const idx = Number(btn.dataset.idx);
     judge(idx);
-  });
-});
+  }, { passive: false });
+}
 
-nextBtn.addEventListener("click", async () => {
+// 次へボタン
+nextBtn.addEventListener("pointerup", async (e) => {
+  e.preventDefault();
   await Sound.unlock();
-  if (!locked) return;
+  goNext();
+}, { passive: false });
 
-  index++;
-  if (index >= order.length) {
-    finish();
-  } else {
-    render();
+// 回答後「どこでも次へ」（overlay）
+if (tapToNextEl) {
+  tapToNextEl.addEventListener("pointerup", async (e) => {
+    e.preventDefault();
+    await Sound.unlock();
+    goNext();
+  }, { passive: false });
+}
+
+// キーボード：Space/Enterで次へ（PC検証が爆速になる）
+document.addEventListener("keydown", (e) => {
+  if (e.repeat) return;
+
+  const key = e.key;
+  if (key === "Enter" || key === " ") {
+    // 回答後のみ有効
+    if (locked && !nextBtn.disabled) {
+      e.preventDefault();
+      goNext();
+    }
   }
 });
 
-restartBtn.addEventListener("click", async () => {
+// 最初から
+restartBtn.addEventListener("pointerup", async (e) => {
+  e.preventDefault();
   await Sound.unlock();
   try {
     start();
-  } catch (e) {
-    showError(e);
+  } catch (err) {
+    showError(err);
   }
-});
+}, { passive: false });
+/* ===== /Input handling ===== */
 
 function showError(err) {
   console.error(err);
@@ -323,19 +374,20 @@ function showError(err) {
   questionEl.textContent = "CSVを読み込めませんでした。";
   statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
-  nextBtn.disabled = true;
-  hideComboFx(true);
+  disableProceedUI();
+  hideComboFx();
 }
 
 // SE ON/OFF
 if (soundBtn) {
-  soundBtn.addEventListener("click", async () => {
+  soundBtn.addEventListener("pointerup", async (e) => {
+    e.preventDefault();
     await Sound.unlock();
     const next = !Sound.isEnabled();
     Sound.setEnabled(next);
     soundBtn.setAttribute("aria-pressed", String(next));
     soundBtn.textContent = next ? "🔊 SE" : "🔇 SE";
-  });
+  }, { passive: false });
 }
 
 (async function boot() {
