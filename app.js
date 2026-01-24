@@ -12,17 +12,19 @@ let locked = false;
 let combo = 0;
 let maxCombo = 0;
 
+const quizEl = document.getElementById("quiz");
+
 const progressEl = document.getElementById("progress");
+const meterBarEl = document.getElementById("meterBar");
+
 const scoreEl = document.getElementById("score");
 const questionEl = document.getElementById("question");
 const statusEl = document.getElementById("status");
+
 const choiceBtns = Array.from(document.querySelectorAll(".choice"));
+
 const nextBtn = document.getElementById("nextBtn");
 const restartBtn = document.getElementById("restartBtn");
-
-// optional buttons
-const soundBtn = document.getElementById("soundBtn");
-const bgmBtn = document.getElementById("bgmBtn");
 
 function disableChoices(disabled) {
   choiceBtns.forEach(b => (b.disabled = disabled));
@@ -38,7 +40,7 @@ function shuffle(arr) {
 }
 
 function normalizeRow(r) {
-  // answer は "1"～"4" 想定（CSV: id,question,source,choice1..4,answer）
+  // answer は "1"～"4" 想定（CSVの列名は id question source choice1..4 answer）
   const ans = Number(String(r.answer ?? "").trim());
   if (!(ans >= 1 && ans <= 4)) {
     throw new Error(`answer が 1〜4 ではありません: "${r.answer}" (id=${r.id ?? "?"})`);
@@ -61,116 +63,75 @@ function updateScoreUI() {
   scoreEl.textContent = `Score: ${score}`;
 }
 
+function updateMeterUI() {
+  // index は 0-based。表示上は「今出している問題」を含めた進捗にする
+  const total = order.length || 1;
+  const current = Math.min(index + 1, total);
+  const pct = Math.round((current / total) * 100);
+  meterBarEl.style.width = `${pct}%`;
+}
+
 function updateStatusUI(message) {
   const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
   statusEl.textContent = `${message}${comboText}`;
 }
 
-/* =========================
-   SE (Sound Effects)
-   ========================= */
-const Sound = (() => {
-  // ファイルは必要に応じて差し替え
-  const correct = new Audio("./assets/correct.mp3");
-  const wrong = new Audio("./assets/wrong.mp3");
+/* ===== 安全なHTML生成（【】ハイライト用） ===== */
+function escapeHTML(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
-  let unlocked = false;
-  let enabled = true;
-
-  function setEnabled(v) { enabled = !!v; }
-  function isEnabled() { return enabled; }
-
-  async function unlock() {
-    if (unlocked) return;
-    try {
-      // iOS/Safari対策：ユーザー操作で“音”を一度解錠
-      correct.muted = true;
-      await correct.play();
-      correct.pause();
-      correct.currentTime = 0;
-      correct.muted = false;
-
-      wrong.muted = true;
-      await wrong.play();
-      wrong.pause();
-      wrong.currentTime = 0;
-      wrong.muted = false;
-
-      unlocked = true;
-    } catch (e) {
-      unlocked = true;
+// 【...】を <span class="hl">...</span> に置換（中身はエスケープ維持）
+function highlightBrackets(s) {
+  const raw = String(s ?? "");
+  // 先に全体をエスケープし、その後に【】を検出したいが、エスケープ後は文字列が変わる。
+  // そこで「プレーン文字列を走査→部分ごとにescape→結合」という方式にする。
+  let out = "";
+  let i = 0;
+  while (i < raw.length) {
+    const open = raw.indexOf("【", i);
+    if (open === -1) {
+      out += escapeHTML(raw.slice(i));
+      break;
     }
-  }
-
-  async function playCorrect() {
-    if (!enabled) return;
-    try {
-      correct.currentTime = 0;
-      await correct.play();
-    } catch (e) {}
-  }
-
-  async function playWrong() {
-    if (!enabled) return;
-    try {
-      wrong.currentTime = 0;
-      await wrong.play();
-    } catch (e) {}
-  }
-
-  return { unlock, playCorrect, playWrong, setEnabled, isEnabled };
-})();
-
-/* =========================
-   BGM (Explicit ON only)
-   ========================= */
-const BGM = (() => {
-  const audio = new Audio("./assets/bgm.mp3");
-  audio.loop = true;
-  audio.volume = 0.25;
-
-  let enabled = false; // ★初期OFF（明示ONの人だけ）
-
-  async function play() {
-    enabled = true;
-    try {
-      await audio.play();
-    } catch (e) {
-      // autoplay制限：ユーザーの“ボタン操作”で呼ばれるので通常はOK
-      console.warn("BGM play blocked:", e);
-      enabled = false;
+    const close = raw.indexOf("】", open + 1);
+    if (close === -1) {
+      // 閉じがない場合は残りを通常表示
+      out += escapeHTML(raw.slice(i));
+      break;
     }
+    out += escapeHTML(raw.slice(i, open));
+    const inner = raw.slice(open + 1, close);
+    out += `<span class="hl">【${escapeHTML(inner)}】</span>`;
+    i = close + 1;
   }
-
-  function stop() {
-    enabled = false;
-    audio.pause();
-    audio.currentTime = 0;
-  }
-
-  async function toggle() {
-    if (enabled) stop();
-    else await play();
-  }
-
-  function isEnabled() { return enabled; }
-
-  return { play, stop, toggle, isEnabled };
-})();
+  return out;
+}
 
 function render() {
   const q = order[index];
 
   progressEl.textContent = `第${index + 1}問 / ${order.length}`;
+  updateMeterUI();
   updateScoreUI();
 
-  questionEl.textContent = q.source ? `${q.question}（${q.source}）` : q.question;
+  // 問題文：出典は軽く後ろに（必要なら別行に分けても良い）
+  const body = q.source ? `${q.question}（${q.source}）` : q.question;
+  questionEl.innerHTML = highlightBrackets(body);
 
   choiceBtns.forEach((btn, i) => {
     btn.textContent = q.choices[i] || "---";
     btn.classList.remove("correct", "wrong");
     btn.disabled = false;
   });
+
+  // 画面フラッシュのクラスは持ち越さない
+  quizEl.classList.remove("flash-ok", "flash-ng");
 
   statusEl.textContent = "";
   nextBtn.disabled = true;
@@ -190,25 +151,29 @@ function start() {
   if (!order.length) {
     throw new Error("問題が0件です（CSVの内容を確認してください）");
   }
-
   render();
 }
 
 function finish() {
   progressEl.textContent = "終了";
+  meterBarEl.style.width = "100%";
   questionEl.textContent = `結果：${score} / ${order.length}`;
   statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
   nextBtn.disabled = true;
 }
 
-async function judge(selectedIdx) {
+function flash(type) {
+  // 同じアニメを連続発火させるため remove→reflow→add
+  const cls = type === "ok" ? "flash-ok" : "flash-ng";
+  quizEl.classList.remove(cls);
+  void quizEl.offsetWidth;
+  quizEl.classList.add(cls);
+}
+
+function judge(selectedIdx) {
   if (locked) return;
   locked = true;
-
-  // 最初のユーザー操作で音の解錠（SE/BGM共通の前提作り）
-  await Sound.unlock();
-
   disableChoices(true);
 
   const q = order[index];
@@ -221,19 +186,19 @@ async function judge(selectedIdx) {
 
     choiceBtns[selectedIdx].classList.add("correct");
     updateStatusUI("正解");
-    Sound.playCorrect();
+    flash("ok");
   } else {
     combo = 0;
 
     choiceBtns[selectedIdx].classList.add("wrong");
     choiceBtns[correctIdx].classList.add("correct");
     updateStatusUI("不正解");
-    Sound.playWrong();
+    flash("ng");
   }
 
   updateScoreUI();
 
-  // ★自動遷移OFF：次へボタンを押したら進む
+  // 自動遷移はしない（明示的に「次へ」）
   nextBtn.disabled = false;
 }
 
@@ -246,8 +211,11 @@ choiceBtns.forEach((btn) => {
 
 nextBtn.addEventListener("click", () => {
   index++;
-  if (index >= order.length) finish();
-  else render();
+  if (index >= order.length) {
+    finish();
+  } else {
+    render();
+  }
 });
 
 restartBtn.addEventListener("click", () => {
@@ -258,39 +226,10 @@ restartBtn.addEventListener("click", () => {
   }
 });
 
-// SEボタン（ON/OFF）
-if (soundBtn) {
-  soundBtn.addEventListener("pointerup", async (e) => {
-    e.preventDefault();
-    await Sound.unlock();
-
-    const on = !Sound.isEnabled();
-    Sound.setEnabled(on);
-
-    soundBtn.setAttribute("aria-pressed", String(on));
-    soundBtn.textContent = on ? "🔊 SE" : "🔇 SE";
-  }, { passive: false });
-}
-
-// BGMボタン（明示ON/OFF）
-if (bgmBtn) {
-  bgmBtn.addEventListener("pointerup", async (e) => {
-    e.preventDefault();
-
-    // ボタン操作 = ユーザー操作なので、ここで確実に解錠
-    await Sound.unlock();
-
-    await BGM.toggle();
-
-    const on = BGM.isEnabled();
-    bgmBtn.setAttribute("aria-pressed", String(on));
-    bgmBtn.textContent = on ? "🎵 BGM" : "🎵 OFF";
-  }, { passive: false });
-}
-
 function showError(err) {
   console.error(err);
   progressEl.textContent = "読み込み失敗";
+  meterBarEl.style.width = "0%";
   scoreEl.textContent = "Score: 0";
   questionEl.textContent = "CSVを読み込めませんでした。";
   statusEl.textContent = `詳細: ${err?.message ?? err}`;
@@ -307,9 +246,12 @@ function showError(err) {
     const baseUrl = new URL("./", location.href).toString();
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
-    progressEl.textContent = "読み込み中…";
+    progressEl.textContent = `読み込み中…`;
+    meterBarEl.style.width = "0%";
 
     const raw = await window.CSVUtil.load(csvUrl);
+
+    // 正規化（ここで変なデータがあると理由付きで落ちる）
     questions = raw.map(normalizeRow);
 
     start();
