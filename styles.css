@@ -1,272 +1,209 @@
-:root {
-  --bg: #0f1115;
-  --panel: rgba(255,255,255,0.06);
-  --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.70);
-  --border: rgba(255,255,255,0.16);
-  --shadow: rgba(0,0,0,0.35);
+:root{
+  --bg: #0f1116;
+  --panel: #161a22;
+  --panel2: #10131a;
+  --text: #e9ecf1;
+  --muted: #b7bfcc;
+  --line: rgba(255,255,255,.12);
 
-  --ok: rgba(80, 220, 140, 1);
-  --ng: rgba(255, 100, 100, 1);
+  --ok: #35d07f;
+  --ng: #ff5b6b;
+  --accent: #6aa5ff;
+
+  --hl-bg: rgba(255, 220, 90, .18);
+  --hl-border: rgba(255, 220, 90, .45);
+
+  --radius: 16px;
 }
 
-* { box-sizing: border-box; }
+*{ box-sizing: border-box; }
 
-html, body { height: 100%; }
-
-body {
+html, body{
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
-  background: var(--bg);
+  padding: 0;
+  background: radial-gradient(1200px 600px at 50% -20%, rgba(106,165,255,.18), transparent 60%),
+              radial-gradient(1000px 600px at 100% 0%, rgba(53,208,127,.12), transparent 55%),
+              var(--bg);
   color: var(--text);
-  /* ✅ モバイルでの“変な選択”抑制 */
-  -webkit-tap-highlight-color: transparent;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  line-height: 1.4;
 }
 
-h1 {
-  margin: 16px 12px 10px;
+h1{
+  margin: 18px 16px 10px;
   font-size: 20px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: .02em;
 }
 
-#quiz {
-  width: min(720px, calc(100vw - 24px));
-  margin: 0 12px 24px;
+#quiz{
+  max-width: 720px;
+  margin: 0 auto;
   padding: 14px;
-  border-radius: 14px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  box-shadow: 0 14px 40px var(--shadow);
-  position: relative;
-  overflow: hidden;
-  /* ✅ タップ操作を快適に：ダブルタップ拡大などの事故を減らす */
-  touch-action: manipulation;
 }
 
-#meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+#meta{
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: grid;
   gap: 10px;
-  margin-bottom: 12px;
+}
+
+#progress, #score{
+  font-weight: 700;
   font-size: 14px;
   color: var(--muted);
 }
 
-.meta-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.mini {
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.16);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.mini[aria-pressed="false"] { opacity: 0.55; }
-
-#question {
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.18);
-  margin-bottom: 12px;
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  font-size: 16px;
-  line-height: 1.45;
-}
-
-.choice {
+/* 進捗メーター */
+#meterWrap{
   width: 100%;
-  text-align: left;
-  padding: 14px 12px;
-  margin: 8px 0;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.12);
+  height: 10px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 999px;
+  overflow: hidden;
+}
+#meterBar{
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(106,165,255,.95), rgba(53,208,127,.95));
+  border-radius: 999px;
+  transition: width 180ms ease-out;
+}
+
+#question{
+  margin-top: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  line-height: 1.55;
+}
+
+/* 【】ハイライト */
+.hl{
+  padding: 0 .25em;
+  border-radius: 8px;
+  background: var(--hl-bg);
+  border: 1px solid var(--hl-border);
+}
+
+.choice{
+  margin-top: 10px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
   color: var(--text);
-  font-size: 16px;
-  font-weight: 650;
+  font-size: 18px;
+  font-weight: 800;
+  padding: 14px 12px;
+  text-align: left;
   cursor: pointer;
-
-  transform: translateZ(0);
-  transition: transform 90ms ease, filter 120ms ease;
-  touch-action: manipulation;
+  transition: transform 80ms ease-out, border-color 120ms ease-out, background 120ms ease-out;
 }
 
-.choice:active { transform: scale(0.985); }
-.choice:disabled { opacity: 0.92; cursor: default; }
-
-.choice.correct {
-  border-color: rgba(80, 220, 140, 0.7);
-  background: rgba(80, 220, 140, 0.16);
+.choice:active{
+  transform: scale(.99);
 }
 
-.choice.wrong {
-  border-color: rgba(255, 100, 100, 0.75);
-  background: rgba(255, 100, 100, 0.16);
+.choice:disabled{
+  opacity: .85;
+  cursor: default;
 }
 
-.choice.hit { animation: hitPop 220ms ease-out; }
-@keyframes hitPop {
-  0%   { transform: scale(1.00); }
-  55%  { transform: scale(1.02); }
-  100% { transform: scale(1.00); }
+/* 正誤の色味（読みやすさ優先：過度に派手にしない） */
+.choice.correct{
+  border-color: rgba(53,208,127,.65);
+  background: linear-gradient(180deg, rgba(53,208,127,.16), rgba(255,255,255,.02));
+}
+.choice.wrong{
+  border-color: rgba(255,91,107,.65);
+  background: linear-gradient(180deg, rgba(255,91,107,.14), rgba(255,255,255,.02));
 }
 
-.choice.shake { animation: shake 240ms ease-out; }
-@keyframes shake {
-  0% { transform: translateX(0); }
-  25% { transform: translateX(-6px); }
-  55% { transform: translateX(5px); }
-  80% { transform: translateX(-3px); }
-  100% { transform: translateX(0); }
-}
-
-#status {
-  margin: 10px 2px 6px;
-  min-height: 22px;
-  font-size: 14px;
+#status{
+  margin-top: 10px;
+  min-height: 28px;
+  font-weight: 900;
+  letter-spacing: .04em;
   color: var(--muted);
 }
 
-#controls {
-  display: flex;
+#controls{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 10px;
 }
 
-.ctrl {
-  flex: 1;
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.16);
+.ctrl{
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
   color: var(--text);
-  font-size: 15px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.ctrl:disabled { opacity: 0.55; cursor: default; }
-
-/* ===== Combo Badge FX ===== */
-#comboFx {
-  position: absolute;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%) scale(0.94);
-  opacity: 0;
-  pointer-events: none;
-  user-select: none;
-  z-index: 3;
-
-  padding: 10px 14px;
-  border-radius: 999px;
-
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  font-size: 13px;
-  line-height: 1;
-
-  background: rgba(20, 20, 26, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
-  backdrop-filter: blur(6px);
-
-  transition: opacity 140ms ease, transform 140ms ease, filter 140ms ease;
-}
-
-#comboFx.show {
-  opacity: 1;
-  transform: translateX(-50%) scale(1.00);
-}
-
-#comboFx.pop { animation: comboPop 260ms ease-out; }
-@keyframes comboPop {
-  0%   { transform: translateX(-50%) scale(0.94); filter: brightness(1.0); }
-  60%  { transform: translateX(-50%) scale(1.10); filter: brightness(1.15); }
-  100% { transform: translateX(-50%) scale(1.00); filter: brightness(1.0); }
-}
-
-#comboFx.max {
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.45);
-}
-
-#comboFx.fade {
-  opacity: 0;
-  transform: translateX(-50%) scale(0.98);
-}
-
-/* ===== Screen Flash ===== */
-#flash {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 2;
-  background: transparent;
-}
-
-#flash.ok {
-  background: radial-gradient(circle at 30% 20%, rgba(80,220,140,0.18), transparent 55%);
-  animation: flash 220ms ease-out;
-}
-
-#flash.ng {
-  background: radial-gradient(circle at 30% 20%, rgba(255,100,100,0.18), transparent 55%);
-  animation: flash 220ms ease-out;
-}
-
-@keyframes flash {
-  0%   { opacity: 0; }
-  35%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-/* ✅ テンポ最適化：回答後「どこでも次へ」 */
-#tapToNext {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  display: none; /* hidden by default */
-  align-items: flex-end;
-  justify-content: center;
-  padding: 14px;
-  pointer-events: none; /* show時にON */
-}
-
-#tapToNext.show {
-  display: flex;
-  pointer-events: auto;
-}
-
-.tapToNext-inner {
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(0,0,0,0.45);
-  color: rgba(255,255,255,0.88);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 900;
-  letter-spacing: 0.06em;
-  backdrop-filter: blur(6px);
-  animation: ttn 900ms ease-in-out infinite;
+  padding: 12px;
+  cursor: pointer;
+  transition: transform 80ms ease-out, border-color 120ms ease-out;
+}
+.ctrl:active{ transform: scale(.99); }
+.ctrl:disabled{
+  opacity: .5;
+  cursor: default;
 }
 
-@keyframes ttn {
-  0%, 100% { transform: translateY(0); opacity: 0.78; }
-  50% { transform: translateY(-3px); opacity: 1; }
+#hint{
+  margin-top: 10px;
+  color: rgba(233,236,241,.75);
+  font-size: 12px;
+}
+
+/* ===== Feedback Animations ===== */
+@keyframes pop {
+  0%   { transform: translateY(0) scale(1); }
+  35%  { transform: translateY(-1px) scale(1.03); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes shake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-6px); }
+  40%  { transform: translateX(6px); }
+  60%  { transform: translateX(-4px); }
+  80%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes flashOk {
+  0%   { box-shadow: 0 0 0 0 rgba(53,208,127,.0) inset; }
+  30%  { box-shadow: 0 0 0 999px rgba(53,208,127,.07) inset; }
+  100% { box-shadow: 0 0 0 0 rgba(53,208,127,.0) inset; }
+}
+
+@keyframes flashNg {
+  0%   { box-shadow: 0 0 0 0 rgba(255,91,107,.0) inset; }
+  30%  { box-shadow: 0 0 0 999px rgba(255,91,107,.07) inset; }
+  100% { box-shadow: 0 0 0 0 rgba(255,91,107,.0) inset; }
+}
+
+/* ボタンの反応：正解/不正解で必ず動きが出る */
+.choice.correct { animation: pop 220ms ease-out; }
+.choice.wrong   { animation: shake 260ms ease-out; }
+
+/* 画面全体の薄いフラッシュ */
+#quiz.flash-ok { animation: flashOk 220ms ease-out; }
+#quiz.flash-ng { animation: flashNg 220ms ease-out; }
+
+/* 動きが苦手な人のための配慮 */
+@media (prefers-reduced-motion: reduce){
+  .choice.correct, .choice.wrong, #quiz.flash-ok, #quiz.flash-ng { animation: none !important; }
+  #meterBar { transition: none !important; }
 }
