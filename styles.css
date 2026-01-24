@@ -304,12 +304,3 @@ h1{
   height: 44px;
   border-radius: 14px;
 }
-
-/* ===== ハイライト（黄色発光）を確実に見せる（未設定なら） ===== */
-.hl{
-  color: #ffe66b;
-  text-shadow:
-    0 0 8px rgba(255, 230, 107, 0.75),
-    0 0 16px rgba(255, 230, 107, 0.35);
-  font-weight: 800;
-}
