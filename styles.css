@@ -1,3 +1,4 @@
+/* styles.css（全文・コピペ用） */
 :root{
   --bg0:#07090d;
   --bg1:#0a0f18;
@@ -89,11 +90,22 @@ h1{
   box-shadow: 0 0 18px rgba(0,255,255,0.28);
 }
 
+/* ✅BGMボタンの横長化を抑止（明示クラス） */
+.bgm-btn{
+  width: 140px;
+  max-width: 60vw;
+  height: 44px;
+  border-radius: 14px;
+}
+
 .question{
   font-size:18px;
   line-height:1.65;
   text-align:left;
   word-break: break-word;
+
+  /* ✅提案：進捗バーと問題文の間にもう一行程度の余白を確保 */
+  margin-top: 12px;
 }
 
 .subline{
@@ -260,9 +272,18 @@ h1{
 .start-inner{
   width: min(92vw, 520px);
   display: grid;
-  gap: 18px;
+  gap: 14px;
   justify-items: center;
   padding: 18px;
+}
+
+/* ✅開始画面のタイトル（追加） */
+.start-title{
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 18px rgba(0,255,255,0.35);
+  margin-bottom: 2px;
 }
 
 .start-image{
@@ -297,17 +318,11 @@ h1{
   text-align: center;
 }
 
-/* ===== BGMボタンの横長化を抑止 ===== */
-.bgm-btn{
-  width: 140px;
-  max-width: 60vw;
-  height: 44px;
-  border-radius: 14px;
-}
-
-.start-title{
-  font-size: 24px;
+/* ===== ハイライト（黄色発光）を確実に見せる（上書きしてでも有効化） ===== */
+.hl{
+  color: #ffe66b;
+  text-shadow:
+    0 0 8px rgba(255, 230, 107, 0.75),
+    0 0 16px rgba(255, 230, 107, 0.35);
   font-weight: 800;
-  letter-spacing: 0.04em;
-  text-shadow: 0 0 16px rgba(0,255,255,0.35);
 }
