@@ -2,12 +2,6 @@
 
 const TOTAL_QUESTIONS = 10;
 
-// ====== テンポ最適化設定（ここだけ触れば体感を調整できます） ======
-const AUTO_NEXT_ENABLED = true;      // true: 回答後に自動で次へ
-const AUTO_NEXT_DELAY_MS = 700;      // 正誤表示の余韻（500〜900推奨）
-const MIN_LOCK_MS = 250;            // 連打・誤タップ抑止の最低ロック時間
-// =========================================================
-
 let questions = [];
 let order = [];
 let index = 0;
@@ -18,11 +12,6 @@ let locked = false;
 let combo = 0;
 let maxCombo = 0;
 
-// timers（テンポ最適化）
-let lockTimer = null;
-let autoNextTimer = null;
-let lastJudgeAt = 0;
-
 const progressEl = document.getElementById("progress");
 const scoreEl = document.getElementById("score");
 const questionEl = document.getElementById("question");
@@ -30,6 +19,7 @@ const statusEl = document.getElementById("status");
 const choiceBtns = Array.from(document.querySelectorAll(".choice"));
 const nextBtn = document.getElementById("nextBtn");
 const restartBtn = document.getElementById("restartBtn");
+const comboFxEl = document.getElementById("comboFx");
 
 function disableChoices(disabled) {
   choiceBtns.forEach(b => (b.disabled = disabled));
@@ -69,38 +59,53 @@ function updateScoreUI() {
 }
 
 function updateStatusUI(message) {
-  // コンボ表示を統一的にここで処理
+  // コンボ表示を統一的にここで処理（テキスト側）
   const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
   statusEl.textContent = `${message}${comboText}`;
 }
 
-// ====== テンポ最適化：タイマー管理 ======
-function clearTimers() {
-  if (lockTimer) {
-    clearTimeout(lockTimer);
-    lockTimer = null;
-  }
-  if (autoNextTimer) {
-    clearTimeout(autoNextTimer);
-    autoNextTimer = null;
+/* ===== Combo FX (badge) ===== */
+function showComboFx() {
+  if (!comboFxEl) return;
+
+  // combo>=2 の時だけ表示（1は出すと煩雑）
+  if (combo >= 2) {
+    comboFxEl.textContent = `COMBO x${combo}`;
+    comboFxEl.classList.add("show");
+
+    // アニメを確実に再生させる（class付け直し）
+    comboFxEl.classList.remove("pop");
+    void comboFxEl.offsetWidth; // reflow
+    comboFxEl.classList.add("pop");
+
+    // 伸びたら軽く強調
+    if (combo >= 5) comboFxEl.classList.add("power");
+    else comboFxEl.classList.remove("power");
+
+    comboFxEl.classList.remove("fade");
+  } else {
+    hideComboFx(true);
   }
 }
 
-function setLocked(value) {
-  locked = value;
-  disableChoices(value);
+function hideComboFx(quick = false) {
+  if (!comboFxEl) return;
+
+  if (quick) {
+    comboFxEl.classList.add("fade");
+  }
+  comboFxEl.classList.remove("show", "pop", "power");
+  comboFxEl.textContent = "";
 }
-// =========================================
+/* ===== /Combo FX ===== */
 
 function render() {
-  clearTimers();
-
   const q = order[index];
 
   progressEl.textContent = `第${index + 1}問 / ${order.length}`;
   updateScoreUI();
 
-  // 表示（出典は問題文に軽く埋める。必要ならここを別表示に変えられます）
+  // 表示（出典は問題文に軽く埋める。必要なら別表示にもできます）
   questionEl.textContent = q.source ? `${q.question}（${q.source}）` : q.question;
 
   choiceBtns.forEach((btn, i) => {
@@ -109,15 +114,16 @@ function render() {
     btn.disabled = false;
   });
 
+  // 状態初期化
   statusEl.textContent = "";
   nextBtn.disabled = true;
+  locked = false;
 
-  setLocked(false);
+  // 次問に入ったらFXは一旦消す（テンポの邪魔をしない）
+  hideComboFx(true);
 }
 
 function start() {
-  clearTimers();
-
   score = 0;
   index = 0;
 
@@ -130,40 +136,25 @@ function start() {
   if (!order.length) {
     throw new Error("問題が0件です（CSVの内容を確認してください）");
   }
+
+  hideComboFx(true);
   render();
 }
 
 function finish() {
-  clearTimers();
-
   progressEl.textContent = "終了";
   questionEl.textContent = `結果：${score} / ${order.length}`;
   statusEl.textContent = `おつかれさまでした。最大COMBO x${maxCombo}`;
   disableChoices(true);
   nextBtn.disabled = true;
-  locked = true;
+  // 終了時も邪魔なので消す
+  hideComboFx(true);
 }
-
-// ====== 次へ共通処理（手動/自動で同じ道を通す） ======
-function goNext() {
-  index++;
-  if (index >= order.length) {
-    finish();
-  } else {
-    render();
-  }
-}
-// =================================================
 
 function judge(selectedIdx) {
   if (locked) return;
-
-  // 連打・二重発火の抑止（イベントの二重飛び対策）
-  const now = Date.now();
-  if (now - lastJudgeAt < 50) return;
-  lastJudgeAt = now;
-
-  setLocked(true);
+  locked = true;
+  disableChoices(true);
 
   const q = order[index];
   const correctIdx = q.answer - 1;
@@ -175,29 +166,24 @@ function judge(selectedIdx) {
 
     choiceBtns[selectedIdx].classList.add("correct");
     updateStatusUI("正解");
+
+    // コンボ演出（バッジ）
+    showComboFx();
   } else {
     combo = 0;
 
     choiceBtns[selectedIdx].classList.add("wrong");
-    if (choiceBtns[correctIdx]) choiceBtns[correctIdx].classList.add("correct");
+    choiceBtns[correctIdx].classList.add("correct");
     updateStatusUI("不正解");
+
+    // 不正解時は即消す
+    hideComboFx(true);
   }
 
   updateScoreUI();
-  nextBtn.disabled = false; // 保険として残す（自動遷移中でも押せる）
 
-  // 最低ロック時間の確保（見た目の安定・誤タップ抑止）
-  lockTimer = setTimeout(() => {
-    // 自動遷移を使わない場合のみ解除
-    if (!AUTO_NEXT_ENABLED) setLocked(false);
-  }, MIN_LOCK_MS);
-
-  // テンポ最適化：自動で次へ
-  if (AUTO_NEXT_ENABLED) {
-    autoNextTimer = setTimeout(() => {
-      goNext();
-    }, AUTO_NEXT_DELAY_MS);
-  }
+  // 自動遷移OFF：ここでは進めず、次へボタンを有効化するだけ
+  nextBtn.disabled = false;
 }
 
 choiceBtns.forEach((btn) => {
@@ -208,16 +194,15 @@ choiceBtns.forEach((btn) => {
 });
 
 nextBtn.addEventListener("click", () => {
-  // 自動遷移中に押されたら、先に自動タイマーを止めて即次へ
-  if (AUTO_NEXT_ENABLED && locked) {
-    clearTimers();
-    goNext();
-    return;
-  }
+  // 未回答なのに押されるのは無効（保険）
+  if (!locked) return;
 
-  // 従来の手動運用
-  if (nextBtn.disabled) return;
-  goNext();
+  index++;
+  if (index >= order.length) {
+    finish();
+  } else {
+    render();
+  }
 });
 
 restartBtn.addEventListener("click", () => {
@@ -236,8 +221,7 @@ function showError(err) {
   statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
   nextBtn.disabled = true;
-  locked = true;
-  clearTimers();
+  hideComboFx(true);
 }
 
 (async function boot() {
