@@ -4,9 +4,9 @@ const TOTAL_QUESTIONS = 10;
 
 // ✅音声ファイル（必要に応じてファイル名を変更）
 const AUDIO_FILES = {
-  bgm: "./bgm.mp3",        // 例: bgm.mp3
-  correct: "./correct.mp3",// 例: correct.mp3
-  wrong: "./wrong.mp3"     // 例: wrong.mp3
+  bgm: "asset/bgm.mp3",        // 例: bgm.mp3
+  correct: "asset/correct.mp3",// 例: correct.mp3
+  wrong: "asset//wrong.mp3"     // 例: wrong.mp3
 };
 
 let questions = [];
