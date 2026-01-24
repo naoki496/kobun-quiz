@@ -14,16 +14,12 @@
     <div id="meta">
       <div id="progress">読み込み中…</div>
 
-      <!-- 右側メタ領域（Score / SE / BGM） -->
-      <div class="meta-right">
-        <div id="score">Score: 0</div>
-
-        <!-- SEボタン（必要なら残す／無ければJS側が安全に無視します） -->
-        <button class="mini" id="soundBtn" type="button" aria-pressed="true">🔊 SE</button>
-
-        <!-- BGM：明示的にONにした人だけ再生 -->
-        <button class="mini" id="bgmBtn" type="button" aria-pressed="false">🎵 BGM</button>
+      <!-- 進捗メーターバー -->
+      <div id="meterWrap" aria-label="進捗">
+        <div id="meterBar"></div>
       </div>
+
+      <div id="score">Score: 0</div>
     </div>
 
     <div id="question">CSVを読み込んでいます。</div>
@@ -38,6 +34,10 @@
     <div id="controls">
       <button class="ctrl" id="nextBtn" disabled>次へ</button>
       <button class="ctrl" id="restartBtn">最初から</button>
+    </div>
+
+    <div id="hint">
+      ヒント：問題文の【 】内は要点としてハイライトされています。
     </div>
   </div>
 
