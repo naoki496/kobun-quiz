@@ -1,70 +1,79 @@
 // csv.js (global)
-// window.CSVUtil.load(url) -> Array of objects
+// window.CSVUtil.load(url) -> Promise<Array<Object>>
 
 (function () {
-  function stripBOM(text) {
-    return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-  }
+  "use strict";
 
-  function splitCSVLine(line) {
-    // Minimal CSV parser: supports quoted fields and commas inside quotes
-    const out = [];
+  function parseCSV(text) {
+    // RFC4180の完全実装ではないが、授業用CSV（ダブルクォート対応）として十分実用的なパーサ
+    const rows = [];
+    let row = [];
     let cur = "";
     let inQuotes = false;
 
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
 
-      if (ch === '"') {
-        // double quote escape
-        if (inQuotes && line[i + 1] === '"') {
+      if (inQuotes) {
+        if (ch === '"' && next === '"') {
           cur += '"';
           i++;
+        } else if (ch === '"') {
+          inQuotes = false;
         } else {
-          inQuotes = !inQuotes;
+          cur += ch;
         }
-      } else if (ch === "," && !inQuotes) {
-        out.push(cur);
-        cur = "";
       } else {
-        cur += ch;
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ",") {
+          row.push(cur);
+          cur = "";
+        } else if (ch === "\n") {
+          row.push(cur);
+          rows.push(row);
+          row = [];
+          cur = "";
+        } else if (ch === "\r") {
+          // ignore
+        } else {
+          cur += ch;
+        }
       }
     }
-    out.push(cur);
-    return out.map(s => s.trim());
-  }
 
-  function parseCSV(text) {
-    text = stripBOM(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    // last cell
+    row.push(cur);
+    rows.push(row);
 
-    const lines = text
-      .split("\n")
-      .map(l => l.trimEnd())
-      .filter(l => l.length > 0);
-
-    if (lines.length < 2) return [];
-
-    const header = splitCSVLine(lines[0]);
-    const rows = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const cols = splitCSVLine(lines[i]);
-      const obj = {};
-      header.forEach((h, idx) => {
-        obj[h] = (cols[idx] ?? "").trim();
-      });
-      rows.push(obj);
-    }
-    return rows;
+    // 空行の除去
+    const cleaned = rows.filter(r => r.some(cell => String(cell).trim() !== ""));
+    return cleaned;
   }
 
   async function load(url) {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status} ${res.statusText} (${url})`);
-    }
+    if (!res.ok) throw new Error(`CSV fetch failed: ${res.status} ${res.statusText}`);
+
+    // UTF-8前提（文字化けが解消済みとのことなので）
     const text = await res.text();
-    return parseCSV(text);
+
+    const table = parseCSV(text);
+    if (!table.length) return [];
+
+    const header = table[0].map(h => String(h).trim());
+    const data = [];
+
+    for (let i = 1; i < table.length; i++) {
+      const r = table[i];
+      const obj = {};
+      for (let c = 0; c < header.length; c++) {
+        obj[header[c]] = r[c] ?? "";
+      }
+      data.push(obj);
+    }
+    return data;
   }
 
   window.CSVUtil = { load };
