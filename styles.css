@@ -1,165 +1,212 @@
+/* =========================================================
+   古文4択クイズ UI（スマホ最適化：押しやすさ・視認性重視）
+   index.htmlの構造：
+   #quiz, #meta, #progress, #score, #question, .choice, #status,
+   #controls, .ctrl
+   ========================================================= */
+
 :root{
-  --pad: 14px;
-  --radius: 14px;
-  --gap: 10px;
-  --font: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --bg: #0b0f17;
+  --panel: #111827;
+  --panel2:#0f172a;
+  --text: #e5e7eb;
+  --muted:#9ca3af;
+  --border:#273244;
+
+  --accent:#60a5fa;
+  --ok:#34d399;
+  --ng:#fb7185;
+  --warn:#fbbf24;
+
+  --radius: 16px;
+  --shadow: 0 12px 28px rgba(0,0,0,.35);
 }
 
 *{ box-sizing: border-box; }
+html, body{
+  height: 100%;
+}
 body{
   margin: 0;
-  padding: 16px;
-  font-family: var(--font);
-  line-height: 1.5;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  background: radial-gradient(1200px 800px at 50% -10%, rgba(96,165,250,.18), transparent 55%),
+              linear-gradient(180deg, #070a12, var(--bg));
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 余計なダブルタップ拡大や遅延を抑える（体感が軽くなる） */
+button{
+  touch-action: manipulation;
 }
 
 h1{
+  margin: 16px 12px 10px;
   font-size: 20px;
-  margin: 0 0 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-align: center;
+  color: var(--text);
 }
 
+/* メイン枠 */
 #quiz{
-  max-width: 720px;
-  margin: 0 auto;
-  border: 1px solid #ddd;
-  border-radius: var(--radius);
+  width: min(720px, 92vw);
+  margin: 0 auto 18px;
   padding: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
 }
 
+/* 上部メタ情報 */
 #meta{
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 14px;
-  opacity: 0.9;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
   margin-bottom: 10px;
 }
 
+#progress{
+  font-size: 13px;
+  color: var(--muted);
+  background: rgba(17,24,39,.65);
+  border: 1px solid rgba(255,255,255,.06);
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+#score{
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(229,231,235,.95);
+  background: rgba(96,165,250,.14);
+  border: 1px solid rgba(96,165,250,.26);
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+/* 問題文 */
 #question{
   margin: 10px 0 12px;
-  font-size: 18px;
-  font-weight: 600;
+  padding: 14px 14px;
+  background: rgba(15,23,42,.7);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px;
+  line-height: 1.55;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  word-break: break-word;
 }
 
-.source{
-  font-size: 13px;
-  opacity: 0.75;
-  margin-top: 4px;
-  min-height: 18px;
-}
-
+/* 4択ボタン（スマホで押しやすい高さ） */
 .choice{
   width: 100%;
-  display: block;
-  text-align: left;
-  padding: 14px 12px;
   margin: 10px 0;
+  padding: 14px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(17,24,39,.55);
+  color: var(--text);
   font-size: 16px;
-  border-radius: var(--radius);
-  border: 1px solid #ddd;
-  background: #fff;
-  cursor: pointer;
-  touch-action: manipulation;
-  user-select: none;
-}
-
-.choice:disabled{
-  opacity: 0.75;
-  cursor: default;
-}
-
-#status{
-  margin: 10px 0;
-  min-height: 28px;
-  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: .01em;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+
+  /* 押した感 */
+  transition: transform .06s ease, border-color .12s ease, background-color .12s ease, filter .12s ease;
 }
 
-/* controls */
+.choice:hover{
+  border-color: rgba(96,165,250,.35);
+  background: rgba(17,24,39,.72);
+}
+
+.choice:active{
+  transform: translateY(1px) scale(.995);
+}
+
+/* 無効化時の視認性 */
+.choice:disabled{
+  cursor: default;
+  opacity: .78;
+  filter: saturate(.9);
+}
+
+/* 正誤の色（既存JSで correct/wrong クラスを付ける前提） */
+.choice.correct{
+  border-color: rgba(52,211,153,.55);
+  background: rgba(52,211,153,.14);
+}
+.choice.wrong{
+  border-color: rgba(251,113,133,.6);
+  background: rgba(251,113,133,.14);
+}
+
+/* ステータス */
+#status{
+  margin-top: 12px;
+  min-height: 24px;
+  font-size: 14px;
+  font-weight: 800;
+  color: rgba(229,231,235,.92);
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(17,24,39,.52);
+  border: 1px solid rgba(255,255,255,.06);
+}
+
+/* 下部コントロール */
 #controls{
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 12px;
 }
 
 .ctrl{
-  flex: 1;
-  padding: 12px;
-  border-radius: var(--radius);
-  border: 1px solid #ddd;
-  background: #f7f7f7;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(96,165,250,.16);
+  color: var(--text);
   font-size: 15px;
+  font-weight: 900;
   cursor: pointer;
+  transition: transform .06s ease, background-color .12s ease, border-color .12s ease, opacity .12s ease;
+}
+
+.ctrl:hover{
+  background: rgba(96,165,250,.24);
+  border-color: rgba(96,165,250,.36);
+}
+
+.ctrl:active{
+  transform: translateY(1px) scale(.995);
 }
 
 .ctrl:disabled{
-  opacity: 0.6;
+  opacity: .55;
   cursor: default;
 }
 
-/* 既存の correct/wrong を“色に依存しない”方向で */
-.correct{
-  outline: 2px solid #222;
-}
-.wrong{
-  outline: 2px dashed #222;
-}
-
-/* --- ヒット感（正誤アニメ） --- */
-.choice:active{
-  transform: translateY(1px) scale(0.99);
+/* PC/タブレットで少し余白を増やす */
+@media (min-width: 700px){
+  h1{ font-size: 22px; margin-top: 22px; }
+  #quiz{ padding: 18px; }
+  #question{ font-size: 17px; padding: 16px; }
+  .choice{ font-size: 16.5px; padding: 15px 16px; }
 }
 
-.choice-hit{
-  animation: hit 180ms ease-out;
-  will-change: transform, filter;
-}
-
-.choice-correct{
-  animation: correct 260ms ease-out;
-}
-
-.choice-wrong{
-  animation: wrong 260ms ease-out;
-}
-
-.choice-reveal{
-  animation: reveal 420ms ease-out;
-}
-
-@keyframes hit{
-  from{ transform: scale(0.99); filter: brightness(0.98); }
-  to  { transform: scale(1.00); filter: brightness(1.00); }
-}
-
-@keyframes correct{
-  0%   { transform: scale(1.00); filter: brightness(1.00); }
-  40%  { transform: scale(1.03); filter: brightness(1.12); }
-  100% { transform: scale(1.00); filter: brightness(1.00); }
-}
-
-@keyframes wrong{
-  0%   { transform: translateX(0); }
-  25%  { transform: translateX(-3px); }
-  50%  { transform: translateX(3px); }
-  75%  { transform: translateX(-2px); }
-  100% { transform: translateX(0); }
-}
-
-@keyframes reveal{
-  0%   { transform: scale(1.00); filter: brightness(1.00); }
-  35%  { transform: scale(1.02); filter: brightness(1.18); }
-  100% { transform: scale(1.00); filter: brightness(1.00); }
-}
-
-/* --- コンボ演出（C） --- */
-.status-pop{
-  animation: statusPop 220ms ease-out;
-  will-change: transform, opacity;
-}
-
-@keyframes statusPop{
-  0%   { transform: translateY(2px) scale(0.98); opacity: 0.5; }
-  100% { transform: translateY(0)   scale(1.00); opacity: 1.0; }
+/* アニメーションは軽いものだけ（後でコンボ演出に転用しやすい） */
+@keyframes pop{
+  from{ transform: scale(.98); }
+  to{ transform: scale(1); }
 }
