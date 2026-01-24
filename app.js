@@ -6,9 +6,9 @@ const TOTAL_QUESTIONS = 10;
 // ========= Audio files (ここだけあなたの実ファイル名に合わせて修正) =========
 // 例: assets/bgm.mp3 のようにフォルダに入れているなら "assets/bgm.mp3"
 const AUDIO_FILES = {
-  bgm: "bgm.mp3",
-  seCorrect: "correct.mp3",
-  seWrong: "wrong.mp3",
+  bgm: "assets/bgm.mp3",
+  seCorrect: "assets/correct.mp3",
+  seWrong: "assets/wrong.mp3",
 };
 
 // 音量（0.0〜1.0）
