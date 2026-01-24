@@ -14,9 +14,15 @@
     <div id="meta">
       <div id="progress">読み込み中…</div>
 
+      <!-- 右側メタ領域（Score / SE / BGM） -->
       <div class="meta-right">
         <div id="score">Score: 0</div>
+
+        <!-- SEボタン（必要なら残す／無ければJS側が安全に無視します） -->
         <button class="mini" id="soundBtn" type="button" aria-pressed="true">🔊 SE</button>
+
+        <!-- BGM：明示的にONにした人だけ再生 -->
+        <button class="mini" id="bgmBtn" type="button" aria-pressed="false">🎵 BGM</button>
       </div>
     </div>
 
@@ -29,20 +35,13 @@
 
     <div id="status"></div>
 
-    <div id="comboFx" aria-hidden="true"></div>
-    <div id="flash" aria-hidden="true"></div>
-
-    <!-- ✅ テンポ最適化：回答後「どこでも次へ」用オーバーレイ（自動遷移ではなく、ユーザーのタップで進む） -->
-    <div id="tapToNext" aria-hidden="true">
-      <div class="tapToNext-inner">タップで次へ</div>
-    </div>
-
     <div id="controls">
       <button class="ctrl" id="nextBtn" disabled>次へ</button>
       <button class="ctrl" id="restartBtn">最初から</button>
     </div>
   </div>
 
+  <!-- csv.js → app.js の順（依存関係） -->
   <script src="./csv.js"></script>
   <script src="./app.js"></script>
 </body>
