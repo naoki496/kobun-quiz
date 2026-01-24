@@ -19,7 +19,10 @@ const statusEl = document.getElementById("status");
 const choiceBtns = Array.from(document.querySelectorAll(".choice"));
 const nextBtn = document.getElementById("nextBtn");
 const restartBtn = document.getElementById("restartBtn");
+
+// Combo / Flash elements
 const comboFxEl = document.getElementById("comboFx");
+const flashEl = document.getElementById("flash");
 
 // Sound button
 const soundBtn = document.getElementById("soundBtn");
@@ -28,32 +31,20 @@ const soundBtn = document.getElementById("soundBtn");
    Sound (SE) - low latency
    ========================= */
 const Sound = (() => {
-  // 音源配置（assets/ に置く）
   const SE_CORRECT = "./assets/correct.mp3";
   const SE_WRONG   = "./assets/wrong.mp3";
 
   let enabled = true;
-
-  // AudioContext（iOS対策：ユーザー操作後に resume する）
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   const ctx = AudioCtx ? new AudioCtx() : null;
 
-  // decode済みbuffer
   let bufCorrect = null;
   let bufWrong = null;
   let loaded = false;
-
-  // 音量（0.0〜1.0）
   let volume = 0.7;
 
-  function setEnabled(v) {
-    enabled = !!v;
-  }
-
-  function isEnabled() {
-    return enabled;
-  }
-
+  function setEnabled(v) { enabled = !!v; }
+  function isEnabled() { return enabled; }
   function setVolume(v) {
     const nv = Number(v);
     if (!Number.isFinite(nv)) return;
@@ -61,18 +52,13 @@ const Sound = (() => {
   }
 
   async function unlock() {
-    // iOS: 初回タップなどのユーザー操作後に ctx.resume が必要
     if (ctx && ctx.state === "suspended") {
       try { await ctx.resume(); } catch (_) {}
     }
   }
 
   async function load() {
-    if (!ctx) {
-      // AudioContextが無い場合はサイレントに（古い環境）
-      loaded = false;
-      return;
-    }
+    if (!ctx) { loaded = false; return; }
     if (loaded) return;
 
     const [a, b] = await Promise.all([
@@ -94,7 +80,6 @@ const Sound = (() => {
   function playBuffer(buffer) {
     if (!ctx || !loaded || !enabled || !buffer) return;
 
-    // source -> gain -> destination
     const src = ctx.createBufferSource();
     src.buffer = buffer;
 
@@ -110,15 +95,7 @@ const Sound = (() => {
   function correct() { playBuffer(bufCorrect); }
   function wrong()   { playBuffer(bufWrong); }
 
-  return {
-    load,
-    unlock,
-    correct,
-    wrong,
-    setEnabled,
-    isEnabled,
-    setVolume,
-  };
+  return { load, unlock, correct, wrong, setEnabled, isEnabled, setVolume };
 })();
 /* =========================
    /Sound
@@ -138,7 +115,6 @@ function shuffle(arr) {
 }
 
 function normalizeRow(r) {
-  // answer は "1"～"4" 想定（CSVの列名は id question source choice1..4 answer）
   const ans = Number(String(r.answer ?? "").trim());
   if (!(ans >= 1 && ans <= 4)) {
     throw new Error(`answer が 1〜4 ではありません: "${r.answer}" (id=${r.id ?? "?"})`);
@@ -162,25 +138,38 @@ function updateScoreUI() {
 }
 
 function updateStatusUI(message) {
-  // コンボ表示を統一的にここで処理（テキスト側）
   const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
   statusEl.textContent = `${message}${comboText}`;
 }
 
-/* ===== Combo FX (badge) ===== */
-function showComboFx() {
+/* ===== Combo + Flash FX (enhanced) ===== */
+function flash(kind) {
+  if (!flashEl) return;
+  flashEl.classList.remove("ok", "ng");
+  // reflow
+  void flashEl.offsetWidth;
+  flashEl.classList.add(kind);
+}
+
+function hideComboFx(quick = false) {
+  if (!comboFxEl) return;
+  if (quick) comboFxEl.classList.add("fade");
+  comboFxEl.classList.remove("show", "pop", "max");
+  comboFxEl.textContent = "";
+}
+
+function showComboFx(isNewMax) {
   if (!comboFxEl) return;
 
   if (combo >= 2) {
     comboFxEl.textContent = `COMBO x${combo}`;
     comboFxEl.classList.add("show");
 
-    comboFxEl.classList.remove("pop");
-    void comboFxEl.offsetWidth; // reflow
-    comboFxEl.classList.add("pop");
+    comboFxEl.classList.toggle("max", !!isNewMax);
 
-    if (combo >= 5) comboFxEl.classList.add("power");
-    else comboFxEl.classList.remove("power");
+    comboFxEl.classList.remove("pop");
+    void comboFxEl.offsetWidth;
+    comboFxEl.classList.add("pop");
 
     comboFxEl.classList.remove("fade");
   } else {
@@ -188,14 +177,20 @@ function showComboFx() {
   }
 }
 
-function hideComboFx(quick = false) {
-  if (!comboFxEl) return;
-
-  if (quick) comboFxEl.classList.add("fade");
-  comboFxEl.classList.remove("show", "pop", "power");
-  comboFxEl.textContent = "";
+function hitButton(btn) {
+  if (!btn) return;
+  btn.classList.remove("hit");
+  void btn.offsetWidth;
+  btn.classList.add("hit");
 }
-/* ===== /Combo FX ===== */
+
+function shakeButton(btn) {
+  if (!btn) return;
+  btn.classList.remove("shake");
+  void btn.offsetWidth;
+  btn.classList.add("shake");
+}
+/* ===== /Combo + Flash FX ===== */
 
 function render() {
   const q = order[index];
@@ -207,7 +202,7 @@ function render() {
 
   choiceBtns.forEach((btn, i) => {
     btn.textContent = q.choices[i] || "---";
-    btn.classList.remove("correct", "wrong");
+    btn.classList.remove("correct", "wrong", "hit", "shake");
     btn.disabled = false;
   });
 
@@ -255,27 +250,34 @@ function judge(selectedIdx) {
 
   if (selectedIdx === correctIdx) {
     score++;
+
     combo++;
-    if (combo > maxCombo) maxCombo = combo;
+    const isNewMax = combo > maxCombo;
+    if (isNewMax) maxCombo = combo;
 
-    choiceBtns[selectedIdx].classList.add("correct");
-    updateStatusUI("正解");
+    const btn = choiceBtns[selectedIdx];
+    btn.classList.add("correct");
+    hitButton(btn);
 
-    // SE
+    updateStatusUI(isNewMax ? "正解（MAX更新）" : "正解");
+
+    // SE + Flash + Combo FX
     Sound.correct();
-
-    // コンボ演出
-    showComboFx();
+    flash("ok");
+    showComboFx(isNewMax);
   } else {
     combo = 0;
 
-    choiceBtns[selectedIdx].classList.add("wrong");
+    const btn = choiceBtns[selectedIdx];
+    btn.classList.add("wrong");
+    shakeButton(btn);
+
     choiceBtns[correctIdx].classList.add("correct");
     updateStatusUI("不正解");
 
-    // SE
+    // SE + Flash + Combo FX
     Sound.wrong();
-
+    flash("ng");
     hideComboFx(true);
   }
 
@@ -287,8 +289,7 @@ function judge(selectedIdx) {
 
 choiceBtns.forEach((btn) => {
   btn.addEventListener("click", async () => {
-    // iOS対策：初回タップで音を解禁
-    await Sound.unlock();
+    await Sound.unlock(); // iOS対策
     const idx = Number(btn.dataset.idx);
     judge(idx);
   });
@@ -326,7 +327,7 @@ function showError(err) {
   hideComboFx(true);
 }
 
-/* ===== Sound Button (SE ON/OFF) ===== */
+// SE ON/OFF
 if (soundBtn) {
   soundBtn.addEventListener("click", async () => {
     await Sound.unlock();
@@ -336,7 +337,6 @@ if (soundBtn) {
     soundBtn.textContent = next ? "🔊 SE" : "🔇 SE";
   });
 }
-/* ===== /Sound Button ===== */
 
 (async function boot() {
   try {
@@ -344,7 +344,7 @@ if (soundBtn) {
       throw new Error("CSVUtil が見つかりません（csv.js の読み込み順/内容を確認）");
     }
 
-    // 先にSEを読み込み（失敗してもゲーム自体は動かす）
+    // SE先読み（失敗してもゲームは動かす）
     try {
       await Sound.load();
     } catch (e) {
