@@ -1,11 +1,9 @@
 // csv.js (global)
-// window.CSVUtil.load(url) -> Array<Object>
+// window.CSVUtil.load(url) -> Promise<array<object>>
+// 文字列中のカンマ/改行/ダブルクォートに対応（基本的なRFC4180相当）
 
 (function () {
-  "use strict";
-
   function parseCSV(text) {
-    // RFC4180 っぽい最低限：カンマ区切り、改行区切り、"..." 内のカンマ/改行、"" エスケープ対応
     const rows = [];
     let row = [];
     let cur = "";
@@ -43,40 +41,37 @@
       }
     }
 
-    // last
+    // last cell
     row.push(cur);
     rows.push(row);
 
-    // 末尾の空行を落とす
-    while (rows.length && rows[rows.length - 1].every(v => String(v).trim() === "")) {
+    // remove trailing empty lines
+    while (rows.length && rows[rows.length - 1].every(v => (v ?? "").trim() === "")) {
       rows.pop();
     }
-    return rows;
-  }
 
-  function rowsToObjects(rows) {
     if (!rows.length) return [];
-    const header = rows[0].map(h => String(h).trim());
-    const out = [];
-    for (let i = 1; i < rows.length; i++) {
-      const r = rows[i];
+
+    const header = rows[0].map(h => (h ?? "").trim());
+    const data = [];
+
+    for (let r = 1; r < rows.length; r++) {
       const obj = {};
-      for (let j = 0; j < header.length; j++) {
-        obj[header[j]] = r[j] ?? "";
+      for (let c = 0; c < header.length; c++) {
+        obj[header[c]] = rows[r][c] ?? "";
       }
-      out.push(obj);
+      data.push(obj);
     }
-    return out;
+    return data;
   }
 
   async function load(url) {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
-      throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} (${url})`);
+      throw new Error(`CSV fetch失敗: ${res.status} ${res.statusText} (${url})`);
     }
     const text = await res.text();
-    const rows = parseCSV(text);
-    return rowsToObjects(rows);
+    return parseCSV(text);
   }
 
   window.CSVUtil = { load };
