@@ -1,4 +1,3 @@
-/* styles.css（全文・コピペ用） */
 :root{
   --bg0:#07090d;
   --bg1:#0a0f18;
@@ -90,22 +89,11 @@ h1{
   box-shadow: 0 0 18px rgba(0,255,255,0.28);
 }
 
-/* ✅BGMボタンの横長化を抑止（明示クラス） */
-.bgm-btn{
-  width: 140px;
-  max-width: 60vw;
-  height: 44px;
-  border-radius: 14px;
-}
-
 .question{
   font-size:18px;
   line-height:1.65;
   text-align:left;
   word-break: break-word;
-
-  /* ✅提案：進捗バーと問題文の間にもう一行程度の余白を確保 */
-  margin-top: 12px;
 }
 
 .subline{
@@ -272,18 +260,9 @@ h1{
 .start-inner{
   width: min(92vw, 520px);
   display: grid;
-  gap: 14px;
+  gap: 18px;
   justify-items: center;
   padding: 18px;
-}
-
-/* ✅開始画面のタイトル（追加） */
-.start-title{
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 18px rgba(0,255,255,0.35);
-  margin-bottom: 2px;
 }
 
 .start-image{
@@ -318,11 +297,179 @@ h1{
   text-align: center;
 }
 
-/* ===== ハイライト（黄色発光）を確実に見せる（上書きしてでも有効化） ===== */
+/* ===== BGMボタンの横長化を抑止 ===== */
+.bgm-btn{
+  width: 140px;
+  max-width: 60vw;
+  height: 44px;
+  border-radius: 14px;
+}
+
+/* ===== ハイライト（黄色発光）を確実に見せる ===== */
 .hl{
   color: #ffe66b;
   text-shadow:
     0 0 8px rgba(255, 230, 107, 0.75),
     0 0 16px rgba(255, 230, 107, 0.35);
   font-weight: 800;
+}
+
+/* =========================================================
+   ★ 星評価（派手）＋ 結果オーバーレイ（UI非破壊）
+   ========================================================= */
+
+.result-overlay{
+  position: fixed;
+  inset: 0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding: 18px;
+  background: rgba(0,0,0,0.62);
+  backdrop-filter: blur(6px);
+  z-index: 9998;
+}
+
+.result-overlay.hidden{
+  display:none;
+}
+
+.result-card{
+  width: min(92vw, 520px);
+  border-radius: 18px;
+  padding: 18px 16px 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+  border: 1px solid rgba(0,255,255,0.18);
+  box-shadow:
+    0 0 30px rgba(0,255,255,0.12),
+    0 24px 60px rgba(0,0,0,0.65);
+  transform: translateY(10px) scale(0.98);
+  opacity: 0;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.result-overlay.show .result-card{
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.result-head{
+  display:grid;
+  gap: 6px;
+  text-align:center;
+  margin-bottom: 10px;
+}
+
+.result-rank{
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 16px rgba(0,255,255,0.35);
+}
+
+.result-sub{
+  font-size: 14px;
+  opacity: 0.92;
+}
+
+.stars{
+  display:flex;
+  justify-content:center;
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+
+.star{
+  font-size: 30px;
+  opacity: 0.25;
+  transform: translateY(0) scale(0.95);
+  text-shadow: 0 0 0 rgba(255,230,107,0);
+  transition: opacity 140ms ease, transform 140ms ease, text-shadow 140ms ease;
+}
+
+.star.on{
+  opacity: 1;
+  color: #ffe66b;
+  text-shadow:
+    0 0 10px rgba(255, 230, 107, 0.85),
+    0 0 22px rgba(255, 230, 107, 0.45);
+}
+
+@keyframes starPop{
+  0%{ transform: translateY(6px) scale(0.8); }
+  60%{ transform: translateY(-2px) scale(1.15); }
+  100%{ transform: translateY(0) scale(1); }
+}
+.star.pop{
+  animation: starPop 220ms ease-out;
+}
+
+.result-details{
+  margin-top: 6px;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.kv{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 10px;
+  text-align:left;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.30);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.kv .k{
+  opacity: 0.75;
+}
+.kv .v{
+  font-weight: 800;
+  text-shadow: 0 0 12px rgba(0,255,255,0.18);
+}
+
+.result-actions{
+  display:flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.result-btn{
+  flex: 1 1 auto;
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,255,255,0.16);
+  background: rgba(0,0,0,0.35);
+  color:#fff;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(0,255,255,0.10);
+}
+
+.result-btn.primary{
+  border-color: rgba(0,255,255,0.28);
+  background: linear-gradient(90deg, rgba(0,120,255,0.95), rgba(0,255,255,0.85));
+  box-shadow: 0 0 22px rgba(0,255,255,0.22);
+}
+
+.result-btn:active{
+  transform: translateY(1px) scale(0.995);
+}
+
+.result-note{
+  margin-top: 10px;
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+/* ===== 次へボタンを「押せ」と伝える（テンポ最適化） ===== */
+@keyframes nextPulse {
+  0%   { box-shadow: 0 0 0 rgba(0,255,255,0); transform: translateY(0); }
+  40%  { box-shadow: 0 0 22px rgba(0,255,255,0.28); transform: translateY(-1px); }
+  100% { box-shadow: 0 0 0 rgba(0,255,255,0); transform: translateY(0); }
+}
+.pulse-next{
+  animation: nextPulse 520ms ease-out;
 }
