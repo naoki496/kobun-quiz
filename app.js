@@ -100,7 +100,6 @@ function ensureResultOverlay() {
   resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
   resultBtnCloseEl = resultOverlay.querySelector("#resultCloseBtn");
 
-  // Overlay click to close (only outside card)
   resultOverlay.addEventListener("click", (e) => {
     if (e.target === resultOverlay) hideResultOverlay();
   });
@@ -112,7 +111,6 @@ function ensureResultOverlay() {
     try {
       await unlockAudioOnce();
       start();
-      // 次へ押下誤爆防止：開始時は disabled のまま
     } catch (e) {
       showError(e);
     }
@@ -122,7 +120,6 @@ function ensureResultOverlay() {
 function showResultOverlay({ stars, rankName, summary, details }) {
   ensureResultOverlay();
 
-  // reset stars
   const starEls = Array.from(starsRow.querySelectorAll(".star"));
   starEls.forEach((el) => {
     el.classList.remove("on");
@@ -134,11 +131,9 @@ function showResultOverlay({ stars, rankName, summary, details }) {
   resultDetailsEl.innerHTML = details;
 
   resultOverlay.classList.remove("hidden");
-  // trigger animation
   void resultOverlay.offsetWidth;
   resultOverlay.classList.add("show");
 
-  // star-by-star animation
   for (let i = 0; i < Math.min(5, stars); i++) {
     setTimeout(() => {
       starEls[i].classList.add("on");
@@ -159,7 +154,6 @@ function disableChoices(disabled) {
 }
 
 function shuffle(arr) {
-  // Fisher–Yates
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -336,11 +330,19 @@ function start() {
   render();
 }
 
+function getResultMessage(percent) {
+  // ユーザー指定の基準を厳密適用
+  if (percent >= 90) return "素晴らしい！この調子！";
+  if (percent >= 70) return "よく覚えられているぞ！";
+  if (percent >= 40) return "ここから更に積み重ねよう！";
+  return "まずは基礎単語から始めよう！";
+}
+
 function calcStarsAndRank(score, total, maxCombo) {
   const rate = total ? (score / total) : 0;
   const percent = Math.round(rate * 100);
 
-  // 星：学習用途でも納得しやすい「正答率主体」
+  // 星：正答率主体
   // 5: 90-100 / 4: 80-89 / 3: 65-79 / 2: 50-64 / 1: <50
   let stars = 1;
   if (percent >= 90) stars = 5;
@@ -349,7 +351,7 @@ function calcStarsAndRank(score, total, maxCombo) {
   else if (percent >= 50) stars = 2;
 
   // ランク名（ゲーム風）
-  // ※コンボが高いと“称号が少し強く見える”ように微調整
+  // コンボが高いと少しだけ“称号が強く”見える微調整（UI・基準は維持）
   const comboBoost = maxCombo >= 6 ? 1 : 0;
   const rankTable = [
     { s: 1, name: "見習い" },
@@ -364,7 +366,6 @@ function calcStarsAndRank(score, total, maxCombo) {
 }
 
 function finish() {
-  // 画面側の「表示」は Overlay に寄せる（UI崩れ防止）
   if (progressEl) progressEl.textContent = "終了";
   if (sublineEl) sublineEl.textContent = "";
   if (statusEl) statusEl.textContent = "";
@@ -374,10 +375,14 @@ function finish() {
   const total = order.length || 1;
   const { stars, rank, percent } = calcStarsAndRank(score, total, maxCombo);
 
+  const message = getResultMessage(percent);
   const summary = `スコア ${score}/${total}（正答率 ${percent}%）`;
 
-  // details は HTML 可（表示は overlay 内のみ）
+  // details は HTML 可（overlay内のみ）
   const details = `
+    <div style="margin-bottom:10px; font-weight:900; text-align:center; text-shadow:0 0 16px rgba(255,230,107,0.28);">
+      ${escapeHtml(message)}
+    </div>
     <div class="kv">
       <div class="k">正答率</div><div class="v">${percent}%</div>
       <div class="k">最大COMBO</div><div class="v">x${maxCombo}</div>
@@ -392,7 +397,7 @@ function finish() {
     details
   });
 
-  // 背景に結果だけ出す（保険。overlayが何かで消えても最低限分かる）
+  // 保険（overlayが消えた場合の最低表示）
   if (questionEl) questionEl.textContent = `結果：${score} / ${total}`;
 }
 
@@ -426,7 +431,6 @@ function judge(selectedIdx) {
   updateScoreUI();
   updateMeterUI();
 
-  // 自動遷移OFF：必ず「次へ」で進む
   if (nextBtn) nextBtn.disabled = false;
   pulseNext();
 }
@@ -442,7 +446,6 @@ choiceBtns.forEach((btn) => {
 
 if (nextBtn) {
   nextBtn.addEventListener("click", () => {
-    // 連打対策（体感の安定）
     nextBtn.disabled = true;
     setTimeout(() => {
       index++;
@@ -497,7 +500,6 @@ function showError(err) {
 
     questions = raw.map(normalizeRow);
 
-    // 起動直後は overlay 非表示のまま
     ensureResultOverlay();
     hideResultOverlay();
 
