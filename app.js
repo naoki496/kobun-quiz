@@ -70,6 +70,63 @@ const seWrong = new Audio(AUDIO_FILES.wrong);
 seWrong.preload = "auto";
 seWrong.volume = 0.9;
 
+// ===== Storage (localStorage 可用性チェック + フォールバック) =====
+const STORAGE_KEY_CARD_COUNTS = "kobunQuiz.v1.cardCounts";
+
+function storageAvailable() {
+  try {
+    const x = "__storage_test__";
+    window.localStorage.setItem(x, x);
+    window.localStorage.removeItem(x);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const StorageAdapter = (() => {
+  const mem = new Map();
+  const ok = storageAvailable();
+
+  return {
+    // true: localStorage 永続 / false: メモリ（リロードで消える）
+    isPersistent: ok,
+
+    get(key) {
+      if (ok) return window.localStorage.getItem(key);
+      return mem.get(key) ?? null;
+    },
+
+    set(key, value) {
+      // QuotaExceededError 等を握り潰さず、落とさない
+      try {
+        if (ok) window.localStorage.setItem(key, value);
+        else mem.set(key, value);
+      } catch (e) {
+        // localStorage が突然使えない/満杯 の場合はメモリへ退避
+        mem.set(key, value);
+        console.warn("[StorageAdapter] localStorage write failed; fallback to memory.", e);
+      }
+    },
+  };
+})();
+
+function loadCardCounts() {
+  const raw = StorageAdapter.get(STORAGE_KEY_CARD_COUNTS);
+  if (!raw) return {};
+  try {
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCardCounts(counts) {
+  StorageAdapter.set(STORAGE_KEY_CARD_COUNTS, JSON.stringify(counts));
+}
+
+
 // ===== Utils =====
 function disableChoices(disabled) {
   choiceBtns.forEach((b) => (b.disabled = disabled));
@@ -636,7 +693,8 @@ function showError(err) {
 
     const raw = await window.CSVUtil.load(csvUrl);
     questions = raw.map(normalizeRow);
-
+    console.log("[Storage] persistent localStorage:", StorageAdapter.isPersistent);
+    
     // UIだけ準備（開始はStartボタンで）
     progressEl.textContent = `準備完了（問題数 ${questions.length}）`;
     updateScoreUI();
