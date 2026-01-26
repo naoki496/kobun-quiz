@@ -78,6 +78,34 @@ const seWrong = new Audio(AUDIO_FILES.wrong);
 seWrong.preload = "auto";
 seWrong.volume = 0.9;
 
+// ===== SE Pool（同一結果が連続しても鳴らすため）=====
+const SE_POOL_SIZE = 4;
+
+function makeSEPool(src, volume) {
+  const pool = Array.from({ length: SE_POOL_SIZE }, () => {
+    const a = new Audio(src);
+    a.preload = "auto";
+    a.volume = volume;
+    return a;
+  });
+  let idx = 0;
+  return {
+    play() {
+      const a = pool[idx];
+      idx = (idx + 1) % pool.length;
+      try {
+        a.pause();          // 念のため停止
+        a.currentTime = 0;  // 巻き戻し
+        const p = a.play();
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      } catch (_) {}
+    },
+  };
+}
+
+const seCorrectPool = makeSEPool(AUDIO_FILES.correct, 0.9);
+const seWrongPool = makeSEPool(AUDIO_FILES.wrong, 0.9);
+
 // ===== Storage (localStorage 可用性チェック + フォールバック) =====
 const STORAGE_KEY_CARD_COUNTS = "kobunQuiz.v1.cardCounts";
 
@@ -309,11 +337,8 @@ async function setBgm(on) {
 }
 
 function playSE(which) {
-  try {
-    const a = which === "correct" ? seCorrect : seWrong;
-    a.currentTime = 0;
-    a.play();
-  } catch (_) {}
+  if (which === "correct") seCorrectPool.play();
+  else seWrongPool.play();
 }
 
 // ===== Rendering / Session =====
