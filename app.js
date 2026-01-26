@@ -9,6 +9,14 @@ const AUDIO_FILES = {
   wrong: "./assets/wrong.mp3",
 };
 
+// ===== Card (Reward) =====
+// ★3/★4/★5の抽選プール（まずは仮で3枚）
+const CARD_POOL = {
+  3: [{ id: "sei_shonagon", name: "清少納言", img: "./assets/cards/sei_shonagon.png" }],
+  4: [{ id: "murasaki", name: "紫式部", img: "./assets/cards/murasaki.png" }],
+  5: [{ id: "basho", name: "松尾芭蕉", img: "./assets/cards/basho.png" }],
+};
+
 let questions = [];
 let order = [];
 let index = 0;
@@ -165,7 +173,7 @@ function normalizeRow(r) {
 }
 
 // =====================================================
-// ✅重要修正①：HTMLエスケープを正しく（安全版）
+// ✅HTMLエスケープ（現URL版は壊れているので健全化）
 // =====================================================
 function escapeHtml(str) {
   return String(str)
@@ -183,6 +191,37 @@ function highlightBrackets(str) {
 }
 // =====================================================
 
+// ===== Card reward helpers =====
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function rollCardByStars(stars) {
+  if (stars < 3) return null;
+  const tier = Math.min(5, Math.max(3, stars));
+  const pool = CARD_POOL[tier] || [];
+  if (!pool.length) return null;
+  return { ...pickRandom(pool), rarity: tier };
+}
+
+function recordCard(card) {
+  const counts = loadCardCounts();
+  counts[card.id] = (counts[card.id] ?? 0) + 1;
+  saveCardCounts(counts);
+  return counts[card.id];
+}
+
+// CSSアニメ（.card-effect）を使う前提。存在しなくても落とさない。
+function playCardEffect(rarity) {
+  try {
+    const el = document.createElement("div");
+    el.className = `card-effect r${rarity}`;
+    el.innerHTML = `<div class="card-effect-glow"></div>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1100);
+  } catch (_) {}
+}
+
 function updateScoreUI() {
   scoreEl.textContent = `Score: ${score}`;
 }
@@ -196,7 +235,6 @@ function updateMeterUI() {
   const total = order.length || 1;
   const cur = Math.min(index + 1, total);
   const percent = Math.round((cur / total) * 100);
-
   meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
   comboLabel.textContent = `最大COMBO x${maxCombo}`;
   meterInner.style.width = `${percent}%`;
@@ -230,7 +268,6 @@ function pulseNext() {
 async function unlockAudioOnce() {
   if (audioUnlocked) return;
   audioUnlocked = true;
-
   try {
     // iOS/Chrome対策：無音再生→停止で解錠
     bgmAudio.muted = true;
@@ -313,7 +350,6 @@ function startWithPool(pool) {
 
   // ✅通常・連続学習ともに「10問で一旦終了」（当初仕様）
   order = shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
-
   render();
 }
 
@@ -418,9 +454,7 @@ function buildReviewHtml() {
         .map((c, i) => {
           const isC = i === h.correctIdx;
           const isS = i === h.selectedIdx;
-          const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""]
-            .filter(Boolean)
-            .join(" ");
+          const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""].filter(Boolean).join(" ");
           return `<div class="${cls}">${highlightBrackets(c)}</div>`;
         })
         .join("");
@@ -443,7 +477,8 @@ function buildReviewHtml() {
 }
 
 // =====================================================
-// ✅重要修正②：結果オーバーレイを「ID付きDOM」で正常生成
+// ✅結果オーバーレイ（ID付きDOMを生成）
+// ※UIデザインは既存CSSに委ね、構造だけ健全化
 // =====================================================
 function ensureResultOverlay() {
   if (resultOverlay) return;
@@ -451,7 +486,6 @@ function ensureResultOverlay() {
   resultOverlay = document.createElement("div");
   resultOverlay.className = "result-overlay";
 
-  // 必須IDを持つDOMを生成（querySelector が null にならない）
   resultOverlay.innerHTML = `
     <div class="result-card">
       <div class="result-head">
@@ -501,7 +535,6 @@ function ensureResultOverlay() {
     if (e.target === resultOverlay) hide();
   });
 
-  // 念のため null ガード（将来HTMLを触った時の保険）
   if (resultBtnCloseEl) resultBtnCloseEl.addEventListener("click", hide);
 
   if (resultBtnRestartEl) {
@@ -562,12 +595,35 @@ function showResultOverlay() {
   const canRetryWrong = history.some((h) => !h.isCorrect);
   const modeLabel = mode === "endless" ? "連続学習" : "通常";
 
+  // ===== Card reward (normal only) =====
+  let rewardHtml = "";
+  if (mode === "normal") {
+    const card = rollCardByStars(stars);
+    if (card) {
+      const n = recordCard(card);
+      playCardEffect(card.rarity);
+
+      // styles.css に .card-reward がある前提（無くても表示は文字列として成立）
+      rewardHtml = `
+        <div class="card-reward">
+          <img src="${escapeHtml(card.img)}" alt="${escapeHtml(card.name)}">
+          <div>
+            <div class="card-name">獲得：${escapeHtml(card.name)}</div>
+            <div class="card-meta">レアリティ：★${card.rarity} ／ 所持回数：${n}</div>
+          </div>
+        </div>
+      `;
+    }
+  }
+  // ================================
+
   const details = `
     <div style="display:grid;gap:6px;">
       <div><b>正解</b> ${score} / ${total}</div>
       <div><b>最大COMBO</b> x${maxCombo}</div>
       <div><b>モード</b> ${escapeHtml(modeLabel)}</div>
     </div>
+    ${rewardHtml}
   `;
 
   const reviewHtml = mode === "endless" ? buildReviewHtml() : "";
