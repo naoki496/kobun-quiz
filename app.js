@@ -187,7 +187,11 @@ function escapeHtml(str) {
 // 〖〗の中だけ黄色発光（span付与）
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
-  return safe.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
+
+  // 【...】 と 〖...〗 の両方をハイライト
+  return safe
+    .replace(/【(.*?)】/g, '【<span class="hl">$1</span>】')
+    .replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
 }
 // =====================================================
 
