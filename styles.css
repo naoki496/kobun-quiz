@@ -454,3 +454,61 @@ h1{
   line-height: 1.45;
   word-break: break-word;
 }
+
+/* ===== 開始画面（Start Screen） ===== */
+.start-screen{
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at 50% 40%, #0b1020 0%, #05060b 55%, #000 100%);
+  z-index: 9999;
+}
+
+.start-inner{
+  width: min(92vw, 520px);
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  padding: 18px;
+}
+
+.start-title{
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  font-size: 20px;
+  text-shadow: 0 0 14px rgba(0,255,255,0.35);
+}
+
+.start-image{
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  box-shadow:
+    0 0 28px rgba(0, 255, 255, 0.18),
+    0 0 60px rgba(0, 140, 255, 0.10);
+}
+
+.start-btn{
+  width: min(92vw, 320px);
+  height: 56px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: linear-gradient(90deg, rgba(0,120,255,0.95), rgba(0,255,255,0.85));
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(0,255,255,0.35);
+}
+
+.start-btn:active{
+  transform: translateY(1px) scale(0.995);
+}
+
+.start-note{
+  color: rgba(255,255,255,0.72);
+  font-size: 0.9rem;
+  text-align: center;
+}
