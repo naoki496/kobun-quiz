@@ -240,4 +240,242 @@ function ensureResultOverlay() {
 
 function showResultOverlay(mainText) {
   const ov = ensureResultOverlay();
-  const main = document.g
+  const main = document.getElementById("resultMain");
+  if (main) main.textContent = mainText;
+  ov.style.display = "flex";
+}
+
+// ===== Core =====
+function render() {
+  const q = order[index];
+
+  progressEl.textContent = (mode === "normal")
+    ? `第${index + 1}問 / ${order.length}`
+    : `出題中（連続正解モード）`;
+
+  updateScoreUI();
+  updateMeterUI();
+
+  const text = q.source ? `${q.question}（${q.source}）` : q.question;
+  questionEl.innerHTML = highlightBrackets(text);
+
+  sublineEl.textContent = "";
+
+  choiceBtns.forEach((btn, i) => {
+    btn.textContent = q.choices[i] || "---";
+    btn.classList.remove("correct", "wrong");
+    btn.disabled = false;
+  });
+
+  statusEl.textContent = "";
+  nextBtn.disabled = true;
+  locked = false;
+}
+
+function buildOrderForMode() {
+  const pool = shuffle([...questions]);
+
+  if (mode === "normal") {
+    order = pool.slice(0, Math.min(TOTAL_QUESTIONS, pool.length));
+    return;
+  }
+
+  // streak: 全体をシャッフルして順に出す（尽きたら終了）
+  order = pool;
+}
+
+function startNewSession() {
+  if (!csvReady) {
+    throw new Error("CSVがまだ読み込めていません。");
+  }
+
+  // 状態初期化
+  score = 0;
+  index = 0;
+  combo = 0;
+  maxCombo = 0;
+
+  buildOrderForMode();
+
+  if (!order.length) {
+    throw new Error("問題が0件です（CSVの内容を確認してください）");
+  }
+
+  render();
+}
+
+function finish(reasonText) {
+  progressEl.textContent = "終了";
+  disableChoices(true);
+  nextBtn.disabled = true;
+
+  // UIは変えず、結果はオーバーレイで見せる
+  const base = (mode === "normal")
+    ? `結果：${score} / ${order.length}\n最大COMBO x${maxCombo}`
+    : `結果：連続正解 ${combo}（最大 ${maxCombo}）\n正解数 ${score}`;
+
+  const reason = reasonText ? `\n\n${reasonText}` : "";
+  showResultOverlay(base + reason);
+}
+
+function judge(selectedIdx) {
+  if (locked) return;
+  locked = true;
+  disableChoices(true);
+
+  const q = order[index];
+  const correctIdx = q.answer - 1;
+
+  if (selectedIdx === correctIdx) {
+    score++;
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+
+    choiceBtns[selectedIdx].classList.add("correct");
+    flashGood();
+    playSE("correct");
+    updateStatusUI("正解");
+
+    updateScoreUI();
+    updateMeterUI();
+
+    // normal: 次へで進む（従来どおり）
+    // streak: 自動で次へ進むとテンポが良いが、UI変更を避けて「次へ」方式を維持
+    nextBtn.disabled = false;
+    return;
+  }
+
+  // 不正解
+  combo = 0;
+
+  choiceBtns[selectedIdx].classList.add("wrong");
+  choiceBtns[correctIdx].classList.add("correct");
+  shakeBad();
+  playSE("wrong");
+  updateStatusUI("不正解");
+
+  updateScoreUI();
+  updateMeterUI();
+
+  if (mode === "streak") {
+    // 連続正解モードは不正解で即終了（仕様）
+    nextBtn.disabled = true;
+    finish("連続正解モードは不正解で終了です。");
+    return;
+  }
+
+  // normalは「次へ」で進める
+  nextBtn.disabled = false;
+}
+
+// ===== Events =====
+choiceBtns.forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    await unlockAudioOnce();
+    const idx = Number(btn.dataset.idx);
+    judge(idx);
+  });
+});
+
+nextBtn.addEventListener("click", () => {
+  index++;
+
+  if (index >= order.length) {
+    if (mode === "streak") {
+      finish("問題プールをすべて出し切りました。");
+    } else {
+      finish();
+    }
+    return;
+  }
+
+  render();
+});
+
+restartBtn.addEventListener("click", () => {
+  try {
+    startNewSession();
+  } catch (e) {
+    showError(e);
+  }
+});
+
+bgmToggleBtn?.addEventListener("click", async () => {
+  await unlockAudioOnce();
+  await setBgm(!bgmOn);
+});
+
+modeSelect?.addEventListener("change", () => {
+  mode = modeSelect.value;
+  if (!started) return; // START前は切替だけ許容（開始はSTART押下）
+  try {
+    startNewSession(); // 問題中の切替＝新セッションで開始
+  } catch (e) {
+    showError(e);
+  }
+});
+
+startBtnEl?.addEventListener("click", async () => {
+  await unlockAudioOnce();
+  started = true;
+
+  // スタート画面を閉じる
+  if (startScreenEl) startScreenEl.style.display = "none";
+
+  // 選択中モードを反映して開始
+  mode = modeSelect?.value ?? "normal";
+
+  try {
+    startNewSession();
+  } catch (e) {
+    showError(e);
+  }
+});
+
+// ===== Error =====
+function showError(err) {
+  console.error(err);
+  progressEl.textContent = "読み込み失敗";
+  scoreEl.textContent = "Score: 0";
+  questionEl.textContent = "CSVを読み込めませんでした。";
+  sublineEl.textContent = "";
+  statusEl.textContent = `詳細: ${err?.message ?? err}`;
+  disableChoices(true);
+  nextBtn.disabled = true;
+
+  // スタート画面にもエラーを出す（STARTが押せない事故を防ぐ）
+  if (startHintEl) startHintEl.textContent = `読み込み失敗: ${err?.message ?? err}`;
+  if (startBtnEl) startBtnEl.disabled = true;
+}
+
+// ===== Boot =====
+(async function boot() {
+  try {
+    if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
+      throw new Error("CSVUtil が見つかりません（csv.js の読み込み順/内容を確認）");
+    }
+
+    const baseUrl = new URL("./", location.href).toString();
+    const csvUrl = new URL("questions.csv", baseUrl).toString();
+
+    progressEl.textContent = `読み込み中…`;
+    if (startHintEl) startHintEl.textContent = "問題を読み込んでいます…";
+
+    const raw = await window.CSVUtil.load(csvUrl);
+    questions = raw.map(normalizeRow);
+
+    csvReady = true;
+
+    progressEl.textContent = `準備完了（STARTで開始）`;
+    questionEl.textContent = "準備完了。STARTを押してください。";
+    statusEl.textContent = "";
+
+    if (startHintEl) startHintEl.textContent = "準備完了。STARTを押してください。";
+    if (startBtnEl) startBtnEl.disabled = false;
+
+    // 結果オーバーレイを先に作っておく（初回表示時のガタつき防止）
+    ensureResultOverlay();
+  } catch (e) {
+    showError(e);
+  }
+})();
