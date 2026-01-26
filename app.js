@@ -260,10 +260,9 @@ function startWithPool(pool) {
 
   const shuffled = shuffle([...pool]);
 
-  // ✅連続学習は「10問固定」ではなく、プール全量（＝連続）へ
-  order = (mode === "endless")
-    ? shuffled
-    : shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
+  // ✅連続学習も10問で一旦終了し、結果→復習へ
+ order = shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
+
 
   render();
 }
