@@ -64,20 +64,25 @@
     while (rows.length && rows[rows.length - 1].every(v => String(v).trim() === "")) {
       rows.pop();
     }
-
     return rows;
   }
 
   function rowsToObjects(rows) {
     if (!rows.length) return [];
-    const header = rows[0].map(h => String(h).trim());
-    const out = [];
 
+    const header = rows[0].map(h => String(h).trim());
+    // ✅UTF-8 BOM対策（Excel等で先頭列名が "\ufeffid" になることがある）
+    if (header.length && header[0].charCodeAt(0) === 0xFEFF) {
+      header[0] = header[0].slice(1);
+    }
+
+    const out = [];
     for (let r = 1; r < rows.length; r++) {
       const obj = {};
       const line = rows[r];
       for (let c = 0; c < header.length; c++) {
-        obj[header[c]] = (line[c] ?? "").trim?.() ?? line[c];
+        // ✅trim?.() を廃止して互換性を確保
+        obj[header[c]] = String(line[c] ?? "").trim();
       }
       out.push(obj);
     }
