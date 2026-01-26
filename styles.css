@@ -40,7 +40,7 @@ h1{
   overflow: hidden;
 }
 
-/* ✅BGMボタンが横に伸びないよう、metaを固定レイアウトに */
+/* ✅meta: 左（progress/score） 右（MODE/BGM） */
 #meta{
   display:flex;
   justify-content:space-between;
@@ -58,6 +58,47 @@ h1{
   min-width: 0;
 }
 
+#metaRight{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  align-items:flex-end;
+  flex: 0 0 auto;
+}
+
+/* “ゲームっぽい”MODEピル */
+.mode-pill{
+  display: inline-flex;
+  align-items: center;
+  gap:10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,255,255,0.22);
+  background: rgba(0,0,0,0.30);
+  box-shadow: 0 0 14px rgba(0,255,255,0.12);
+  cursor: pointer;
+}
+
+.mode-label{
+  font-size: 12px;
+  letter-spacing: 0.10em;
+  opacity: 0.85;
+  text-shadow: 0 0 12px rgba(0,255,255,0.18);
+  user-select: none;
+}
+
+.mode-select{
+  height: 30px;
+  border-radius: 999px;
+  padding: 0 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  outline: none;
+  appearance: none;
+}
+
+/* 内枠 */
 .panel-inner{
   border-radius: 16px;
   background: rgba(0,0,0,0.35);
@@ -67,14 +108,13 @@ h1{
   margin-top: 12px;
 }
 
-/* ✅ボタンが幅100%化しない/改行しない/伸びない */
+/* ✅BGMボタンが横に伸びない */
 .pill{
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid rgba(0,255,255,0.25);
@@ -83,38 +123,46 @@ h1{
   box-shadow: 0 0 14px rgba(0,255,255,0.14);
   cursor:pointer;
 }
-
 .pill.on{
   border-color: rgba(0,255,255,0.55);
   box-shadow: 0 0 18px rgba(0,255,255,0.28);
 }
 
+/* 既存の抑止（横長化） */
+.bgm-btn{
+  width: 140px;
+  max-width: 60vw;
+  height: 44px;
+  border-radius: 14px;
+}
+
+/* 問題 */
 .question{
   font-size:18px;
   line-height:1.65;
   text-align:left;
   word-break: break-word;
 }
-
 .subline{
-  margin-top: 8px;
+  margin-top: 10px;
   text-align:left;
   font-size: 12px;
   opacity: 0.75;
 }
 
+/* ハイライト（黄色発光） */
 .hl{
-  color: var(--yellow);
+  color: #ffe66b;
   text-shadow:
-    0 0 10px rgba(255,213,74,0.45),
-    0 0 18px rgba(255,213,74,0.25);
-  font-weight: 700;
+    0 0 8px rgba(255, 230, 107, 0.75),
+    0 0 16px rgba(255, 230, 107, 0.35);
+  font-weight: 800;
 }
 
+/* メーター */
 #meterArea{
   text-align:left;
 }
-
 #meterText{
   display:flex;
   justify-content:space-between;
@@ -123,7 +171,6 @@ h1{
   margin-bottom: 10px;
   opacity: 0.92;
 }
-
 #meterOuter{
   width:100%;
   height: 22px;
@@ -132,7 +179,6 @@ h1{
   overflow:hidden;
   border: 1px solid rgba(255,255,255,0.10);
 }
-
 #meterInner{
   height:100%;
   width:0%;
@@ -142,10 +188,10 @@ h1{
   transition: width 220ms ease;
 }
 
+/* 選択肢 */
 #choicesArea{
   margin-top: 14px;
 }
-
 .choice{
   width: 100%;
   margin: 10px 0;
@@ -162,28 +208,20 @@ h1{
     inset 0 0 0 1px rgba(255,255,255,0.04);
   transition: transform 80ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
-
-.choice:active{
-  transform: scale(0.985);
-}
-
-.choice:disabled{
-  opacity: 0.85;
-  cursor: default;
-}
-
+.choice:active{ transform: scale(0.985); }
+.choice:disabled{ opacity: 0.85; cursor: default; }
 .choice.correct{
   border-color: rgba(80,255,130,0.55);
   box-shadow: 0 0 22px rgba(80,255,130,0.25);
   background: rgba(80,255,130,0.10);
 }
-
 .choice.wrong{
   border-color: rgba(255,80,80,0.55);
   box-shadow: 0 0 22px rgba(255,80,80,0.25);
   background: rgba(255,80,80,0.10);
 }
 
+/* ステータス */
 .status{
   min-height: 24px;
   margin-top: 10px;
@@ -191,13 +229,13 @@ h1{
   opacity: 0.95;
 }
 
+/* コントロール */
 #controls{
   display:flex;
   justify-content:space-between;
   gap:12px;
   margin-top: 14px;
 }
-
 .ctrl{
   width: 50%;
   padding: 14px;
@@ -209,11 +247,7 @@ h1{
   cursor:pointer;
   box-shadow: 0 0 18px rgba(0,255,255,0.10);
 }
-
-.ctrl:disabled{
-  opacity: 0.4;
-  cursor: default;
-}
+.ctrl:disabled{ opacity: 0.4; cursor: default; }
 
 #hint{
   margin: 10px 0 0;
@@ -228,9 +262,7 @@ h1{
   20%  { box-shadow: 0 0 60px rgba(0,255,255,0.25), inset 0 0 50px rgba(0,255,255,0.10); }
   100% { box-shadow: 0 0 0 rgba(0,255,255,0); }
 }
-.flash-good{
-  animation: flashGood 260ms ease-out;
-}
+.flash-good{ animation: flashGood 260ms ease-out; }
 
 /* 不正解揺れ */
 @keyframes shake {
@@ -242,327 +274,51 @@ h1{
   75% { transform: translateX(-3px); }
   100% { transform: translateX(0); }
 }
-.shake{
-  animation: shake 260ms ease-out;
-}
+.shake{ animation: shake 260ms ease-out; }
 
-/* ===== 開始画面（Start Screen） ===== */
-.start-screen{
-  position: fixed;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: radial-gradient(circle at 50% 40%, #0b1020 0%, #05060b 55%, #000 100%);
-  z-index: 9999;
-}
-
-.start-inner{
-  width: min(92vw, 520px);
-  display: grid;
-  gap: 18px;
-  justify-items: center;
-  padding: 18px;
-}
-
-.start-image{
-  width: 100%;
-  height: auto;
-  border-radius: 18px;
-  box-shadow:
-    0 0 28px rgba(0, 255, 255, 0.18),
-    0 0 60px rgba(0, 140, 255, 0.10);
-}
-
-.start-btn{
-  width: min(92vw, 320px);
-  height: 56px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: linear-gradient(90deg, rgba(0,120,255,0.95), rgba(0,255,255,0.85));
-  color: #fff;
-  font-size: 1.25rem;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 0 18px rgba(0,255,255,0.35);
-}
-
-.start-btn:active{
-  transform: translateY(1px) scale(0.995);
-}
-
-.start-note{
-  color: rgba(255,255,255,0.72);
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-/* ===== BGMボタンの横長化を抑止 ===== */
-.bgm-btn{
-  width: 140px;
-  max-width: 60vw;
-  height: 44px;
-  border-radius: 14px;
-}
-
-/* ===== ハイライト（黄色発光）を確実に見せる ===== */
-.hl{
-  color: #ffe66b;
-  text-shadow:
-    0 0 8px rgba(255, 230, 107, 0.75),
-    0 0 16px rgba(255, 230, 107, 0.35);
-  font-weight: 800;
-}
-
-/* =========================================================
-   ★ 星評価（派手）＋ 結果オーバーレイ（UI非破壊）
-   ========================================================= */
-
-.result-overlay{
-  position: fixed;
-  inset: 0;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding: 18px;
-  background: rgba(0,0,0,0.62);
-  backdrop-filter: blur(6px);
-  z-index: 9998;
-}
-
-.result-overlay.hidden{
-  display:none;
-}
-
-.result-card{
-  width: min(92vw, 520px);
-  border-radius: 18px;
-  padding: 18px 16px 16px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
-  border: 1px solid rgba(0,255,255,0.18);
-  box-shadow:
-    0 0 30px rgba(0,255,255,0.12),
-    0 24px 60px rgba(0,0,0,0.65);
-  transform: translateY(10px) scale(0.98);
-  opacity: 0;
-  transition: transform 180ms ease, opacity 180ms ease;
-}
-
-.result-overlay.show .result-card{
-  transform: translateY(0) scale(1);
-  opacity: 1;
-}
-
-.result-head{
-  display:grid;
-  gap: 6px;
-  text-align:center;
-  margin-bottom: 10px;
-}
-
-.result-rank{
-  font-weight: 900;
-  font-size: 22px;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 16px rgba(0,255,255,0.35);
-}
-
-.result-sub{
-  font-size: 14px;
-  opacity: 0.92;
-}
-
-.stars{
-  display:flex;
-  justify-content:center;
-  gap: 10px;
-  margin: 10px 0 12px;
-}
-
-.star{
-  font-size: 30px;
-  opacity: 0.25;
-  transform: translateY(0) scale(0.95);
-  text-shadow: 0 0 0 rgba(255,230,107,0);
-  transition: opacity 140ms ease, transform 140ms ease, text-shadow 140ms ease;
-}
-
-.star.on{
-  opacity: 1;
-  color: #ffe66b;
-  text-shadow:
-    0 0 10px rgba(255, 230, 107, 0.85),
-    0 0 22px rgba(255, 230, 107, 0.45);
-}
-
-@keyframes starPop{
-  0%{ transform: translateY(6px) scale(0.8); }
-  60%{ transform: translateY(-2px) scale(1.15); }
-  100%{ transform: translateY(0) scale(1); }
-}
-.star.pop{
-  animation: starPop 220ms ease-out;
-}
-
-.result-details{
-  margin-top: 6px;
-  font-size: 14px;
-  opacity: 0.95;
-}
-
-.kv{
-  display:grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px 10px;
-  text-align:left;
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(0,0,0,0.30);
-  border: 1px solid rgba(255,255,255,0.10);
-}
-
-.kv .k{
-  opacity: 0.75;
-}
-.kv .v{
-  font-weight: 800;
-  text-shadow: 0 0 12px rgba(0,255,255,0.18);
-}
-
-.result-actions{
-  display:flex;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.result-btn{
-  flex: 1 1 auto;
-  height: 48px;
-  border-radius: 14px;
-  border: 1px solid rgba(0,255,255,0.16);
-  background: rgba(0,0,0,0.35);
-  color:#fff;
-  font-size: 16px;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 0 18px rgba(0,255,255,0.10);
-}
-
-.result-btn.primary{
-  border-color: rgba(0,255,255,0.28);
-  background: linear-gradient(90deg, rgba(0,120,255,0.95), rgba(0,255,255,0.85));
-  box-shadow: 0 0 22px rgba(0,255,255,0.22);
-}
-
-.result-btn:active{
-  transform: translateY(1px) scale(0.995);
-}
-
-.result-note{
-  margin-top: 10px;
-  font-size: 12px;
-  opacity: 0.65;
-}
-
-/* ===== 次へボタンを「押せ」と伝える（テンポ最適化） ===== */
-@keyframes nextPulse {
-  0%   { box-shadow: 0 0 0 rgba(0,255,255,0); transform: translateY(0); }
-  40%  { box-shadow: 0 0 22px rgba(0,255,255,0.28); transform: translateY(-1px); }
-  100% { box-shadow: 0 0 0 rgba(0,255,255,0); transform: translateY(0); }
-}
-.pulse-next{
-  animation: nextPulse 520ms ease-out;
-}
-
-/* ===== Filters (カテゴリ/モード) ===== */
-.filters{
-  display:flex;
-  gap:10px;
-  margin-top: 10px;
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.filter-item{
-  flex: 1 1 48%;
-  text-align:left;
-  display:flex;
-  flex-direction: column;
-  gap:6px;
-  min-width: 180px;
-}
-
-.filter-label{
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-.select{
-  width: 100%;
-  height: 44px;
-  border-radius: 14px;
-  border: 1px solid rgba(0,255,255,0.16);
-  background: rgba(0,0,0,0.35);
-  color:#fff;
-  padding: 0 12px;
-  outline: none;
-  box-shadow: 0 0 18px rgba(0,255,255,0.08);
-}
-
-/* ===== Next button pulse（テンポ感） ===== */
+/* 次へパルス */
 @keyframes pulseNext {
   0% { box-shadow: 0 0 0 rgba(0,255,255,0.0); transform: translateY(0); }
   35% { box-shadow: 0 0 22px rgba(0,255,255,0.18); transform: translateY(-1px); }
   100% { box-shadow: 0 0 0 rgba(0,255,255,0.0); transform: translateY(0); }
 }
-.pulse-next{
-  animation: pulseNext 260ms ease-out;
-}
+.pulse-next{ animation: pulseNext 260ms ease-out; }
 
-/* ===== Result Overlay (星・ランク・レビュー) ===== */
+/* ===== 結果オーバーレイ（“ゲーム寄り”） ===== */
 .result-overlay{
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.70);
+  background: radial-gradient(1200px 700px at 50% 0%, rgba(0,255,255,0.10), rgba(0,0,0,0.80));
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 18px;
   z-index: 9998;
 }
-
-.result-overlay.hidden{
-  display:none;
-}
+.result-overlay.hidden{ display:none; }
 
 .result-card{
   width: min(92vw, 560px);
   max-height: 86vh;
   overflow: auto;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
-  border: 1px solid rgba(255,255,255,0.10);
-  box-shadow: 0 18px 40px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(0,255,255,0.08);
+  background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+  border: 1px solid rgba(0,255,255,0.18);
+  box-shadow:
+    0 18px 50px rgba(0,0,0,0.65),
+    0 0 28px rgba(0,255,255,0.12),
+    inset 0 0 0 1px rgba(255,255,255,0.06);
   padding: 14px;
 }
 
-.result-head{
-  display:grid;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
+.result-head{ display:grid; gap: 6px; margin-bottom: 10px; }
 .result-rank{
   font-weight: 900;
-  letter-spacing: 0.06em;
-  text-shadow: 0 0 18px rgba(0,255,255,0.22);
+  letter-spacing: 0.12em;
   font-size: 18px;
+  text-shadow: 0 0 18px rgba(0,255,255,0.22);
 }
-
-.result-sub{
-  opacity: 0.85;
-  font-size: 13px;
-}
+.result-sub{ opacity: 0.85; font-size: 13px; }
 
 .stars{
   display:flex;
@@ -570,31 +326,20 @@ h1{
   gap:6px;
   margin: 6px 0 12px;
 }
-
 .star{
-  font-size: 22px;
-  opacity: 0.35;
-  filter: drop-shadow(0 0 0 rgba(255,230,107,0));
+  font-size: 24px;
+  opacity: 0.30;
   transform: translateY(0);
-  transition: opacity 160ms ease, filter 220ms ease, transform 180ms ease;
+  transition: opacity 160ms ease, transform 180ms ease, filter 220ms ease;
 }
-
 .star.on{
   opacity: 1;
   color: #ffe66b;
   filter: drop-shadow(0 0 10px rgba(255, 230, 107, 0.35));
 }
+.star.pop{ transform: translateY(-1px) scale(1.05); }
 
-.star.pop{
-  transform: translateY(-1px) scale(1.04);
-}
-
-.result-details{
-  text-align:left;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
+.result-details{ text-align:left; font-size: 14px; line-height: 1.6; }
 .result-message{
   margin: 6px 0 12px;
   font-weight: 900;
@@ -612,7 +357,6 @@ h1{
   border: 1px solid rgba(255,255,255,0.08);
   margin-bottom: 12px;
 }
-
 .k{ opacity: 0.75; }
 .v{ font-weight: 800; }
 
@@ -622,7 +366,6 @@ h1{
   gap: 10px;
   margin-top: 12px;
 }
-
 .result-btn{
   height: 46px;
   border-radius: 14px;
@@ -633,7 +376,6 @@ h1{
   cursor:pointer;
   box-shadow: 0 0 18px rgba(0,255,255,0.10);
 }
-
 .result-btn.primary{
   background: linear-gradient(90deg, rgba(0,120,255,0.90), rgba(0,255,255,0.80));
   border-color: rgba(255,255,255,0.16);
@@ -646,7 +388,7 @@ h1{
   text-align: left;
 }
 
-/* ===== Review ===== */
+/* Review */
 .review-title{
   margin-top: 14px;
   padding-top: 12px;
@@ -654,19 +396,8 @@ h1{
   font-weight: 900;
   text-align: left;
 }
-
-.review-empty{
-  margin: 10px 0 0;
-  opacity: 0.8;
-  text-align:left;
-}
-
-.review-list{
-  margin-top: 10px;
-  display: grid;
-  gap: 12px;
-}
-
+.review-empty{ margin: 10px 0 0; opacity: 0.8; text-align:left; }
+.review-list{ margin-top: 10px; display: grid; gap: 12px; }
 .review-item{
   border-radius: 16px;
   background: rgba(0,0,0,0.30);
@@ -674,13 +405,7 @@ h1{
   box-shadow: 0 0 18px rgba(0,255,255,0.08);
   padding: 12px;
 }
-
-.review-q{
-  text-align:left;
-  line-height: 1.55;
-  margin-bottom: 10px;
-}
-
+.review-q{ text-align:left; line-height: 1.55; margin-bottom: 10px; }
 .review-no{
   display:inline-block;
   margin-right: 8px;
@@ -688,12 +413,7 @@ h1{
   color: rgba(0,255,255,0.85);
   text-shadow: 0 0 12px rgba(0,255,255,0.18);
 }
-
-.review-choices{
-  display:grid;
-  gap: 8px;
-}
-
+.review-choices{ display:grid; gap: 8px; }
 .rv-choice{
   display:grid;
   grid-template-columns: 52px 1fr;
@@ -704,19 +424,16 @@ h1{
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.10);
 }
-
 .rv-choice.is-correct{
   border-color: rgba(80,255,130,0.40);
   box-shadow: 0 0 18px rgba(80,255,130,0.18);
   background: rgba(80,255,130,0.08);
 }
-
 .rv-choice.is-selected:not(.is-correct){
   border-color: rgba(255,80,80,0.38);
   box-shadow: 0 0 18px rgba(255,80,80,0.12);
   background: rgba(255,80,80,0.06);
 }
-
 .rv-badge{
   font-size: 12px;
   font-weight: 900;
@@ -731,19 +448,9 @@ h1{
   justify-content:center;
   opacity: 0.9;
 }
-
 .rv-text{
   text-align:left;
   font-size: 0.98rem;
   line-height: 1.45;
   word-break: break-word;
-}
-
-.review-foot{
-  margin-top: 10px;
-  display:grid;
-  gap: 4px;
-  text-align:left;
-  font-size: 0.92rem;
-  opacity: 0.92;
 }
