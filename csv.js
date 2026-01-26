@@ -1,77 +1,97 @@
 // csv.js (global)
-// window.CSVUtil.load(url) -> Promise<array<object>>
-// 文字列中のカンマ/改行/ダブルクォートに対応（基本的なRFC4180相当）
-
 (function () {
   function parseCSV(text) {
     const rows = [];
     let row = [];
-    let cur = "";
+    let field = "";
+    let i = 0;
     let inQuotes = false;
 
-    for (let i = 0; i < text.length; i++) {
+    while (i < text.length) {
       const c = text[i];
-      const next = text[i + 1];
 
       if (inQuotes) {
-        if (c === '"' && next === '"') {
-          cur += '"';
-          i++;
-        } else if (c === '"') {
-          inQuotes = false;
+        if (c === '"') {
+          const next = text[i + 1];
+          if (next === '"') {
+            field += '"';
+            i += 2;
+            continue;
+          } else {
+            inQuotes = false;
+            i++;
+            continue;
+          }
         } else {
-          cur += c;
+          field += c;
+          i++;
+          continue;
         }
       } else {
         if (c === '"') {
           inQuotes = true;
-        } else if (c === ",") {
-          row.push(cur);
-          cur = "";
-        } else if (c === "\r") {
-          // ignore
-        } else if (c === "\n") {
-          row.push(cur);
+          i++;
+          continue;
+        }
+        if (c === ",") {
+          row.push(field);
+          field = "";
+          i++;
+          continue;
+        }
+        if (c === "\r") {
+          i++;
+          continue;
+        }
+        if (c === "\n") {
+          row.push(field);
           rows.push(row);
           row = [];
-          cur = "";
-        } else {
-          cur += c;
+          field = "";
+          i++;
+          continue;
         }
+        field += c;
+        i++;
       }
     }
 
-    // last cell
-    row.push(cur);
+    // last field
+    row.push(field);
     rows.push(row);
 
-    // remove trailing empty lines
-    while (rows.length && rows[rows.length - 1].every(v => (v ?? "").trim() === "")) {
+    // trim: remove empty trailing rows
+    while (rows.length && rows[rows.length - 1].every(v => String(v).trim() === "")) {
       rows.pop();
     }
 
-    if (!rows.length) return [];
+    return rows;
+  }
 
-    const header = rows[0].map(h => (h ?? "").trim());
-    const data = [];
+  function rowsToObjects(rows) {
+    if (!rows.length) return [];
+    const header = rows[0].map(h => String(h).trim());
+    const out = [];
 
     for (let r = 1; r < rows.length; r++) {
       const obj = {};
+      const line = rows[r];
       for (let c = 0; c < header.length; c++) {
-        obj[header[c]] = rows[r][c] ?? "";
+        obj[header[c]] = (line[c] ?? "").trim?.() ?? line[c];
       }
-      data.push(obj);
+      out.push(obj);
     }
-    return data;
+    return out;
   }
 
   async function load(url) {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
-      throw new Error(`CSV fetch失敗: ${res.status} ${res.statusText} (${url})`);
+      throw new Error(`CSVの取得に失敗: ${res.status} ${res.statusText}`);
     }
     const text = await res.text();
-    return parseCSV(text);
+    const rows = parseCSV(text);
+    return rowsToObjects(rows);
   }
 
   window.CSVUtil = { load };
