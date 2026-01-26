@@ -19,6 +19,15 @@ let locked = false;
 let combo = 0;
 let maxCombo = 0;
 
+// 履歴（レビュー用）
+let history = []; // [{ q, selectedIdx, correctIdx, isCorrect }]
+
+// 学習モード
+let mode = "normal"; // normal | endless
+
+// カテゴリ
+let currentCategory = "__all__";
+
 // BGM/SE
 let bgmOn = false;
 let audioUnlocked = false;
@@ -40,7 +49,10 @@ const comboLabel = document.getElementById("comboLabel");
 const quizEl = document.getElementById("quiz");
 const bgmToggleBtn = document.getElementById("bgmToggle");
 
-// ===== Audio objects =====
+const categorySelect = document.getElementById("categorySelect");
+const modeSelect = document.getElementById("modeSelect");
+
+// ===== Audio =====
 const bgmAudio = new Audio(AUDIO_FILES.bgm);
 bgmAudio.loop = true;
 bgmAudio.preload = "auto";
@@ -54,13 +66,14 @@ const seWrong = new Audio(AUDIO_FILES.wrong);
 seWrong.preload = "auto";
 seWrong.volume = 0.9;
 
-// ===== Result Overlay (dynamic) =====
+// ===== Result Overlay（動的生成） =====
 let resultOverlay = null;
 let starsRow = null;
 let rankTitleEl = null;
 let resultSummaryEl = null;
 let resultDetailsEl = null;
 let resultBtnRestartEl = null;
+let resultBtnRetryWrongEl = null;
 let resultBtnCloseEl = null;
 
 function ensureResultOverlay() {
@@ -84,13 +97,13 @@ function ensureResultOverlay() {
 
       <div class="result-actions">
         <button class="result-btn primary" id="resultRestartBtn" type="button">もう一回</button>
+        <button class="result-btn" id="resultRetryWrongBtn" type="button">間違いだけ復習</button>
         <button class="result-btn" id="resultCloseBtn" type="button">閉じる</button>
       </div>
 
       <div class="result-note">※BGMは端末の仕様で、最初の操作後に再生が許可されます。</div>
     </div>
   `;
-
   document.body.appendChild(resultOverlay);
 
   starsRow = resultOverlay.querySelector("#starsRow");
@@ -98,6 +111,7 @@ function ensureResultOverlay() {
   resultSummaryEl = resultOverlay.querySelector("#resultSummary");
   resultDetailsEl = resultOverlay.querySelector("#resultDetails");
   resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
+  resultBtnRetryWrongEl = resultOverlay.querySelector("#resultRetryWrongBtn");
   resultBtnCloseEl = resultOverlay.querySelector("#resultCloseBtn");
 
   resultOverlay.addEventListener("click", (e) => {
@@ -110,20 +124,32 @@ function ensureResultOverlay() {
     hideResultOverlay();
     try {
       await unlockAudioOnce();
-      start();
+      startNewSession();
+    } catch (e) {
+      showError(e);
+    }
+  });
+
+  resultBtnRetryWrongEl.addEventListener("click", async () => {
+    hideResultOverlay();
+    try {
+      await unlockAudioOnce();
+      retryWrongOnlyOnce();
     } catch (e) {
       showError(e);
     }
   });
 }
 
-function showResultOverlay({ stars, rankName, summary, details }) {
+function showResultOverlay({ stars, rankName, summary, details, hasWrong }) {
   ensureResultOverlay();
+
+  resultBtnRetryWrongEl.disabled = !hasWrong;
+  resultBtnRetryWrongEl.style.opacity = hasWrong ? "" : "0.45";
 
   const starEls = Array.from(starsRow.querySelectorAll(".star"));
   starEls.forEach((el) => {
-    el.classList.remove("on");
-    el.classList.remove("pop");
+    el.classList.remove("on", "pop");
   });
 
   rankTitleEl.textContent = rankName;
@@ -136,8 +162,7 @@ function showResultOverlay({ stars, rankName, summary, details }) {
 
   for (let i = 0; i < Math.min(5, stars); i++) {
     setTimeout(() => {
-      starEls[i].classList.add("on");
-      starEls[i].classList.add("pop");
+      starEls[i].classList.add("on", "pop");
     }, 120 * i);
   }
 }
@@ -170,6 +195,7 @@ function normalizeRow(r) {
     id: String(r.id ?? ""),
     question: String(r.question ?? ""),
     source: String(r.source ?? ""),
+    category: String(r.category ?? "").trim() || "未分類", // ✅追加（なくてもOK）
     choices: [
       String(r.choice1 ?? ""),
       String(r.choice2 ?? ""),
@@ -197,7 +223,7 @@ function highlightBrackets(str) {
 }
 
 function updateScoreUI() {
-  if (scoreEl) scoreEl.textContent = `Score: ${score}`;
+  scoreEl.textContent = `Score: ${score}`;
 }
 
 function updateMeterUI() {
@@ -205,33 +231,30 @@ function updateMeterUI() {
   const cur = Math.min(index + 1, total);
   const percent = Math.round((cur / total) * 100);
 
-  if (meterLabel) meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
-  if (comboLabel) comboLabel.textContent = `最大COMBO x${maxCombo}`;
-  if (meterInner) meterInner.style.width = `${percent}%`;
+  meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
+  comboLabel.textContent = `最大COMBO x${maxCombo}`;
+  meterInner.style.width = `${percent}%`;
 }
 
 function updateStatusUI(message) {
   const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
-  if (statusEl) statusEl.textContent = `${message}${comboText}`;
+  statusEl.textContent = `${message}${comboText}`;
 }
 
 // ===== Effects =====
 function flashGood() {
-  if (!quizEl) return;
   quizEl.classList.remove("flash-good");
   void quizEl.offsetWidth;
   quizEl.classList.add("flash-good");
 }
 
 function shakeBad() {
-  if (!quizEl) return;
   quizEl.classList.remove("shake");
   void quizEl.offsetWidth;
   quizEl.classList.add("shake");
 }
 
 function pulseNext() {
-  if (!nextBtn) return;
   nextBtn.classList.remove("pulse-next");
   void nextBtn.offsetWidth;
   nextBtn.classList.add("pulse-next");
@@ -256,10 +279,8 @@ async function unlockAudioOnce() {
 async function setBgm(on) {
   bgmOn = on;
 
-  if (bgmToggleBtn) {
-    bgmToggleBtn.classList.toggle("on", bgmOn);
-    bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
-  }
+  bgmToggleBtn.classList.toggle("on", bgmOn);
+  bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
 
   if (!bgmOn) {
     try { bgmAudio.pause(); } catch (_) {}
@@ -271,12 +292,10 @@ async function setBgm(on) {
     await bgmAudio.play();
   } catch (e) {
     console.warn(e);
-    if (statusEl) statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
+    statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
     bgmOn = false;
-    if (bgmToggleBtn) {
-      bgmToggleBtn.classList.remove("on");
-      bgmToggleBtn.textContent = "BGM: OFF";
-    }
+    bgmToggleBtn.classList.remove("on");
+    bgmToggleBtn.textContent = "BGM: OFF";
   }
 }
 
@@ -288,18 +307,44 @@ function playSE(which) {
   } catch (_) {}
 }
 
-// ===== Rendering =====
+// ===== Category / Mode =====
+function getCategoryList(data) {
+  const set = new Set();
+  data.forEach(q => set.add(q.category || "未分類"));
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+function fillCategorySelect() {
+  const cats = getCategoryList(questions);
+  categorySelect.innerHTML = `
+    <option value="__all__">すべて</option>
+    ${cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}
+  `;
+  categorySelect.value = currentCategory;
+}
+
+function getFilteredPool() {
+  let pool = [...questions];
+  if (currentCategory !== "__all__") {
+    pool = pool.filter(q => q.category === currentCategory);
+  }
+  return pool;
+}
+
+// ===== Rendering / Session =====
 function render() {
   const q = order[index];
 
-  if (progressEl) progressEl.textContent = `第${index + 1}問 / ${order.length}`;
+  progressEl.textContent = `第${index + 1}問 / ${order.length}`;
   updateScoreUI();
   updateMeterUI();
 
+  // 問題文は上の枠に統一（出典は同枠内に軽く埋める）
   const text = q.source ? `${q.question}（${q.source}）` : q.question;
-  if (questionEl) questionEl.innerHTML = highlightBrackets(text);
+  questionEl.innerHTML = highlightBrackets(text);
 
-  if (sublineEl) sublineEl.textContent = "";
+  // サブライン：カテゴリ表示（任意）
+  sublineEl.textContent = q.category ? `カテゴリ：${q.category}` : "";
 
   choiceBtns.forEach((btn, i) => {
     btn.textContent = q.choices[i] || "---";
@@ -307,100 +352,191 @@ function render() {
     btn.disabled = false;
   });
 
-  if (statusEl) statusEl.textContent = "";
-  if (nextBtn) nextBtn.disabled = true;
+  statusEl.textContent = "";
+  nextBtn.disabled = true;
   locked = false;
 }
 
-function start() {
+function startWithPool(pool) {
   score = 0;
   index = 0;
-
   combo = 0;
   maxCombo = 0;
+  history = [];
 
-  const pool = shuffle([...questions]);
-  order = pool.slice(0, Math.min(TOTAL_QUESTIONS, pool.length));
-
-  if (!order.length) {
-    throw new Error("問題が0件です（CSVの内容を確認してください）");
+  if (!pool.length) {
+    throw new Error("出題プールが0件です（カテゴリ絞り込みやCSVを確認してください）");
   }
+
+  const shuffled = shuffle([...pool]);
+
+  // normal: TOTAL_QUESTIONS問、endless: まずTOTAL_QUESTIONS問スタート（以後、誤答0までループ）
+  order = shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
 
   hideResultOverlay();
   render();
 }
 
-function getResultMessage(percent) {
-  // ユーザー指定の基準を厳密適用
+function startNewSession() {
+  const pool = getFilteredPool();
+  startWithPool(pool);
+}
+
+function retryWrongOnlyOnce() {
+  const wrong = history.filter(h => !h.isCorrect).map(h => h.q);
+  if (!wrong.length) {
+    startNewSession();
+    return;
+  }
+  startWithPool(wrong);
+}
+
+// ===== Result / Rank =====
+function getUserMessageByRate(percent) {
+  // ユーザー指定を厳密適用
   if (percent >= 90) return "素晴らしい！この調子！";
   if (percent >= 70) return "よく覚えられているぞ！";
   if (percent >= 40) return "ここから更に積み重ねよう！";
   return "まずは基礎単語から始めよう！";
 }
 
-function calcStarsAndRank(score, total, maxCombo) {
-  const rate = total ? (score / total) : 0;
-  const percent = Math.round(rate * 100);
-
-  // 星：正答率主体
-  // 5: 90-100 / 4: 80-89 / 3: 65-79 / 2: 50-64 / 1: <50
-  let stars = 1;
-  if (percent >= 90) stars = 5;
-  else if (percent >= 80) stars = 4;
-  else if (percent >= 65) stars = 3;
-  else if (percent >= 50) stars = 2;
-
-  // ランク名（ゲーム風）
-  // コンボが高いと少しだけ“称号が強く”見える微調整（UI・基準は維持）
-  const comboBoost = maxCombo >= 6 ? 1 : 0;
-  const rankTable = [
-    { s: 1, name: "見習い" },
-    { s: 2, name: "一人前" },
-    { s: 3, name: "職人" },
-    { s: 4, name: "達人" },
-    { s: 5, name: "神" }
-  ];
-  const rank = rankTable[Math.min(4, Math.max(0, stars - 1 + comboBoost))].name;
-
-  return { stars, rank, percent };
+function calcStars(score, total) {
+  const percent = total ? (score / total) * 100 : 0;
+  if (percent >= 90) return 5;
+  if (percent >= 80) return 4;
+  if (percent >= 65) return 3;
+  if (percent >= 50) return 2;
+  return 1;
 }
 
-function finish() {
-  if (progressEl) progressEl.textContent = "終了";
-  if (sublineEl) sublineEl.textContent = "";
-  if (statusEl) statusEl.textContent = "";
+function calcRankName(stars, maxCombo) {
+  // コンボが強い場合に“1段階だけ”底上げ（やりすぎない）
+  const boost = maxCombo >= 6 ? 1 : 0;
+  const s = Math.min(5, Math.max(1, stars + boost));
+  const table = {
+    1: "見習い",
+    2: "一人前",
+    3: "職人",
+    4: "達人",
+    5: "神"
+  };
+  return table[s];
+}
+
+function buildReviewHtml() {
+  const wrong = history.filter(h => !h.isCorrect);
+  if (!wrong.length) {
+    return `
+      <div class="review-title">復習</div>
+      <div class="review-empty">全問正解。復習項目はありません。</div>
+    `;
+  }
+
+  const items = wrong.map((h, idx) => {
+    const q = h.q;
+    const qText = q.source ? `${q.question}（${q.source}）` : q.question;
+
+    const choicesHtml = q.choices.map((c, i) => {
+      const isC = i === h.correctIdx;
+      const isS = i === h.selectedIdx;
+      const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""].filter(Boolean).join(" ");
+      const badge = isC ? "正解" : (isS ? "選択" : "");
+      return `
+        <div class="${cls}">
+          <div class="rv-badge">${badge}</div>
+          <div class="rv-text">${escapeHtml(c)}</div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="review-item">
+        <div class="review-q">
+          <span class="review-no">#${idx + 1}</span>
+          <span class="review-qtext">${highlightBrackets(qText)}</span>
+        </div>
+        <div class="review-choices">${choicesHtml}</div>
+        <div class="review-foot">
+          <span>カテゴリ：<b>${escapeHtml(q.category || "未分類")}</b></span>
+          <span>あなたの選択：<b>${escapeHtml(q.choices[h.selectedIdx] ?? "")}</b></span>
+          <span>正解：<b>${escapeHtml(q.choices[h.correctIdx] ?? "")}</b></span>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="review-title">復習（間違いのみ ${wrong.length} 件）</div>
+    <div class="review-list">${items}</div>
+  `;
+}
+
+function finishAndShowResult() {
+  progressEl.textContent = "終了";
   disableChoices(true);
-  if (nextBtn) nextBtn.disabled = true;
+  nextBtn.disabled = true;
 
   const total = order.length || 1;
-  const { stars, rank, percent } = calcStarsAndRank(score, total, maxCombo);
+  const percent = Math.round((score / total) * 100);
 
-  const message = getResultMessage(percent);
-  const summary = `スコア ${score}/${total}（正答率 ${percent}%）`;
+  const stars = calcStars(score, total);
+  const rank = calcRankName(stars, maxCombo);
 
-  // details は HTML 可（overlay内のみ）
+  const message = getUserMessageByRate(percent);
+
+  const hasWrong = history.some(h => !h.isCorrect);
+
   const details = `
-    <div style="margin-bottom:10px; font-weight:900; text-align:center; text-shadow:0 0 16px rgba(255,230,107,0.28);">
-      ${escapeHtml(message)}
-    </div>
+    <div class="result-message">${escapeHtml(message)}</div>
+
     <div class="kv">
       <div class="k">正答率</div><div class="v">${percent}%</div>
       <div class="k">最大COMBO</div><div class="v">x${maxCombo}</div>
-      <div class="k">出題数</div><div class="v">${total}</div>
+      <div class="k">モード</div><div class="v">${mode === "endless" ? "連続学習" : "通常"}</div>
+      <div class="k">カテゴリ</div><div class="v">${escapeHtml(currentCategory === "__all__" ? "すべて" : currentCategory)}</div>
     </div>
+
+    ${buildReviewHtml()}
   `;
 
   showResultOverlay({
     stars,
     rankName: `${rank}`,
-    summary,
-    details
+    summary: `スコア ${score}/${total}（正答率 ${percent}%）`,
+    details,
+    hasWrong
   });
 
-  // 保険（overlayが消えた場合の最低表示）
-  if (questionEl) questionEl.textContent = `結果：${score} / ${total}`;
+  // 保険表示（overlayを閉じても最低限見えるように）
+  questionEl.textContent = `結果：${score} / ${total}`;
+  sublineEl.textContent = "";
 }
 
+// ===== Endless logic（間違い0まで） =====
+function continueEndlessIfNeeded() {
+  const wrong = history.filter(h => !h.isCorrect).map(h => h.q);
+  if (!wrong.length) {
+    // ✅間違い0達成 → 結果表示（達成感を最大化）
+    finishAndShowResult();
+    return;
+  }
+
+  // ✅間違いが残っている → それだけで次ラウンド
+  // スコアは「今回ラウンドのもの」なので、ここでリセットしない（学習感を優先）
+  // ただし “ラウンド” 表示をしたいなら subline等に出せます（今回はUI維持優先）
+
+  // 次ラウンド準備
+  index = 0;
+  combo = 0;
+  maxCombo = Math.max(maxCombo, maxCombo); // 意味はないが可読性のため残す
+  history = []; // 次ラウンドの誤答判定は新しく取り直し（学習として自然）
+
+  order = shuffle([...wrong]).slice(0, Math.min(TOTAL_QUESTIONS, wrong.length));
+
+  render();
+}
+
+// ===== Judge =====
 function judge(selectedIdx) {
   if (locked) return;
   locked = true;
@@ -409,7 +545,11 @@ function judge(selectedIdx) {
   const q = order[index];
   const correctIdx = q.answer - 1;
 
-  if (selectedIdx === correctIdx) {
+  const isCorrect = selectedIdx === correctIdx;
+
+  history.push({ q, selectedIdx, correctIdx, isCorrect });
+
+  if (isCorrect) {
     score++;
     combo++;
     if (combo > maxCombo) maxCombo = combo;
@@ -431,7 +571,8 @@ function judge(selectedIdx) {
   updateScoreUI();
   updateMeterUI();
 
-  if (nextBtn) nextBtn.disabled = false;
+  // 自動遷移OFF：必ず「次へ」
+  nextBtn.disabled = false;
   pulseNext();
 }
 
@@ -444,48 +585,72 @@ choiceBtns.forEach((btn) => {
   });
 });
 
-if (nextBtn) {
-  nextBtn.addEventListener("click", () => {
-    nextBtn.disabled = true;
-    setTimeout(() => {
-      index++;
-      if (index >= order.length) {
-        finish();
+nextBtn.addEventListener("click", () => {
+  // 押しミス対策：即無効化
+  nextBtn.disabled = true;
+
+  // テンポ最適化：ほんの少しだけ間を置く（体感のキレを残しつつ誤操作を抑える）
+  setTimeout(() => {
+    index++;
+
+    if (index >= order.length) {
+      // ここでモード分岐
+      if (mode === "endless") {
+        continueEndlessIfNeeded();
       } else {
-        render();
+        finishAndShowResult();
       }
-    }, 120);
-  });
-}
-
-if (restartBtn) {
-  restartBtn.addEventListener("click", () => {
-    try {
-      start();
-    } catch (e) {
-      showError(e);
+    } else {
+      render();
     }
-  });
-}
+  }, 120);
+});
 
-if (bgmToggleBtn) {
-  bgmToggleBtn.addEventListener("click", async () => {
-    await unlockAudioOnce();
-    await setBgm(!bgmOn);
-  });
-}
+restartBtn.addEventListener("click", () => {
+  try {
+    startNewSession();
+  } catch (e) {
+    showError(e);
+  }
+});
 
+bgmToggleBtn.addEventListener("click", async () => {
+  await unlockAudioOnce();
+  await setBgm(!bgmOn);
+});
+
+categorySelect.addEventListener("change", () => {
+  const v = categorySelect.value;
+  currentCategory = v;
+  try {
+    startNewSession();
+  } catch (e) {
+    showError(e);
+  }
+});
+
+modeSelect.addEventListener("change", () => {
+  mode = modeSelect.value;
+  try {
+    startNewSession();
+  } catch (e) {
+    showError(e);
+  }
+});
+
+// ===== Error =====
 function showError(err) {
   console.error(err);
-  if (progressEl) progressEl.textContent = "読み込み失敗";
-  if (scoreEl) scoreEl.textContent = "Score: 0";
-  if (questionEl) questionEl.textContent = "CSVを読み込めませんでした。";
-  if (sublineEl) sublineEl.textContent = "";
-  if (statusEl) statusEl.textContent = `詳細: ${err?.message ?? err}`;
+  progressEl.textContent = "読み込み失敗";
+  scoreEl.textContent = "Score: 0";
+  questionEl.textContent = "CSVを読み込めませんでした。";
+  sublineEl.textContent = "";
+  statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
-  if (nextBtn) nextBtn.disabled = true;
+  nextBtn.disabled = true;
 }
 
+// ===== Boot =====
 (async function boot() {
   try {
     if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
@@ -495,15 +660,21 @@ function showError(err) {
     const baseUrl = new URL("./", location.href).toString();
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
-    if (progressEl) progressEl.textContent = `読み込み中…`;
+    progressEl.textContent = "読み込み中…";
     const raw = await window.CSVUtil.load(csvUrl);
 
     questions = raw.map(normalizeRow);
 
+    // フィルタUI初期化
+    fillCategorySelect();
+
+    // モードUI初期化
+    modeSelect.value = mode;
+
     ensureResultOverlay();
     hideResultOverlay();
 
-    start();
+    startNewSession();
   } catch (e) {
     showError(e);
   }
