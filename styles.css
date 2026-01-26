@@ -547,3 +547,97 @@ h1{
   border-color: rgba(255,80,80,0.35);
   box-shadow: 0 0 16px rgba(255,80,80,0.15);
 }
+
+/* === Card Reward Effect (non-destructive overlay) === */
+.card-effect {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  animation: cardFxFade 0.9s ease-out forwards;
+}
+
+.card-effect .card-effect-glow {
+  position: absolute;
+  inset: -20%;
+  transform: scale(0.9);
+  filter: blur(2px);
+  background: radial-gradient(circle at 50% 55%, rgba(255, 215, 0, 0.40), transparent 65%);
+  animation: cardFxGlow 0.9s ease-out forwards;
+}
+
+/* rarity color variants */
+.card-effect.r3 .card-effect-glow {
+  background: radial-gradient(circle at 50% 55%, rgba(255, 215, 0, 0.28), transparent 68%);
+}
+.card-effect.r4 .card-effect-glow {
+  background: radial-gradient(circle at 50% 55%, rgba(160, 120, 255, 0.30), transparent 68%);
+}
+.card-effect.r5 .card-effect-glow {
+  background: radial-gradient(circle at 50% 55%, rgba(120, 220, 255, 0.34), transparent 66%);
+}
+
+/* subtle sparkles (lightweight) */
+.card-effect::before,
+.card-effect::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle, rgba(255,255,255,0.35) 0 2px, transparent 3px) 10% 30%/140px 140px,
+    radial-gradient(circle, rgba(255,255,255,0.25) 0 2px, transparent 3px) 70% 20%/160px 160px,
+    radial-gradient(circle, rgba(255,255,255,0.20) 0 2px, transparent 3px) 30% 80%/180px 180px;
+  opacity: 0;
+  animation: cardFxSpark 0.9s ease-out forwards;
+}
+
+@keyframes cardFxFade {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes cardFxGlow {
+  0%   { opacity: 0; transform: scale(0.85); }
+  30%  { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(1.12); }
+}
+
+@keyframes cardFxSpark {
+  0%   { opacity: 0; transform: translateY(6px); }
+  30%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Card reveal block inside result overlay */
+.card-reward {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.card-reward img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+
+.card-reward .card-name {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.card-reward .card-meta {
+  opacity: 0.75;
+  margin-top: 2px;
+  font-size: 0.92em;
+}
