@@ -411,6 +411,8 @@ h1{
   opacity: 0;
   pointer-events: none;
   transition: opacity 160ms ease;
+  overflow-y: auto;                 /* ✅オーバーレイ自体がスクロールを持つ */
+  -webkit-overflow-scrolling: touch;/* ✅iOSの慣性スクロール */
 }
 
 .result-overlay.show{
@@ -428,6 +430,9 @@ h1{
     0 0 26px rgba(0,255,255,0.12);
   padding: 16px;
   text-align:left;
+  max-height: calc(100vh - 36px);   /* ✅上下の余白を残して収める */
+  overflow-y: auto;                 /* ✅カード内をスクロール */
+  -webkit-overflow-scrolling: touch;/* ✅iOSの慣性スクロール */
 }
 
 .result-head{
