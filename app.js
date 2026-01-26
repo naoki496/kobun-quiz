@@ -120,11 +120,11 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-// 〖〗の中だけ黄色発光でハイライト（span付与）
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
   return safe.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
 }
+
 // =====================================================
 
 function updateScoreUI() {
@@ -395,6 +395,7 @@ function ensureResultOverlay() {
   resultOverlay = document.createElement("div");
   resultOverlay.className = "result-overlay";
 
+  // 必須IDを持つDOMを生成（ここが無いと querySelector が null になる）
   resultOverlay.innerHTML = `
     <div class="result-card">
       <div class="result-head">
@@ -411,7 +412,6 @@ function ensureResultOverlay() {
       </div>
 
       <div class="result-summary" id="resultSummary">---</div>
-
       <div class="result-details" id="resultDetails"></div>
 
       <div class="result-actions">
@@ -444,31 +444,39 @@ function ensureResultOverlay() {
   resultOverlay.addEventListener("click", (e) => {
     if (e.target === resultOverlay) hide();
   });
-  resultBtnCloseEl.addEventListener("click", hide);
 
-  resultBtnRestartEl.addEventListener("click", async () => {
-    hide();
-    await unlockAudioOnce();
-    startNewSession();
-  });
+  // 念のため null ガード（将来HTMLを触った時の保険）
+  if (resultBtnCloseEl) resultBtnCloseEl.addEventListener("click", hide);
 
-  resultBtnRetryWrongEl.addEventListener("click", async () => {
-    hide();
-    await unlockAudioOnce();
-    retryWrongOnlyOnce();
-  });
+  if (resultBtnRestartEl) {
+    resultBtnRestartEl.addEventListener("click", async () => {
+      hide();
+      await unlockAudioOnce();
+      startNewSession();
+    });
+  }
+
+  if (resultBtnRetryWrongEl) {
+    resultBtnRetryWrongEl.addEventListener("click", async () => {
+      hide();
+      await unlockAudioOnce();
+      retryWrongOnlyOnce();
+    });
+  }
 
   resultOverlay._set = ({ stars, rankName, percent, summary, details, reviewHtml, canRetryWrong }) => {
-    resultBtnRetryWrongEl.disabled = !canRetryWrong;
-    resultBtnRetryWrongEl.style.opacity = canRetryWrong ? "" : "0.45";
+    if (resultBtnRetryWrongEl) {
+      resultBtnRetryWrongEl.disabled = !canRetryWrong;
+      resultBtnRetryWrongEl.style.opacity = canRetryWrong ? "" : "0.45";
+    }
 
-    rankTitleEl.textContent = `評価：${rankName}`;
-    rateEl.textContent = `${percent}%`;
-    resultSummaryEl.textContent = summary;
-    resultDetailsEl.innerHTML = details;
-    reviewEl.innerHTML = reviewHtml;
+    if (rankTitleEl) rankTitleEl.textContent = `評価：${rankName}`;
+    if (rateEl) rateEl.textContent = `${percent}%`;
+    if (resultSummaryEl) resultSummaryEl.textContent = summary;
+    if (resultDetailsEl) resultDetailsEl.innerHTML = details;
+    if (reviewEl) reviewEl.innerHTML = reviewHtml;
 
-    const starEls = Array.from(starsRow.querySelectorAll(".star"));
+    const starEls = starsRow ? Array.from(starsRow.querySelectorAll(".star")) : [];
     starEls.forEach((el) => el.classList.remove("on", "pop"));
 
     void resultOverlay.offsetWidth;
@@ -476,8 +484,10 @@ function ensureResultOverlay() {
 
     for (let i = 0; i < Math.min(5, stars); i++) {
       setTimeout(() => {
-        starEls[i].classList.add("on", "pop");
-        setTimeout(() => starEls[i].classList.remove("pop"), 140);
+        if (starEls[i]) {
+          starEls[i].classList.add("on", "pop");
+          setTimeout(() => starEls[i].classList.remove("pop"), 140);
+        }
       }, 120 * i);
     }
   };
