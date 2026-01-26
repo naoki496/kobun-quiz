@@ -5,57 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>古文4択クイズ</title>
   <link rel="stylesheet" href="./styles.css" />
-  <!-- favicon（任意。assetsに置くなら404が消えます） -->
-  <!-- <link rel="icon" href="./assets/favicon.ico"> -->
 </head>
 
 <body>
-  <!-- スタート画面（オーバーレイ） -->
-  <div id="startScreen" class="overlay">
-    <div class="overlay-card">
-      <div class="overlay-title">古文4択クイズ</div>
-      <div id="startHint" class="overlay-text">問題を読み込んでいます…</div>
-      <button id="startBtn" class="start-btn" type="button" disabled>START</button>
-      <div class="overlay-sub">START押下で開始します（BGMは開始後に切替可能）</div>
+  <h1>古文4択クイズ</h1>
+
+  <!-- ===== Start Screen ===== -->
+  <div id="startScreen" class="start-screen">
+    <div class="start-inner">
+      <div class="start-title">古文4択クイズ</div>
+
+      <!-- assets/kaishi.gif -->
+      <img class="start-image" src="./assets/kaishi.gif" alt="開始画面" />
+
+      <!-- モード選択（ゲーム風） -->
+      <div class="mode-card">
+        <div class="mode-label">モード選択</div>
+        <div id="modeSwitch" class="seg">
+          <button type="button" id="modeNormalBtn" class="seg-btn active">通常（10問）</button>
+          <button type="button" id="modeEndlessBtn" class="seg-btn">連続学習</button>
+        </div>
+        <div class="mode-note">連続学習：終了後に「間違いだけ復習」を選べます。</div>
+      </div>
+
+      <button id="startBtn" class="start-btn" type="button" disabled>読み込み中…</button>
+      <div id="startNote" class="start-note">BGMはスタート時にONになります（ブラウザ制限回避のため）。</div>
     </div>
   </div>
 
-  <h1>古文4択クイズ</h1>
-
+  <!-- ===== Quiz ===== -->
   <div id="quiz" class="panel">
     <!-- 上段メタ -->
     <div id="meta">
       <div id="metaLeft">
         <div id="progress">読み込み中…</div>
         <div id="score">Score: 0</div>
+        <div id="modePill" class="mode-pill">通常（10問）</div>
       </div>
 
-      <div id="metaRight">
-        <!-- モード切替（スタート後、問題中に切替可能） -->
-        <select id="modeSelect" class="select">
-          <option value="normal">通常（10問）</option>
-          <option value="streak">連続正解モード</option>
-        </select>
-
-        <button id="bgmToggle" class="pill" type="button">BGM: OFF</button>
-      </div>
+      <button id="bgmToggle" class="pill bgm-btn" type="button">BGM: OFF</button>
     </div>
 
-    <!-- 問題文はここ（上の枠）に統一 -->
+    <!-- 問題文（上の枠） -->
     <div id="questionBox" class="panel-inner">
+      <!-- 進捗バー -->
+      <div id="meterArea">
+        <div id="meterText">
+          <div id="meterLabel">進捗 0/0</div>
+          <div id="comboLabel">最大COMBO x0</div>
+        </div>
+        <div id="meterOuter">
+          <div id="meterInner"></div>
+        </div>
+      </div>
+
+      <!-- 余白：進捗バーと問題文の間に1行ぶん程度 -->
+      <div class="q-gap"></div>
+
       <div id="question" class="question">CSVを読み込んでいます。</div>
       <div id="subline" class="subline"></div>
-    </div>
-
-    <!-- 進捗メーター -->
-    <div id="meterArea" class="panel-inner">
-      <div id="meterText">
-        <span id="meterLabel">進捗 0/10 (0%)</span>
-        <span id="comboLabel">最大COMBO x0</span>
-      </div>
-      <div id="meterOuter">
-        <div id="meterInner"></div>
-      </div>
     </div>
 
     <!-- 選択肢 -->
@@ -73,7 +81,7 @@
       <button class="ctrl" id="restartBtn" type="button">最初から</button>
     </div>
 
-    <p id="hint">ヒント：問題文の【】（または〖〗）内は要点としてハイライトされています。</p>
+    <div id="hint">※【】で囲われた箇所は黄色発光でハイライトされます。</div>
   </div>
 
   <!-- csv.js → app.js の順（依存関係） -->
