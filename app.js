@@ -1,5 +1,4 @@
 // app.js (global)
-
 const TOTAL_QUESTIONS = 10;
 
 // ✅音声ファイル（root/assets/ 配下）
@@ -113,7 +112,11 @@ function normalizeRow(r) {
   };
 }
 
-// HTMLエスケープ
+// ================================
+// ✅ここだけ変更（健全化）
+// ================================
+
+// HTMLエスケープ（安全版）
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -123,11 +126,13 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-// 【】の中だけ黄色発光でハイライト
+// 〖〗の中だけ黄色発光でハイライト（span付与）
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
-  return safe.replace(/【(.*?)】/g, '【<span class="hl">$1</span>】');
+  return safe.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
 }
+
+// ================================
 
 function updateScoreUI() {
   scoreEl.textContent = `Score: ${score}`;
@@ -177,7 +182,6 @@ function pulseNext() {
 async function unlockAudioOnce() {
   if (audioUnlocked) return;
   audioUnlocked = true;
-
   try {
     // iOS/Chrome対策：無音再生→停止で解錠
     bgmAudio.muted = true;
@@ -192,7 +196,6 @@ async function unlockAudioOnce() {
 
 async function setBgm(on) {
   bgmOn = on;
-
   bgmToggleBtn.classList.toggle("on", bgmOn);
   bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
 
@@ -200,7 +203,6 @@ async function setBgm(on) {
     try { bgmAudio.pause(); } catch (_) {}
     return;
   }
-
   try {
     await unlockAudioOnce();
     await bgmAudio.play();
@@ -236,7 +238,7 @@ function render() {
   sublineEl.textContent = "";
 
   choiceBtns.forEach((btn, i) => {
-    // ✅選択肢も【】ハイライトを反映（UIはそのまま）
+    // ✅選択肢も〖〗ハイライトを反映（UIはそのまま）
     btn.innerHTML = highlightBrackets(q.choices[i] || "---");
     btn.classList.remove("correct", "wrong");
     btn.disabled = false;
@@ -290,12 +292,7 @@ function judge(selectedIdx) {
   const isCorrect = selectedIdx === correctIdx;
 
   // 履歴（復習用）
-  history.push({
-    q,
-    selectedIdx,
-    correctIdx,
-    isCorrect
-  });
+  history.push({ q, selectedIdx, correctIdx, isCorrect });
 
   if (isCorrect) {
     score++;
@@ -356,13 +353,12 @@ function buildReviewHtml() {
   const wrong = history.filter(h => !h.isCorrect);
   if (!wrong.length) {
     return `
-      <div class="review">
-        <div style="opacity:.85;font-weight:800;margin-bottom:6px;">復習</div>
-        <div style="opacity:.75;">全問正解。復習項目はありません。</div>
-      </div>
-    `;
-  }
+復習
 
+全問正解。復習項目はありません。
+
+`;
+  }
   const items = wrong.map((h, idx) => {
     const q = h.q;
     const qText = q.source ? `${q.question}（${q.source}）` : q.question;
@@ -371,24 +367,27 @@ function buildReviewHtml() {
       const isC = i === h.correctIdx;
       const isS = i === h.selectedIdx;
       const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""].filter(Boolean).join(" ");
-      // ✅復習リストでも【】ハイライトを反映
-      return `<div class="${cls}">${highlightBrackets(c)}</div>`;
+      // ✅復習リストでも〖〗ハイライトを反映
+      return `
+${highlightBrackets(c)}
+`;
     }).join("");
 
     return `
-      <div class="rv-item">
-        <div class="rv-q">#${idx + 1} ${highlightBrackets(qText)}</div>
-        <div class="rv-choices">${choicesHtml}</div>
-      </div>
-    `;
+#${idx + 1} ${highlightBrackets(qText)}
+
+${choicesHtml}
+
+`;
   }).join("");
 
   return `
-    <div class="review">
-      <div style="opacity:.85;font-weight:800;margin-bottom:6px;">復習（間違いのみ ${wrong.length} 件）</div>
-      ${items}
-    </div>
-  `;
+
+復習（間違いのみ ${wrong.length} 件）
+
+${items}
+
+`;
 }
 
 function ensureResultOverlay() {
@@ -396,35 +395,22 @@ function ensureResultOverlay() {
 
   resultOverlay = document.createElement("div");
   resultOverlay.className = "result-overlay";
-
   resultOverlay.innerHTML = `
-    <div class="result-card">
-      <div class="result-head">
-        <div class="result-title" id="rankTitle">評価</div>
-        <div class="result-rate" id="resultRate">--%</div>
-      </div>
 
-      <div class="stars" id="starsRow" aria-label="stars">
-        <div class="star">★</div>
-        <div class="star">★</div>
-        <div class="star">★</div>
-        <div class="star">★</div>
-        <div class="star">★</div>
-      </div>
+評価
 
-      <div class="result-summary" id="resultSummary">---</div>
+--%
 
-      <div class="result-details" id="resultDetails"></div>
+★
+★
+★
+★
+★
 
-      <div class="result-actions">
-        <button class="ctrl" id="resultRestartBtn" type="button">もう一回</button>
-        <button class="ctrl" id="resultRetryWrongBtn" type="button">間違い復習</button>
-        <button class="ctrl" id="resultCloseBtn" type="button">閉じる</button>
-      </div>
+---
 
-      <div id="resultReview"></div>
-    </div>
-  `;
+もう一回 間違い復習 閉じる
+`;
 
   document.body.appendChild(resultOverlay);
 
@@ -499,12 +485,12 @@ function showResultOverlay() {
   const modeLabel = mode === "endless" ? "連続学習" : "通常";
 
   const details = `
-    <div style="display:grid;gap:6px;">
-      <div><b>正解</b> ${score} / ${total}</div>
-      <div><b>最大COMBO</b> x${maxCombo}</div>
-      <div><b>モード</b> ${escapeHtml(modeLabel)}</div>
-    </div>
-  `;
+正解 ${score} / ${total}
+
+最大COMBO x${maxCombo}
+
+モード ${escapeHtml(modeLabel)}
+`;
 
   const reviewHtml = (mode === "endless") ? buildReviewHtml() : "";
 
@@ -571,7 +557,6 @@ function setMode(nextMode) {
   modeEndlessBtn.classList.toggle("active", mode === "endless");
   updateModeUI();
 }
-
 modeNormalBtn.addEventListener("click", () => setMode("normal"));
 modeEndlessBtn.addEventListener("click", () => setMode("endless"));
 
@@ -655,7 +640,6 @@ function showError(err) {
 
     // 結果オーバーレイも事前生成（ラグ低減）
     ensureResultOverlay();
-
   } catch (e) {
     showError(e);
   }
