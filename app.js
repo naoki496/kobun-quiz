@@ -46,6 +46,10 @@ const comboLabel = document.getElementById("comboLabel");
 const quizEl = document.getElementById("quiz");
 const bgmToggleBtn = document.getElementById("bgmToggle");
 const modeSelect = document.getElementById("modeSelect");
+const startScreenEl = document.getElementById("startScreen");
+const startBtnEl = document.getElementById("startBtn");
+
+
 
 // ===== Audio =====
 const bgmAudio = new Audio(AUDIO_FILES.bgm);
@@ -111,7 +115,16 @@ function ensureResultOverlay() {
     if (e.target === resultOverlay) hide();
   });
   resultBtnCloseEl.addEventListener("click", hide);
+if (startBtnEl && startScreenEl) {
+  startBtnEl.addEventListener("click", async () => {
+    await unlockAudioOnce();
+    await setBgm(true);                  // ✅ここでBGMをON
+    startScreenEl.style.display = "none"; // ✅開始画面を消す
+  });
+}
 
+
+  
   resultBtnRestartEl.addEventListener("click", async () => {
     hide();
     await unlockAudioOnce();
