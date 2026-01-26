@@ -84,9 +84,18 @@ function shuffle(arr) {
   return arr;
 }
 
+function normalizeAnswer(raw) {
+  // 全角数字（１〜４）や余計な空白・文字を吸収して 1〜4 の数値に正規化
+  const s = String(raw ?? "")
+    .trim()
+    .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/[^\d]/g, "");
+  return Number(s);
+}
+
 function normalizeRow(r) {
   // answer は "1"～"4" 想定（CSV: id question source choice1..4 answer）
-  const ans = Number(String(r.answer ?? "").trim());
+  const ans = normalizeAnswer(r.answer);
   if (!(ans >= 1 && ans <= 4)) {
     throw new Error(`answer が 1〜4 ではありません: "${r.answer}" (id=${r.id ?? "?"})`);
   }
@@ -227,7 +236,8 @@ function render() {
   sublineEl.textContent = "";
 
   choiceBtns.forEach((btn, i) => {
-    btn.textContent = q.choices[i] || "---";
+    // ✅選択肢も【】ハイライトを反映（UIはそのまま）
+    btn.innerHTML = highlightBrackets(q.choices[i] || "---");
     btn.classList.remove("correct", "wrong");
     btn.disabled = false;
   });
@@ -247,7 +257,11 @@ function startWithPool(pool) {
   if (!pool.length) throw new Error("問題が0件です（CSVの内容を確認してください）");
 
   const shuffled = shuffle([...pool]);
-  order = shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
+
+  // ✅連続学習は「10問固定」ではなく、プール全量（＝連続）へ
+  order = (mode === "endless")
+    ? shuffled
+    : shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
 
   render();
 }
@@ -357,7 +371,8 @@ function buildReviewHtml() {
       const isC = i === h.correctIdx;
       const isS = i === h.selectedIdx;
       const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""].filter(Boolean).join(" ");
-      return `<div class="${cls}">${escapeHtml(c)}</div>`;
+      // ✅復習リストでも【】ハイライトを反映
+      return `<div class="${cls}">${highlightBrackets(c)}</div>`;
     }).join("");
 
     return `
