@@ -18,25 +18,18 @@
         <div id="score">Score: 0</div>
       </div>
 
-      <button id="bgmToggle" class="pill bgm-btn" type="button">BGM: OFF</button>
-    </div>
+      <div id="metaRight">
+        <!-- ✅モード（カテゴリなし） -->
+        <label class="mode-pill" for="modeSelect">
+          <span class="mode-label">MODE</span>
+          <select id="modeSelect" class="mode-select" aria-label="出題モード">
+            <option value="normal">通常（10問）</option>
+            <option value="endless">連続学習（間違い0まで）</option>
+          </select>
+        </label>
 
-    <!-- フィルタ＆モード（追加） -->
-    <div id="filters" class="filters">
-      <label class="filter-item">
-        <span class="filter-label">カテゴリ</span>
-        <select id="categorySelect" class="select">
-          <option value="__all__">すべて</option>
-        </select>
-      </label>
-
-      <label class="filter-item">
-        <span class="filter-label">モード</span>
-        <select id="modeSelect" class="select">
-          <option value="normal">通常（10問）</option>
-          <option value="endless">連続学習（間違い0まで）</option>
-        </select>
-      </label>
+        <button id="bgmToggle" class="pill bgm-btn" type="button">BGM: OFF</button>
+      </div>
     </div>
 
     <!-- 進捗メーター -->
