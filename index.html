@@ -9,20 +9,32 @@
 
 <body>
   <h1>古文4択クイズ</h1>
-　<!-- ✅ Start Screen（開始画面） -->
-<div id="startScreen" class="start-screen">
-  <div class="start-inner">
-    <div class="start-title">古文4択クイズ</div>
 
-    <!-- ✅ kaishi.gif は assets フォルダ内 -->
-    <img class="start-image" src="./assets/kaishi.gif" alt="開始画面" />
+  <!-- ===== 開始画面（STARTを押すまでクイズを開始しない） ===== -->
+  <div id="startScreen" class="start-screen" aria-hidden="false">
+    <div class="start-inner">
+      <div class="start-title">古文4択クイズ</div>
 
-    <button id="startBtn" class="start-btn" type="button">START</button>
-    <div class="start-note">※STARTを押すとBGMがONになり、ゲームが始まります。</div>
+      <img
+        class="start-image"
+        src="./assets/kaishi.gif"
+        alt="開始画面"
+        loading="eager"
+        decoding="async"
+      />
+
+      <button id="startBtn" class="start-btn" type="button" disabled>
+        LOADING...
+      </button>
+
+      <div class="start-note">
+        STARTを押すとBGMがONになり、ゲームが開始します。
+      </div>
+    </div>
   </div>
-</div>
 
-  <div id="quiz" class="panel">
+  <!-- ===== ゲーム本体 ===== -->
+  <div id="quiz" class="panel" aria-live="polite">
     <!-- 上段メタ -->
     <div id="meta">
       <div id="metaLeft">
@@ -30,18 +42,9 @@
         <div id="score">Score: 0</div>
       </div>
 
-      <div id="metaRight">
-        <!-- ✅モード（カテゴリなし） -->
-        <label class="mode-pill" for="modeSelect">
-          <span class="mode-label">MODE</span>
-          <select id="modeSelect" class="mode-select" aria-label="出題モード">
-            <option value="normal">通常（10問）</option>
-            <option value="endless">連続学習（間違い0まで）</option>
-          </select>
-        </label>
-
-        <button id="bgmToggle" class="pill bgm-btn" type="button">BGM: OFF</button>
-      </div>
+      <button id="bgmToggle" class="pill bgm-btn" type="button">
+        BGM: OFF
+      </button>
     </div>
 
     <!-- 進捗メーター -->
@@ -51,12 +54,12 @@
         <div id="comboLabel">最大COMBO x0</div>
       </div>
 
-      <div id="meterOuter">
+      <div id="meterOuter" aria-hidden="true">
         <div id="meterInner"></div>
       </div>
     </div>
 
-    <!-- 問題文（上の枠に統一） -->
+    <!-- 問題文は“上の枠”に統一 -->
     <div id="questionBox" class="panel-inner">
       <div id="question" class="question">CSVを読み込んでいます。</div>
       <div id="subline" class="subline"></div>
@@ -77,7 +80,9 @@
       <button class="ctrl" id="restartBtn" type="button">最初から</button>
     </div>
 
-    <div id="hint">※【】の中は重要語として黄色発光します。</div>
+    <div id="hint">
+      ※自動遷移はOFFです。「次へ」で進みます。
+    </div>
   </div>
 
   <!-- csv.js → app.js の順（依存関係） -->
@@ -85,4 +90,3 @@
   <script src="./app.js"></script>
 </body>
 </html>
-
