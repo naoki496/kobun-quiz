@@ -12,9 +12,9 @@ const AUDIO_FILES = {
 // ===== Card (Reward) =====
 // ★3/★4/★5の抽選プール（まずは仮で3枚）
 const CARD_POOL = {
-  3: [{ id: "sei_shonagon", name: "清少納言", img: "./assets/cards/sei_shonagon.png" }],
-  4: [{ id: "murasaki", name: "紫式部", img: "./assets/cards/murasaki.png" }],
-  5: [{ id: "basho", name: "松尾芭蕉", img: "./assets/cards/basho.png" }],
+  3: [{ id: "sei_shonagon", name: "清少納言", img: "./assets/cards/sei_shonagon.PNG" }],
+  4: [{ id: "murasaki", name: "紫式部", img: "./assets/cards/murasaki.PNG" }],
+  5: [{ id: "basho", name: "松尾芭蕉", img: "./assets/cards/basho.PNG" }],
 };
 
 let questions = [];
