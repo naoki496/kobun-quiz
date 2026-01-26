@@ -461,3 +461,14 @@ h1{
     transition: none !important;
   }
 }
+
+.start-title{
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 14px rgba(0,255,255,0.35);
+}
+
+.gap-after-meter{
+  height: 10px; /* “もう一行”の体感：8〜14pxあたりで調整 */
+}
