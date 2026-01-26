@@ -208,6 +208,7 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+
 // 【】 highlight
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
