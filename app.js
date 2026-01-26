@@ -1,11 +1,12 @@
 // app.js (global)
+
 const TOTAL_QUESTIONS = 10;
 
 // ✅音声ファイル（root/assets/ 配下）
 const AUDIO_FILES = {
   bgm: "./assets/bgm.mp3",
   correct: "./assets/correct.mp3",
-  wrong: "./assets/wrong.mp3"
+  wrong: "./assets/wrong.mp3",
 };
 
 let questions = [];
@@ -71,7 +72,7 @@ seWrong.volume = 0.9;
 
 // ===== Utils =====
 function disableChoices(disabled) {
-  choiceBtns.forEach(b => (b.disabled = disabled));
+  choiceBtns.forEach((b) => (b.disabled = disabled));
 }
 
 function shuffle(arr) {
@@ -87,7 +88,7 @@ function normalizeAnswer(raw) {
   // 全角数字（１〜４）や余計な空白・文字を吸収して 1〜4 の数値に正規化
   const s = String(raw ?? "")
     .trim()
-    .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
     .replace(/[^\d]/g, "");
   return Number(s);
 }
@@ -102,21 +103,14 @@ function normalizeRow(r) {
     id: String(r.id ?? ""),
     question: String(r.question ?? ""),
     source: String(r.source ?? ""),
-    choices: [
-      String(r.choice1 ?? ""),
-      String(r.choice2 ?? ""),
-      String(r.choice3 ?? ""),
-      String(r.choice4 ?? "")
-    ],
-    answer: ans
+    choices: [String(r.choice1 ?? ""), String(r.choice2 ?? ""), String(r.choice3 ?? ""), String(r.choice4 ?? "")],
+    answer: ans,
   };
 }
 
-// ================================
-// ✅ここだけ変更（健全化）
-// ================================
-
-// HTMLエスケープ（安全版）
+// =====================================================
+// ✅ここが重要修正①：HTMLエスケープを正しく
+// =====================================================
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -131,8 +125,7 @@ function highlightBrackets(str) {
   const safe = escapeHtml(str);
   return safe.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
 }
-
-// ================================
+// =====================================================
 
 function updateScoreUI() {
   scoreEl.textContent = `Score: ${score}`;
@@ -178,10 +171,10 @@ function pulseNext() {
 }
 
 // ===== Audio =====
-// 音：初回アンロック
 async function unlockAudioOnce() {
   if (audioUnlocked) return;
   audioUnlocked = true;
+
   try {
     // iOS/Chrome対策：無音再生→停止で解錠
     bgmAudio.muted = true;
@@ -200,9 +193,12 @@ async function setBgm(on) {
   bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
 
   if (!bgmOn) {
-    try { bgmAudio.pause(); } catch (_) {}
+    try {
+      bgmAudio.pause();
+    } catch (_) {}
     return;
   }
+
   try {
     await unlockAudioOnce();
     await bgmAudio.play();
@@ -238,7 +234,6 @@ function render() {
   sublineEl.textContent = "";
 
   choiceBtns.forEach((btn, i) => {
-    // ✅選択肢も〖〗ハイライトを反映（UIはそのまま）
     btn.innerHTML = highlightBrackets(q.choices[i] || "---");
     btn.classList.remove("correct", "wrong");
     btn.disabled = false;
@@ -260,9 +255,10 @@ function startWithPool(pool) {
 
   const shuffled = shuffle([...pool]);
 
-  // ✅連続学習も10問で一旦終了し、結果→復習へ
- order = shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
-
+  // =====================================================
+  // ✅重要修正②：連続学習も「10問で一旦終了」させる（当初仕様へ）
+  // =====================================================
+  order = shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
 
   render();
 }
@@ -272,7 +268,7 @@ function startNewSession() {
 }
 
 function retryWrongOnlyOnce() {
-  const wrong = history.filter(h => !h.isCorrect).map(h => h.q);
+  const wrong = history.filter((h) => !h.isCorrect).map((h) => h.q);
   if (!wrong.length) {
     startNewSession();
     return;
@@ -330,7 +326,6 @@ function getUserMessageByRate(percent) {
   return "まずは基礎単語から始めよう！";
 }
 
-// 星評価（2の星評価を採用：表示は5段、基準はここで調整）
 function calcStars(score0, total) {
   const percent = total ? (score0 / total) * 100 : 0;
   if (percent >= 90) return 5;
@@ -344,72 +339,90 @@ function calcRankName(stars, maxCombo0) {
   // コンボで1段階だけ底上げ（やり過ぎない）
   const boost = maxCombo0 >= 6 ? 1 : 0;
   const s = Math.min(5, Math.max(1, stars + boost));
-  const table = { 1:"見習い", 2:"一人前", 3:"職人", 4:"達人", 5:"神" };
+  const table = { 1: "見習い", 2: "一人前", 3: "職人", 4: "達人", 5: "神" };
   return table[s];
 }
 
 function buildReviewHtml() {
-  const wrong = history.filter(h => !h.isCorrect);
+  const wrong = history.filter((h) => !h.isCorrect);
   if (!wrong.length) {
     return `
-復習
-
-全問正解。復習項目はありません。
-
-`;
+      <div class="review">
+        <div style="opacity:.85;font-weight:800;margin-bottom:6px;">復習</div>
+        <div style="opacity:.75;">全問正解。復習項目はありません。</div>
+      </div>
+    `;
   }
-  const items = wrong.map((h, idx) => {
-    const q = h.q;
-    const qText = q.source ? `${q.question}（${q.source}）` : q.question;
 
-    const choicesHtml = q.choices.map((c, i) => {
-      const isC = i === h.correctIdx;
-      const isS = i === h.selectedIdx;
-      const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""].filter(Boolean).join(" ");
-      // ✅復習リストでも〖〗ハイライトを反映
+  const items = wrong
+    .map((h, idx) => {
+      const q = h.q;
+      const qText = q.source ? `${q.question}（${q.source}）` : q.question;
+
+      const choicesHtml = q.choices
+        .map((c, i) => {
+          const isC = i === h.correctIdx;
+          const isS = i === h.selectedIdx;
+          const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""].filter(Boolean).join(" ");
+          return `<div class="${cls}">${highlightBrackets(c)}</div>`;
+        })
+        .join("");
+
       return `
-${highlightBrackets(c)}
-`;
-    }).join("");
-
-    return `
-#${idx + 1} ${highlightBrackets(qText)}
-
-${choicesHtml}
-
-`;
-  }).join("");
+        <div class="rv-item">
+          <div class="rv-q">#${idx + 1} ${highlightBrackets(qText)}</div>
+          <div class="rv-choices">${choicesHtml}</div>
+        </div>
+      `;
+    })
+    .join("");
 
   return `
-
-復習（間違いのみ ${wrong.length} 件）
-
-${items}
-
-`;
+    <div class="review">
+      <div style="opacity:.85;font-weight:800;margin-bottom:6px;">復習（間違いのみ ${wrong.length} 件）</div>
+      ${items}
+    </div>
+  `;
 }
 
+// =====================================================
+// ✅重要修正③：結果オーバーレイのHTMLを「ID付きの正常形」に戻す
+// （ここが欠けていると boot で落ち、STARTが読み込み失敗になる）
+// =====================================================
 function ensureResultOverlay() {
   if (resultOverlay) return;
 
   resultOverlay = document.createElement("div");
   resultOverlay.className = "result-overlay";
+
   resultOverlay.innerHTML = `
+    <div class="result-card">
+      <div class="result-head">
+        <div class="result-title" id="rankTitle">評価</div>
+        <div class="result-rate" id="resultRate">--%</div>
+      </div>
 
-評価
+      <div class="stars" id="starsRow" aria-label="stars">
+        <div class="star">★</div>
+        <div class="star">★</div>
+        <div class="star">★</div>
+        <div class="star">★</div>
+        <div class="star">★</div>
+      </div>
 
---%
+      <div class="result-summary" id="resultSummary">---</div>
 
-★
-★
-★
-★
-★
+      <div class="result-details" id="resultDetails"></div>
 
----
+      <div class="result-actions">
+        <button class="ctrl" id="resultRestartBtn" type="button">もう一回</button>
+        <button class="ctrl" id="resultRetryWrongBtn" type="button">間違い復習</button>
+        <button class="ctrl" id="resultCloseBtn" type="button">閉じる</button>
+      </div>
 
-もう一回 間違い復習 閉じる
-`;
+      <div id="resultReview"></div>
+    </div>
+  `;
 
   document.body.appendChild(resultOverlay);
 
@@ -458,7 +471,6 @@ function ensureResultOverlay() {
     const starEls = Array.from(starsRow.querySelectorAll(".star"));
     starEls.forEach((el) => el.classList.remove("on", "pop"));
 
-    // show
     void resultOverlay.offsetWidth;
     resultOverlay.classList.add("show");
 
@@ -470,6 +482,7 @@ function ensureResultOverlay() {
     }
   };
 }
+// =====================================================
 
 function showResultOverlay() {
   ensureResultOverlay();
@@ -480,18 +493,18 @@ function showResultOverlay() {
   const rank = calcRankName(stars, maxCombo);
   const message = getUserMessageByRate(percent);
 
-  const canRetryWrong = history.some(h => !h.isCorrect);
+  const canRetryWrong = history.some((h) => !h.isCorrect);
   const modeLabel = mode === "endless" ? "連続学習" : "通常";
 
   const details = `
-正解 ${score} / ${total}
+    <div style="display:grid;gap:6px;">
+      <div><b>正解</b> ${score} / ${total}</div>
+      <div><b>最大COMBO</b> x${maxCombo}</div>
+      <div><b>モード</b> ${escapeHtml(modeLabel)}</div>
+    </div>
+  `;
 
-最大COMBO x${maxCombo}
-
-モード ${escapeHtml(modeLabel)}
-`;
-
-  const reviewHtml = (mode === "endless") ? buildReviewHtml() : "";
+  const reviewHtml = mode === "endless" ? buildReviewHtml() : "";
 
   resultOverlay._set({
     stars,
@@ -500,7 +513,7 @@ function showResultOverlay() {
     summary: message,
     details,
     reviewHtml,
-    canRetryWrong: mode === "endless" ? canRetryWrong : false
+    canRetryWrong: mode === "endless" ? canRetryWrong : false,
   });
 }
 
@@ -512,7 +525,7 @@ function finish() {
   // “結果表示”はオーバーレイに統一
   questionEl.textContent = `結果：${score} / ${order.length}`;
   sublineEl.textContent = "";
-  statusEl.textContent = `おつかれさまでした。`;
+  statusEl.textContent = "おつかれさまでした。";
 
   showResultOverlay();
 }
@@ -561,19 +574,14 @@ modeEndlessBtn.addEventListener("click", () => setMode("endless"));
 
 // ===== Start flow =====
 async function beginFromStartScreen() {
-  // ここが “スタート押しても進まない” の解消ポイント：
-  // 1) Audio unlock → 2) BGM ON → 3) 画面を消す → 4) セッション開始
+  // 1) Audio unlock → 2) BGM ON → 3) セッション開始 → 4) 開始画面を消す
   await unlockAudioOnce();
   await setBgm(true);
 
-  // セッション開始
   startNewSession();
-
-  // 開始画面を消す（最後）
   startScreenEl.style.display = "none";
 }
 
-// Start button
 startBtnEl.addEventListener("click", async () => {
   try {
     await beginFromStartScreen();
@@ -612,7 +620,7 @@ function showError(err) {
     const baseUrl = new URL("./", location.href).toString();
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
-    progressEl.textContent = `読み込み中…`;
+    progressEl.textContent = "読み込み中…";
     startBtnEl.disabled = true;
     startBtnEl.textContent = "読み込み中…";
 
@@ -637,7 +645,7 @@ function showError(err) {
     startBtnEl.textContent = "START";
     startNoteEl.textContent = "BGMはスタート時にONになります。";
 
-    // 結果オーバーレイも事前生成（ラグ低減）
+    // ✅ここで落ちないように復旧済み
     ensureResultOverlay();
   } catch (e) {
     showError(e);
