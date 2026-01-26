@@ -126,7 +126,6 @@ function saveCardCounts(counts) {
   StorageAdapter.set(STORAGE_KEY_CARD_COUNTS, JSON.stringify(counts));
 }
 
-
 // ===== Utils =====
 function disableChoices(disabled) {
   choiceBtns.forEach((b) => (b.disabled = disabled));
@@ -166,7 +165,7 @@ function normalizeRow(r) {
 }
 
 // =====================================================
-// ✅ここが重要修正①：HTMLエスケープを正しく
+// ✅重要修正①：HTMLエスケープを正しく（安全版）
 // =====================================================
 function escapeHtml(str) {
   return String(str)
@@ -177,11 +176,11 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+// 〖〗の中だけ黄色発光（span付与）
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
   return safe.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
 }
-
 // =====================================================
 
 function updateScoreUI() {
@@ -312,9 +311,7 @@ function startWithPool(pool) {
 
   const shuffled = shuffle([...pool]);
 
-  // =====================================================
-  // ✅重要修正②：連続学習も「10問で一旦終了」させる（当初仕様へ）
-  // =====================================================
+  // ✅通常・連続学習ともに「10問で一旦終了」（当初仕様）
   order = shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
 
   render();
@@ -402,6 +399,7 @@ function calcRankName(stars, maxCombo0) {
 
 function buildReviewHtml() {
   const wrong = history.filter((h) => !h.isCorrect);
+
   if (!wrong.length) {
     return `
       <div class="review">
@@ -420,7 +418,9 @@ function buildReviewHtml() {
         .map((c, i) => {
           const isC = i === h.correctIdx;
           const isS = i === h.selectedIdx;
-          const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""].filter(Boolean).join(" ");
+          const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""]
+            .filter(Boolean)
+            .join(" ");
           return `<div class="${cls}">${highlightBrackets(c)}</div>`;
         })
         .join("");
@@ -443,8 +443,7 @@ function buildReviewHtml() {
 }
 
 // =====================================================
-// ✅重要修正③：結果オーバーレイのHTMLを「ID付きの正常形」に戻す
-// （ここが欠けていると boot で落ち、STARTが読み込み失敗になる）
+// ✅重要修正②：結果オーバーレイを「ID付きDOM」で正常生成
 // =====================================================
 function ensureResultOverlay() {
   if (resultOverlay) return;
@@ -452,7 +451,7 @@ function ensureResultOverlay() {
   resultOverlay = document.createElement("div");
   resultOverlay.className = "result-overlay";
 
-  // 必須IDを持つDOMを生成（ここが無いと querySelector が null になる）
+  // 必須IDを持つDOMを生成（querySelector が null にならない）
   resultOverlay.innerHTML = `
     <div class="result-card">
       <div class="result-head">
@@ -693,8 +692,7 @@ function showError(err) {
 
     const raw = await window.CSVUtil.load(csvUrl);
     questions = raw.map(normalizeRow);
-    console.log("[Storage] persistent localStorage:", StorageAdapter.isPersistent);
-    
+
     // UIだけ準備（開始はStartボタンで）
     progressEl.textContent = `準備完了（問題数 ${questions.length}）`;
     updateScoreUI();
@@ -713,7 +711,7 @@ function showError(err) {
     startBtnEl.textContent = "START";
     startNoteEl.textContent = "BGMはスタート時にONになります。";
 
-    // ✅ここで落ちないように復旧済み
+    // 結果オーバーレイを事前生成（ラグ低減 / 起動時クラッシュ防止）
     ensureResultOverlay();
   } catch (e) {
     showError(e);
