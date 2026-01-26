@@ -325,3 +325,139 @@ h1{
   font-size: 0.9rem;
   text-align: center;
 }
+
+/* =========================================================
+   ✅ A案：クリア後「評価オーバーレイ」を濃くして視認性改善
+   ---------------------------------------------------------
+   使い方想定：
+   - JSで #resultOverlay に .show を付ける → 表示
+   - .show を外す → 非表示
+   ========================================================= */
+
+.result-overlay{
+  position: fixed;
+  inset: 0;
+  display: none;              /* 初期は非表示 */
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  z-index: 10050;
+
+  /* 背景を“しっかり暗く”して下のUIを沈める */
+  background: rgba(0,0,0,0.78);
+
+  /* 対応ブラウザではガラス感＆可読性が上がる */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.result-overlay.show{
+  display: flex;
+}
+
+/* うっすら走るネオン */
+.result-overlay::before{
+  content:"";
+  position:absolute;
+  inset:-40px;
+  background:
+    radial-gradient(800px 400px at 50% 20%, rgba(0,255,255,0.12), rgba(0,0,0,0) 70%),
+    radial-gradient(700px 380px at 50% 90%, rgba(0,120,255,0.10), rgba(0,0,0,0) 70%);
+  pointer-events:none;
+}
+
+.result-card{
+  position: relative;
+  width: min(92vw, 560px);
+  border-radius: 18px;
+  padding: 18px 16px 16px;
+
+  /* “薄さ”の原因になりがちな透明度を下げ、カード自体を濃く */
+  background: linear-gradient(180deg, rgba(15,20,32,0.96), rgba(8,10,16,0.92));
+  border: 1px solid rgba(0,255,255,0.18);
+  box-shadow:
+    0 22px 60px rgba(0,0,0,0.65),
+    0 0 36px rgba(0,255,255,0.12),
+    inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+.result-title{
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 14px rgba(0,255,255,0.22);
+  margin-bottom: 10px;
+}
+
+.result-score{
+  font-size: 14px;
+  opacity: 0.92;
+  margin-bottom: 12px;
+}
+
+.result-stars{
+  display:flex;
+  justify-content:center;
+  gap: 8px;
+  margin: 10px 0 12px;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+
+.result-stars .star{
+  color: #ffe66b;
+  text-shadow:
+    0 0 10px rgba(255,230,107,0.55),
+    0 0 22px rgba(255,230,107,0.25);
+}
+
+.result-message{
+  margin: 8px auto 14px;
+  font-size: 16px;
+  line-height: 1.55;
+  max-width: 44ch;
+  opacity: 0.96;
+
+  /* 背景が濃いので文字が沈まないよう微発光 */
+  text-shadow: 0 0 12px rgba(0,0,0,0.35);
+}
+
+.result-actions{
+  display:flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.result-actions .overlay-btn{
+  width: 50%;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,255,255,0.18);
+  background: rgba(0,0,0,0.40);
+  color:#fff;
+  font-size: 16px;
+  cursor:pointer;
+  box-shadow: 0 0 18px rgba(0,255,255,0.10);
+}
+
+.result-actions .overlay-btn.primary{
+  border-color: rgba(0,255,255,0.28);
+  background: linear-gradient(90deg, rgba(0,120,255,0.92), rgba(0,255,255,0.75));
+  box-shadow: 0 0 22px rgba(0,255,255,0.18);
+  font-weight: 800;
+}
+
+.result-actions .overlay-btn:active{
+  transform: translateY(1px) scale(0.995);
+}
+
+/* “動きが苦手”な端末用 */
+@media (prefers-reduced-motion: reduce){
+  .flash-good, .shake{
+    animation: none !important;
+  }
+  #meterInner{
+    transition: none !important;
+  }
+}
