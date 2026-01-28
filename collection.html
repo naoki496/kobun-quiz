@@ -13,22 +13,21 @@
   <div class="panel">
     <div class="panel-inner">
 
-      <div id="cardGrid" class="card-grid"></div>
-
-      <div style="margin-top:16px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-        <a href="./index.html" class="pill" style="text-decoration:none;">← クイズに戻る</a>
-        <button id="btnReload" class="pill" type="button">再読み込み</button>
-        <button id="btnReset" class="pill" type="button">カード保存をリセット</button>
+      <div id="cardGrid" class="card-grid">
+        <!-- JSで生成 -->
       </div>
 
-      <!-- Debug -->
-      <div id="debugBox" style="margin-top:16px; font-size:12px; opacity:.85; line-height:1.5;"></div>
+      <div style="margin-top:16px; text-align:center;">
+        <a href="./index.html" class="pill" style="text-decoration:none;">
+          ← クイズに戻る
+        </a>
+      </div>
 
     </div>
   </div>
 
 <script>
-/* ===== Card Pool（app.js と一致させる）===== */
+/* ===== Card Pool（app.jsと一致させる）===== */
 const CARD_POOL = {
   3: [{ id: "sei_shonagon", name: "清少納言", img: "./assets/cards/sei_shonagon.png" }],
   4: [{ id: "murasaki", name: "紫式部", img: "./assets/cards/murasaki.png" }],
@@ -37,89 +36,45 @@ const CARD_POOL = {
 
 const STORAGE_KEY_CARD_COUNTS = "kobunQuiz.v1.cardCounts";
 
-/* ===== helpers ===== */
-function loadCardCountsSafe() {
-  const raw = localStorage.getItem(STORAGE_KEY_CARD_COUNTS);
-  if (!raw) return { raw: null, obj: {} };
-
+/* ===== load counts ===== */
+function loadCardCounts() {
   try {
-    const obj = JSON.parse(raw);
-    if (obj && typeof obj === "object") return { raw, obj };
-    return { raw, obj: {} };
-  } catch (e) {
-    return { raw, obj: {}, error: String(e) };
+    return JSON.parse(localStorage.getItem(STORAGE_KEY_CARD_COUNTS) || "{}");
+  } catch {
+    return {};
   }
-}
-
-function listAllLocalStorageKeys() {
-  const keys = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    keys.push(k);
-  }
-  keys.sort();
-  return keys;
 }
 
 /* ===== render ===== */
 function renderCollection() {
   const grid = document.getElementById("cardGrid");
-  const debug = document.getElementById("debugBox");
+  const counts = loadCardCounts();
 
-  const { raw, obj: counts, error } = loadCardCountsSafe();
   const allCards = Object.values(CARD_POOL).flat();
 
-  // 取得済み（回数>0）
-  const obtained = allCards
-    .map(c => ({...c, count: Number(counts[c.id] ?? 0)}))
-    .filter(c => c.count > 0);
+  const obtained = allCards.filter(c => (counts[c.id] ?? 0) > 0);
 
   if (!obtained.length) {
     grid.innerHTML = `
       <div style="opacity:.75; padding:18px;">
         まだカードを獲得していません。<br>
-        <b>通常モード</b>で10問完走し、<b>★3以上</b>でカードが出ます。<br>
-        （結果画面にカード表示が出たかも確認してください）
+        ★3以上で10問完走するとカードが出ます。
       </div>
     `;
-  } else {
-    grid.innerHTML = obtained.map(card => `
+    return;
+  }
+
+  grid.innerHTML = obtained.map(card => {
+    const n = counts[card.id] ?? 0;
+    return `
       <div class="card-item">
         <img src="${card.img}" alt="${card.name}">
         <div class="card-item-name">${card.name}</div>
-        <div class="card-item-count">所持：${card.count}枚</div>
+        <div class="card-item-count">所持：${n}枚</div>
       </div>
-    `).join("");
-  }
-
-  // Debug info
-  const keys = listAllLocalStorageKeys();
-  const summaryCounts = allCards.map(c => `${c.id}:${counts[c.id] ?? 0}`).join(" / ");
-  debug.innerHTML = `
-    <div style="padding:10px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);">
-      <div><b>Debug</b></div>
-      <div>origin: <code>${location.origin}</code></div>
-      <div>path: <code>${location.pathname}</code></div>
-      <div>storage key: <code>${STORAGE_KEY_CARD_COUNTS}</code></div>
-      <div>raw: <code>${raw ? raw.replace(/</g,"&lt;") : "(null)"}</code></div>
-      ${error ? `<div style="color:#ff8;">JSON parse error: <code>${error}</code></div>` : ""}
-      <div>counts: <code>${summaryCounts}</code></div>
-      <div>localStorage keys: <code>${keys.join(", ") || "(none)"}</code></div>
-      <div style="opacity:.75; margin-top:6px;">
-        ※ raw が (null) の場合、カード保存が localStorage に入っていません。<br>
-        その場合、(a) まだ★3以上を取っていない / (b) 保存がメモリに落ちている（ブラウザ設定/プライベート等）可能性が高いです。
-      </div>
-    </div>
-  `;
+    `;
+  }).join("");
 }
-
-document.getElementById("btnReload").addEventListener("click", renderCollection);
-
-document.getElementById("btnReset").addEventListener("click", () => {
-  if (!confirm("カード保存（localStorage）をリセットします。よろしいですか？")) return;
-  localStorage.removeItem(STORAGE_KEY_CARD_COUNTS);
-  renderCollection();
-});
 
 renderCollection();
 </script>
