@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>カード図鑑</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+  <h1>📖 カード図鑑</h1>
+
+  <div class="panel">
+    <div class="panel-inner">
+
+      <div id="cardGrid" class="card-grid">
+        <!-- JSで生成 -->
+      </div>
+
+      <div style="margin-top:16px; text-align:center;">
+        <a href="./index.html" class="pill" style="text-decoration:none;">
+          ← クイズに戻る
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+/* ===== Card Pool（app.jsと一致させる）===== */
+const CARD_POOL = {
+  3: [{ id: "sei_shonagon", name: "清少納言", img: "./assets/cards/sei_shonagon.png" }],
+  4: [{ id: "murasaki", name: "紫式部", img: "./assets/cards/murasaki.png" }],
+  5: [{ id: "basho", name: "松尾芭蕉", img: "./assets/cards/basho.png" }],
+};
+
+const STORAGE_KEY_CARD_COUNTS = "kobunQuiz.v1.cardCounts";
+
+/* ===== load counts ===== */
+function loadCardCounts() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY_CARD_COUNTS) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+/* ===== render ===== */
+function renderCollection() {
+  const grid = document.getElementById("cardGrid");
+  const counts = loadCardCounts();
+
+  const allCards = Object.values(CARD_POOL).flat();
+
+  const obtained = allCards.filter(c => (counts[c.id] ?? 0) > 0);
+
+  if (!obtained.length) {
+    grid.innerHTML = `
+      <div style="opacity:.75; padding:18px;">
+        まだカードを獲得していません。<br>
+        ★3以上で10問完走するとカードが出ます。
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = obtained.map(card => {
+    const n = counts[card.id] ?? 0;
+    return `
+      <div class="card-item">
+        <img src="${card.img}" alt="${card.name}">
+        <div class="card-item-name">${card.name}</div>
+        <div class="card-item-count">所持：${n}枚</div>
+      </div>
+    `;
+  }).join("");
+}
+
+renderCollection();
+</script>
+</body>
+</html>
