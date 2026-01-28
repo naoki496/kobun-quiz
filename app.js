@@ -536,8 +536,10 @@ function ensureResultOverlay() {
       <div class="result-actions">
         <button class="ctrl" id="resultRestartBtn" type="button">もう一回</button>
         <button class="ctrl" id="resultRetryWrongBtn" type="button">間違い復習</button>
+        <button class="ctrl" id="resultCollectionBtn" type="button">図鑑</button>
         <button class="ctrl" id="resultCloseBtn" type="button">閉じる</button>
       </div>
+
 
       <div id="resultReview"></div>
     </div>
@@ -555,7 +557,12 @@ function ensureResultOverlay() {
   const resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
   const resultBtnRetryWrongEl = resultOverlay.querySelector("#resultRetryWrongBtn");
   const resultBtnCloseEl = resultOverlay.querySelector("#resultCloseBtn");
+  const resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
+  const resultBtnRetryWrongEl = resultOverlay.querySelector("#resultRetryWrongBtn");
+  +const resultBtnCollectionEl = resultOverlay.querySelector("#resultCollectionBtn");
+  const resultBtnCloseEl = resultOverlay.querySelector("#resultCloseBtn");
 
+  
   function hide() {
     resultOverlay.classList.remove("show");
   }
@@ -573,7 +580,7 @@ function ensureResultOverlay() {
       startNewSession();
     });
   }
-
+  
   if (resultBtnRetryWrongEl) {
     resultBtnRetryWrongEl.addEventListener("click", async () => {
       hide();
@@ -582,6 +589,17 @@ function ensureResultOverlay() {
     });
   }
 
+  if (resultBtnCollectionEl) {
+  resultBtnCollectionEl.addEventListener("click", () => {
+    window.location.href = "./collection.html";
+  });
+}
+
+if (resultBtnCloseEl) {
+  resultBtnCloseEl.addEventListener("click", hide);
+}
+
+  
   resultOverlay._set = ({ stars, rankName, percent, summary, details, reviewHtml, canRetryWrong }) => {
     if (resultBtnRetryWrongEl) {
       resultBtnRetryWrongEl.disabled = !canRetryWrong;
