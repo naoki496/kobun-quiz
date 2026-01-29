@@ -580,6 +580,48 @@ h1{
   background: radial-gradient(circle at 50% 55%, rgba(120, 220, 255, 0.34), transparent 66%);
 }
 
+/* =====================================================
+   ★5 Special Effect Boost
+   ===================================================== */
+
+/* ★5だけ演出時間を伸ばす */
+.card-effect.r5{
+  animation-duration: 1.4s;
+}
+
+/* ★5だけ光を巨大化＋強化 */
+.card-effect.r5 .card-effect-glow{
+  filter: blur(1px);
+  animation: cardFxGlow5 1.4s ease-out forwards;
+}
+
+/* ★5だけ “リング拡散” を追加 */
+.card-effect.r5::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  border: 2px solid rgba(120,220,255,0.55);
+  transform: scale(0.6);
+  opacity:0;
+  animation: cardFxRing 1.4s ease-out forwards;
+}
+
+/* ★5専用キーフレーム */
+@keyframes cardFxGlow5{
+  0%   { opacity:0; transform:scale(0.75); }
+  25%  { opacity:1; transform:scale(1.10); }
+  60%  { opacity:0.9; transform:scale(1.28); }
+  100% { opacity:0; transform:scale(1.45); }
+}
+
+@keyframes cardFxRing{
+  0%   { opacity:0; transform:scale(0.55); }
+  30%  { opacity:0.8; transform:scale(0.95); }
+  100% { opacity:0; transform:scale(1.65); }
+}
+
+
 /* subtle sparkles (lightweight) */
 .card-effect::before,
 .card-effect::after {
