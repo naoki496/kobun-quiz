@@ -72,6 +72,9 @@ function validateCardsCsv() {
     if (!(c.rarity === 3 || c.rarity === 4 || c.rarity === 5)) {
       errs.push(`cards.csv: rarity が 3/4/5 ではありません (id=${c.id}, rarity=${c.rarity})`);
     }
+    if (!Number.isFinite(Number(c.weight)) || Number(c.weight) <= 0) {
+      warns.push(`cards.csv: weight が不正なので 1 扱いにします (id=${c.id}, weight=${c.weight})`);
+    }
   }
 
   // 4) rarity 別枚数
@@ -301,6 +304,35 @@ function highlightBrackets(str) {
     .replace(/【(.*?)】/g, '【<span class="hl">$1</span>】')
     .replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
 }
+
+function pickWeighted(arr, getWeight) {
+  if (!arr || !arr.length) return null;
+
+  let total = 0;
+  const ws = new Array(arr.length);
+
+  for (let i = 0; i < arr.length; i++) {
+    let w = Number(getWeight(arr[i]));
+    // “落とさない”方針：不正値は 1 扱い（極端に壊れない）
+    if (!Number.isFinite(w) || w <= 0) w = 1;
+    ws[i] = w;
+    total += w;
+  }
+
+  // total が壊れている場合は等確率へフォールバック
+  if (!Number.isFinite(total) || total <= 0) {
+    return pickRandom(arr);
+  }
+
+  let r = Math.random() * total;
+  for (let i = 0; i < arr.length; i++) {
+    r -= ws[i];
+    if (r <= 0) return arr[i];
+  }
+  // 丸め誤差対策
+  return arr[arr.length - 1];
+}
+
 // =====================================================
 
 // ※この関数は元コード内に存在している前提（あなたの貼り付けには途中が欠けていました）
@@ -318,9 +350,13 @@ function rollCardByStars(stars) {
   const csvPool = cardPoolByRarity?.[tier] || [];
   if (!csvPool.length) return null;
 
-  const picked = pickRandom(csvPool);
+  // C: weight 抽選（weight=1が並ぶ限り等確率と同じ）
+  const picked = pickWeighted(csvPool, (c) => c.weight ?? 1);
+  if (!picked) return null;
+
   return { ...picked, rarity: tier };
 }
+
 
 
 function recordCard(card) {
