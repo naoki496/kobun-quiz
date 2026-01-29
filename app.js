@@ -646,7 +646,7 @@ function showResultOverlay() {
       const specialMsg =
         card.rarity === 5
           ? `<div class="card-meta" style="color:#ffe66b;font-weight:900;">
-               ✨SSR級！伝説の一枚！✨
+               ✨SSR！✨
              </div>`
           : "";
 
