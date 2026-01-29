@@ -23,6 +23,41 @@ let index = 0;
 let score = 0;
 let locked = false;
 
+// ===== Card CSV (Reward source of truth) =====
+const CARDS_CSV_FILENAME = "cards.csv";
+
+// cards.csv から読み込んだ全カード
+let cardsAll = [];
+
+// rarity(3/4/5)ごとの抽選プール（cards.csv 読み込み後に構築）
+let cardPoolByRarity = { 3: [], 4: [], 5: [] };
+
+function normalizeCardRow(r) {
+  // 想定ヘッダ: id,rarity,name,img,wiki（wikiは任意）
+  const id = String(r.id ?? "").trim();
+  const name = String(r.name ?? "").trim();
+  const img = String(r.img ?? "").trim();
+  const rarity = Number(String(r.rarity ?? "").trim());
+
+  if (!id) throw new Error("cards.csv: id が空です");
+  if (!(rarity === 3 || rarity === 4 || rarity === 5)) {
+    throw new Error(`cards.csv: rarity が 3/4/5 ではありません (id=${id}, rarity=${r.rarity})`);
+  }
+  if (!name) throw new Error(`cards.csv: name が空です (id=${id})`);
+  if (!img) throw new Error(`cards.csv: img が空です (id=${id})`);
+
+  const wiki = String(r.wiki ?? "").trim(); // 任意
+
+  return { id, rarity, name, img, wiki };
+}
+
+function rebuildCardPoolsFromCsv() {
+  cardPoolByRarity = { 3: [], 4: [], 5: [] };
+  for (const c of cardsAll) {
+    if (cardPoolByRarity[c.rarity]) cardPoolByRarity[c.rarity].push(c);
+  }
+}
+
 // Combo
 let combo = 0;
 let maxCombo = 0;
@@ -228,11 +263,22 @@ function pickRandom(arr) {
 
 function rollCardByStars(stars) {
   if (stars < 3) return null;
+
   const tier = Math.min(5, Math.max(3, stars));
-  const pool = CARD_POOL[tier] || [];
-  if (!pool.length) return null;
-  return { ...pickRandom(pool), rarity: tier };
+
+  // 1) cards.csv 由来のプールを優先
+  const csvPool = cardPoolByRarity[tier] || [];
+  if (csvPool.length) {
+    const picked = pickRandom(csvPool);
+    return { ...picked, rarity: tier };
+  }
+
+  // 2) フォールバック（既存の仮CARD_POOL）
+  const fallbackPool = CARD_POOL[tier] || [];
+  if (!fallbackPool.length) return null;
+  return { ...pickRandom(fallbackPool), rarity: tier };
 }
+
 
 function recordCard(card) {
   const counts = loadCardCounts();
@@ -796,6 +842,20 @@ function showError(err) {
 
     const raw = await window.CSVUtil.load(csvUrl);
     questions = raw.map(normalizeRow);
+
+    // ===== cards.csv 読み込み（失敗しても学習自体は続行）=====
+try {
+  const cardsUrl = new URL(CARDS_CSV_FILENAME, baseUrl).toString();
+  const rawCards = await window.CSVUtil.load(cardsUrl);
+  cardsAll = rawCards.map(normalizeCardRow);
+  rebuildCardPoolsFromCsv();
+  console.log(`[cards.csv] loaded: ${cardsAll.length} cards`);
+} catch (e) {
+  // cards.csv が無い/壊れている場合でも、従来の CARD_POOL で動かす
+  console.warn("[cards.csv] load failed; fallback to CARD_POOL.", e);
+  cardsAll = [];
+  cardPoolByRarity = { 3: [], 4: [], 5: [] };
+}
 
     // UIだけ準備（開始はStartボタンで）
     progressEl.textContent = `準備完了（問題数 ${questions.length}）`;
