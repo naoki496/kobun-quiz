@@ -651,16 +651,15 @@ function showResultOverlay() {
 
       // styles.css に .card-reward がある前提（無くても表示は文字列として成立）
       rewardHtml = `
-        <div class="card-reward">
-          <img src="${escapeHtml(card.img)}" alt="${escapeHtml(card.name)}">
-          <div>
-            <div class="card-name">獲得：${escapeHtml(card.name)}</div>
-            <div class="card-meta">レアリティ：★${card.rarity} ／ 所持回数：${n}</div>
-          </div>
-        </div>
-      `;
-    }
-  }
+    <div class="card-reward">
+    <img src="${escapeHtml(card.img)}" alt="${escapeHtml(card.name)}">
+    <div>
+      <div class="card-name">獲得：${escapeHtml(card.name)}</div>
+      <div class="card-meta">レアリティ：★${card.rarity} ／ 所持回数：${n}</div>
++     ${card.rarity === 5 ? `<div class="card-meta" style="color:#ffe66b;font-weight:900;">✨SSR級！伝説の一枚！✨</div>` : ""}
+    </div>
+  </div>
+`;
   // ================================
 
   const details = `
