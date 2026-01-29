@@ -554,7 +554,7 @@ function ensureResultOverlay() {
   const starsRow = resultOverlay.querySelector("#starsRow");
   const reviewEl = resultOverlay.querySelector("#resultReview");
 
-  cconst resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
+  const resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
   const resultBtnRetryWrongEl = resultOverlay.querySelector("#resultRetryWrongBtn");
   const resultBtnCollectionEl = resultOverlay.querySelector("#resultCollectionBtn");
   const resultBtnCloseEl = resultOverlay.querySelector("#resultCloseBtn");
