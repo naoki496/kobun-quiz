@@ -554,13 +554,11 @@ function ensureResultOverlay() {
   const starsRow = resultOverlay.querySelector("#starsRow");
   const reviewEl = resultOverlay.querySelector("#resultReview");
 
-  const resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
+  cconst resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
   const resultBtnRetryWrongEl = resultOverlay.querySelector("#resultRetryWrongBtn");
+  const resultBtnCollectionEl = resultOverlay.querySelector("#resultCollectionBtn");
   const resultBtnCloseEl = resultOverlay.querySelector("#resultCloseBtn");
-  const resultBtnRestartEl = resultOverlay.querySelector("#resultRestartBtn");
-  const resultBtnRetryWrongEl = resultOverlay.querySelector("#resultRetryWrongBtn");
-  +const resultBtnCollectionEl = resultOverlay.querySelector("#resultCollectionBtn");
-  const resultBtnCloseEl = resultOverlay.querySelector("#resultCloseBtn");
+
 
   
   function hide() {
@@ -573,23 +571,23 @@ function ensureResultOverlay() {
 
   if (resultBtnCloseEl) resultBtnCloseEl.addEventListener("click", hide);
 
-  if (resultBtnRestartEl) {
-    resultBtnRestartEl.addEventListener("click", async () => {
-      hide();
-      await unlockAudioOnce();
-      startNewSession();
-    });
-  }
-  
-  if (resultBtnRetryWrongEl) {
-    resultBtnRetryWrongEl.addEventListener("click", async () => {
-      hide();
-      await unlockAudioOnce();
-      retryWrongOnlyOnce();
-    });
-  }
+ if (resultBtnRestartEl) {
+  resultBtnRestartEl.addEventListener("click", async () => {
+    hide();
+    await unlockAudioOnce();
+    startNewSession();
+  });
+}
 
-  if (resultBtnCollectionEl) {
+if (resultBtnRetryWrongEl) {
+  resultBtnRetryWrongEl.addEventListener("click", async () => {
+    hide();
+    await unlockAudioOnce();
+    retryWrongOnlyOnce();
+  });
+}
+
+if (resultBtnCollectionEl) {
   resultBtnCollectionEl.addEventListener("click", () => {
     window.location.href = "./collection.html";
   });
@@ -598,6 +596,7 @@ function ensureResultOverlay() {
 if (resultBtnCloseEl) {
   resultBtnCloseEl.addEventListener("click", hide);
 }
+
 
   
   resultOverlay._set = ({ stars, rankName, percent, summary, details, reviewHtml, canRetryWrong }) => {
