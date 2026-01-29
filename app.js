@@ -212,7 +212,7 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-// 【...】 と 〖...〗 の両方をハイライト
+// 【...】 と 〖...〗 の中だけ黄色発光（span付与）
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
   return safe
@@ -560,10 +560,15 @@ function ensureResultOverlay() {
     resultOverlay.classList.remove("show");
   }
 
+  // 背景クリックで閉じる
   resultOverlay.addEventListener("click", (e) => {
     if (e.target === resultOverlay) hide();
   });
 
+  // 閉じる
+  if (resultBtnCloseEl) resultBtnCloseEl.addEventListener("click", hide);
+
+  // もう一回
   if (resultBtnRestartEl) {
     resultBtnRestartEl.addEventListener("click", async () => {
       hide();
@@ -572,6 +577,7 @@ function ensureResultOverlay() {
     });
   }
 
+  // 間違い復習
   if (resultBtnRetryWrongEl) {
     resultBtnRetryWrongEl.addEventListener("click", async () => {
       hide();
@@ -580,14 +586,11 @@ function ensureResultOverlay() {
     });
   }
 
+  // 図鑑
   if (resultBtnCollectionEl) {
     resultBtnCollectionEl.addEventListener("click", () => {
       window.location.href = "./collection.html";
     });
-  }
-
-  if (resultBtnCloseEl) {
-    resultBtnCloseEl.addEventListener("click", hide);
   }
 
   resultOverlay._set = ({ stars, rankName, percent, summary, details, reviewHtml, canRetryWrong }) => {
