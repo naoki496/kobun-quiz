@@ -58,3 +58,27 @@ function renderCollection() {
 }
 
 renderCollection();
+
+const ALL_CARDS = [
+  {
+    id: "sei_shonagon",
+    rarity: 3,
+    name: "清少納言",
+    img: "./assets/cards/sei_shonagon.png",
+    wiki: "https://ja.wikipedia.org/wiki/清少納言"
+  },
+  {
+    id: "murasaki",
+    rarity: 4,
+    name: "紫式部",
+    img: "./assets/cards/murasaki.png",
+    wiki: "https://ja.wikipedia.org/wiki/紫式部"
+  },
+  {
+    id: "basho",
+    rarity: 5,
+    name: "松尾芭蕉",
+    img: "./assets/cards/basho.png",
+    wiki: "https://ja.wikipedia.org/wiki/松尾芭蕉"
+  },
+];
