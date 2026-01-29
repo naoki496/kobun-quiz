@@ -2,36 +2,10 @@
 
 const STORAGE_KEY_CARD_COUNTS = "kobunQuiz.v1.cardCounts";
 
-/*
-  ✅図鑑マスタ
-  - 未取得はUIで隠す（ネタバレ回避）
-  - 取得済みはwikiへ飛べる
-*/
-const ALL_CARDS = [
-  {
-    id: "sei_shonagon",
-    rarity: 3,
-    name: "清少納言",
-    img: "./assets/cards/sei_shonagon.png",
-    wiki: "https://ja.wikipedia.org/wiki/清少納言",
-  },
-  {
-    id: "murasaki",
-    rarity: 4,
-    name: "紫式部",
-    img: "./assets/cards/murasaki.png",
-    wiki: "https://ja.wikipedia.org/wiki/紫式部",
-  },
-  {
-    id: "basho",
-    rarity: 5,
-    name: "松尾芭蕉",
-    img: "./assets/cards/basho.png",
-    wiki: "https://ja.wikipedia.org/wiki/松尾芭蕉",
-  },
-];
+// ==== 図鑑カードデータ（CSVから読み込みます） ====
+let ALL_CARDS = [];
 
-// ✅保存データ取得
+// ===== 保存データ取得 =====
 function loadCounts() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CARD_COUNTS);
@@ -41,6 +15,18 @@ function loadCounts() {
   }
 }
 
+// ===== CSV → カードオブジェクト正規化 =====
+function normalizeCardRow(r) {
+  return {
+    id: String(r.id ?? "").trim(),
+    rarity: Number(r.rarity) || 0,
+    name: String(r.name ?? "").trim(),
+    img: String(r.img ?? "").trim(),
+    wiki: String(r.wiki ?? "").trim(),
+  };
+}
+
+// ===== 図鑑を描画 =====
 function renderCollection() {
   const grid = document.getElementById("cardGrid");
   if (!grid) return;
@@ -83,7 +69,7 @@ function renderCollection() {
 // ===== Debug Unlock (only with ?debug=1) =====
 function enableDebugUnlock() {
   const params = new URLSearchParams(location.search);
-  if (params.get("debug") !== "1") return; // ✅通常は何もしない
+  if (params.get("debug") !== "1") return;
 
   const btn = document.createElement("button");
   btn.textContent = "🛠 全カード解放（デバッグ）";
@@ -98,10 +84,7 @@ function enableDebugUnlock() {
 
   btn.addEventListener("click", () => {
     const unlockData = {};
-    ALL_CARDS.forEach((c) => {
-      unlockData[c.id] = 1;
-    });
-
+    ALL_CARDS.forEach((c) => (unlockData[c.id] = 1));
     localStorage.setItem(STORAGE_KEY_CARD_COUNTS, JSON.stringify(unlockData));
     alert("✅デバッグ解放しました！");
     location.reload();
@@ -110,6 +93,21 @@ function enableDebugUnlock() {
   document.body.insertBefore(btn, document.body.firstChild);
 }
 
-// 起動
-renderCollection();
-enableDebugUnlock();
+// ===== CSV読込 & 初期化 =====
+async function bootCollection() {
+  if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
+    console.error("CSVUtil が見つかりません（csv.js 読み込み順を確認してください）");
+    return;
+  }
+
+  const baseUrl = new URL("./", location.href).toString();
+  const cardsCsvUrl = new URL("cards.csv", baseUrl).toString();
+
+  const raw = await window.CSVUtil.load(cardsCsvUrl);
+  ALL_CARDS = raw.map(normalizeCardRow).filter((c) => c.id);
+
+  renderCollection();
+  enableDebugUnlock();
+}
+
+bootCollection().catch((e) => console.error(e));
