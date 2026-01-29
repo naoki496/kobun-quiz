@@ -35,14 +35,17 @@ function renderCollection() {
     const div = document.createElement("div");
     div.className = "card-entry";
 
-    div.innerHTML = unlocked
-      ? `
-        <img src="${card.img}" alt="${card.name}">
-        <div class="card-info">
-          <div class="card-title">★${card.rarity} ${card.name}</div>
-          <div class="card-count">所持：${owned}</div>
-        </div>
-      `
+  div.innerHTML = unlocked
+  ? `
+    <a href="${card.wiki}" target="_blank" class="card-link">
+      <img src="${card.img}" alt="${card.name}">
+      <div class="card-info">
+        <div class="card-title">★${card.rarity} ${card.name}</div>
+        <div class="card-count">所持：${owned}</div>
+        <div class="card-hint">▶ 解説を見る</div>
+      </div>
+    </a>
+  `
       : `
         <div class="card-locked">
           <div class="locked-img"></div>
