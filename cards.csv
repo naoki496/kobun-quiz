@@ -1,0 +1,4 @@
+id,rarity,name,img,wiki,weight
+sei_shonagon,3,清少納言,./assets/cards/sei_shonagon.png,https://ja.wikipedia.org/wiki/清少納言,1
+murasaki,4,紫式部,./assets/cards/murasaki.png,https://ja.wikipedia.org/wiki/紫式部,1
+basho,5,松尾芭蕉,./assets/cards/basho.png,https://ja.wikipedia.org/wiki/松尾芭蕉,1
