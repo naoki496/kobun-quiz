@@ -9,13 +9,6 @@ const AUDIO_FILES = {
   wrong: "./assets/wrong.mp3",
 };
 
-// ===== Card (Reward) =====
-// ★3/★4/★5の抽選プール（まずは仮で3枚）
-const CARD_POOL = {
-  3: [{ id: "sei_shonagon", name: "清少納言", img: "./assets/cards/sei_shonagon.png" }],
-  4: [{ id: "murasaki", name: "紫式部", img: "./assets/cards/murasaki.png" }],
-  5: [{ id: "basho", name: "松尾芭蕉", img: "./assets/cards/basho.png" }],
-};
 
 // ▼▼▼ A: cards.csv 受け皿（UI非変更） ▼▼▼
 let cardsAll = [];
@@ -321,18 +314,14 @@ function rollCardByStars(stars) {
   if (stars < 3) return null;
   const tier = Math.min(5, Math.max(3, stars));
 
-  // 1) cards.csv のプールを優先
+  // cards.csv のプールのみを使用（Single Source of Truth）
   const csvPool = cardPoolByRarity?.[tier] || [];
-  if (csvPool.length) {
-    const picked = pickRandom(csvPool);
-    return { ...picked, rarity: tier };
-  }
+  if (!csvPool.length) return null;
 
-  // 2) 旧CARD_POOLへフォールバック（Bで撤去）
-  const legacyPool = CARD_POOL[tier] || [];
-  if (!legacyPool.length) return null;
-  return { ...pickRandom(legacyPool), rarity: tier };
+  const picked = pickRandom(csvPool);
+  return { ...picked, rarity: tier };
 }
+
 
 function recordCard(card) {
   const counts = loadCardCounts();
