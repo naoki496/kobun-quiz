@@ -85,3 +85,41 @@ const ALL_CARDS = [
     wiki: "https://ja.wikipedia.org/wiki/松尾芭蕉"
   },
 ];
+
+// ===== Debug Unlock (only with ?debug=1) =====
+function enableDebugUnlock() {
+  const params = new URLSearchParams(location.search);
+
+  if (params.get("debug") !== "1") return; // ✅通常は何もしない
+
+  // ✅デバッグボタン生成
+  const btn = document.createElement("button");
+  btn.textContent = "🛠 全カード解放（デバッグ）";
+  btn.style.margin = "12px auto";
+  btn.style.padding = "10px 14px";
+  btn.style.borderRadius = "12px";
+  btn.style.border = "1px solid rgba(0,255,255,0.4)";
+  btn.style.background = "rgba(0,0,0,0.35)";
+  btn.style.color = "#fff";
+  btn.style.cursor = "pointer";
+  btn.style.fontWeight = "900";
+
+  btn.addEventListener("click", () => {
+    // ✅全カードに所持数1を付与
+    const unlockData = {};
+    ALL_CARDS.forEach((c) => {
+      unlockData[c.id] = 1;
+    });
+
+    localStorage.setItem(STORAGE_KEY_CARD_COUNTS, JSON.stringify(unlockData));
+
+    alert("✅デバッグ解放しました！");
+    location.reload();
+  });
+
+  // ✅図鑑の上に追加
+  document.body.insertBefore(btn, document.body.firstChild);
+}
+
+// 呼び出し
+enableDebugUnlock();
