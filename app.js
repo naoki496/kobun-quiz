@@ -201,7 +201,7 @@ function normalizeRow(r) {
 }
 
 // =====================================================
-// ✅HTMLエスケープ（現URL版は壊れているので健全化）
+// ✅HTMLエスケープ（健全版）
 // =====================================================
 function escapeHtml(str) {
   return String(str)
@@ -212,11 +212,9 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-// 〖〗の中だけ黄色発光（span付与）
+// 【...】 と 〖...〗 の両方をハイライト
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
-
-  // 【...】 と 〖...〗 の両方をハイライト
   return safe
     .replace(/【(.*?)】/g, '【<span class="hl">$1</span>】')
     .replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
@@ -540,7 +538,6 @@ function ensureResultOverlay() {
         <button class="ctrl" id="resultCloseBtn" type="button">閉じる</button>
       </div>
 
-
       <div id="resultReview"></div>
     </div>
   `;
@@ -559,8 +556,6 @@ function ensureResultOverlay() {
   const resultBtnCollectionEl = resultOverlay.querySelector("#resultCollectionBtn");
   const resultBtnCloseEl = resultOverlay.querySelector("#resultCloseBtn");
 
-
-  
   function hide() {
     resultOverlay.classList.remove("show");
   }
@@ -569,36 +564,32 @@ function ensureResultOverlay() {
     if (e.target === resultOverlay) hide();
   });
 
-  if (resultBtnCloseEl) resultBtnCloseEl.addEventListener("click", hide);
+  if (resultBtnRestartEl) {
+    resultBtnRestartEl.addEventListener("click", async () => {
+      hide();
+      await unlockAudioOnce();
+      startNewSession();
+    });
+  }
 
- if (resultBtnRestartEl) {
-  resultBtnRestartEl.addEventListener("click", async () => {
-    hide();
-    await unlockAudioOnce();
-    startNewSession();
-  });
-}
+  if (resultBtnRetryWrongEl) {
+    resultBtnRetryWrongEl.addEventListener("click", async () => {
+      hide();
+      await unlockAudioOnce();
+      retryWrongOnlyOnce();
+    });
+  }
 
-if (resultBtnRetryWrongEl) {
-  resultBtnRetryWrongEl.addEventListener("click", async () => {
-    hide();
-    await unlockAudioOnce();
-    retryWrongOnlyOnce();
-  });
-}
+  if (resultBtnCollectionEl) {
+    resultBtnCollectionEl.addEventListener("click", () => {
+      window.location.href = "./collection.html";
+    });
+  }
 
-if (resultBtnCollectionEl) {
-  resultBtnCollectionEl.addEventListener("click", () => {
-    window.location.href = "./collection.html";
-  });
-}
+  if (resultBtnCloseEl) {
+    resultBtnCloseEl.addEventListener("click", hide);
+  }
 
-if (resultBtnCloseEl) {
-  resultBtnCloseEl.addEventListener("click", hide);
-}
-
-
-  
   resultOverlay._set = ({ stars, rankName, percent, summary, details, reviewHtml, canRetryWrong }) => {
     if (resultBtnRetryWrongEl) {
       resultBtnRetryWrongEl.disabled = !canRetryWrong;
@@ -649,26 +640,26 @@ function showResultOverlay() {
       const n = recordCard(card);
       playCardEffect(card.rarity);
 
+      const specialMsg =
+        card.rarity === 5
+          ? `<div class="card-meta" style="color:#ffe66b;font-weight:900;">
+               ✨SSR級！伝説の一枚！✨
+             </div>`
+          : "";
+
       // styles.css に .card-reward がある前提（無くても表示は文字列として成立）
-  const specialMsg =
-  card.rarity === 5
-    ? `<div class="card-meta" style="color:#ffe66b;font-weight:900;">
-         ✨SSR級！伝説の一枚！✨
-       </div>`
-    : "";
-
-rewardHtml = `
-  <div class="card-reward">
-    <img src="${escapeHtml(card.img)}" alt="${escapeHtml(card.name)}">
-    <div>
-      <div class="card-name">獲得：${escapeHtml(card.name)}</div>
-      <div class="card-meta">レアリティ：★${card.rarity} ／ 所持回数：${n}</div>
-      ${specialMsg}
-    </div>
-  </div>
-`;
-
-
+      rewardHtml = `
+        <div class="card-reward">
+          <img src="${escapeHtml(card.img)}" alt="${escapeHtml(card.name)}">
+          <div>
+            <div class="card-name">獲得：${escapeHtml(card.name)}</div>
+            <div class="card-meta">レアリティ：★${card.rarity} ／ 所持回数：${n}</div>
+            ${specialMsg}
+          </div>
+        </div>
+      `;
+    }
+  }
   // ================================
 
   const details = `
