@@ -148,6 +148,8 @@ const startBtnEl = document.getElementById("startBtn");
 const startNoteEl = document.getElementById("startNote");
 const modeNormalBtn = document.getElementById("modeNormalBtn");
 const modeEndlessBtn = document.getElementById("modeEndlessBtn");
+// ✅図鑑ボタン（Start画面）
+const openCollectionBtn = document.getElementById("openCollectionBtn");
 
 // ===== Audio objects =====
 const bgmAudio = new Audio(AUDIO_FILES.bgm);
@@ -856,6 +858,13 @@ bgmToggleBtn.addEventListener("click", async () => {
   await unlockAudioOnce();
   await setBgm(!bgmOn);
 });
+
+// Start画面：図鑑を開く
+if (openCollectionBtn) {
+  openCollectionBtn.addEventListener("click", () => {
+    window.location.href = "./collection.html";
+  });
+}
 
 // Mode switch（開始画面）
 function setMode(nextMode) {
