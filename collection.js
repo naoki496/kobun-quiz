@@ -31,12 +31,15 @@ function renderCollection() {
   const grid = document.getElementById("cardGrid");
   if (!grid) return;
 
+  const params = new URLSearchParams(location.search);
+  const previewAll = params.get("preview") === "1"; // ✅表示だけ全開放（保存は変更しない）
+
   const counts = loadCounts();
   grid.innerHTML = "";
 
   ALL_CARDS.forEach((card) => {
     const owned = counts[card.id] ?? 0;
-    const unlocked = owned > 0;
+    const unlocked = previewAll || owned > 0;
 
     const div = document.createElement("div");
     div.className = "card-entry";
@@ -47,7 +50,7 @@ function renderCollection() {
           <img src="${card.img}" alt="${card.name}">
           <div class="card-info">
             <div class="card-title">★${card.rarity} ${card.name}</div>
-            <div class="card-count">所持：${owned}</div>
+            <div class="card-count">所持：${owned}${previewAll && owned === 0 ? "（プレビュー）" : ""}</div>
             <div class="card-hint">▶ 解説を見る</div>
           </div>
         </a>
