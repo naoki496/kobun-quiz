@@ -875,3 +875,25 @@ h1{
 .ctrl.ctrl-mini:hover {
   opacity: 1;
 }
+
+/* Start画面：図鑑ボタンを「モード2ボタンの下」に固定 */
+.start-sub{
+  margin-top: 10px;
+  width: 100%;
+  flex-basis: 100%;       /* 親がflexでも必ず改行させる */
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* 図鑑ボタン：縦折り返し防止＋小さめ */
+#openCollectionBtn{
+  white-space: nowrap;
+}
+
+.ctrl.ctrl-mini{
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  opacity: 0.9;
+}
+.ctrl.ctrl-mini:hover{ opacity: 1; }
