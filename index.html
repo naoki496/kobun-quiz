@@ -10,33 +10,38 @@
 <body>
   <h1>古文単語330マスター</h1>
 
-  <!-- ===== Start Screen ===== -->
-  <div id="startScreen" class="start-screen">
-    <div class="start-inner">
-      <div class="start-title">古文単語330マスター</div>
+<!-- ===== Start Screen ===== -->
+<div id="startScreen" class="start-screen">
+  <div class="start-inner">
+    <div class="start-title">古文単語330マスター</div>
 
-      <!-- assets/kaishi.gif -->
-      <img class="start-image" src="./assets/kaishi.gif" alt="開始画面" />
+    <!-- assets/kaishi.gif -->
+    <img class="start-image" src="./assets/kaishi.gif" alt="開始画面" />
 
-      <!-- モード選択（ゲーム風） -->
-      <div class="mode-card">
-        <div class="mode-label">モード選択</div>
-        <div id="modeSwitch" class="seg">
-          <button type="button" id="modeNormalBtn" class="seg-btn active">通常（10問）</button>
-          <button type="button" id="modeEndlessBtn" class="seg-btn">連続学習</button>
-          <!-- 図鑑ボタン（モード選択の下） -->
-          <div class="start-sub">
-            <button class="ctrl ctrl-mini" id="openCollectionBtn" type="button">
-              図鑑を見る
-            </button>
-        </div>
-        <div class="mode-note">連続学習：終了後に「間違いだけ復習」を選べます。</div>
+    <!-- モード選択（ゲーム風） -->
+    <div class="mode-card">
+      <div class="mode-label">モード選択</div>
+
+      <div id="modeSwitch" class="seg">
+        <button type="button" id="modeNormalBtn" class="seg-btn active">通常（10問）</button>
+        <button type="button" id="modeEndlessBtn" class="seg-btn">連続学習</button>
       </div>
 
-      <button id="startBtn" class="start-btn" type="button" disabled>読み込み中…</button>
-      <div id="startNote" class="start-note">BGMはスタート時にONになります（ブラウザ制限回避のため）。</div>
+      <!-- 図鑑ボタン（モード選択の下） -->
+      <div class="start-sub">
+        <button class="ctrl ctrl-mini" id="openCollectionBtn" type="button">
+          図鑑を見る
+        </button>
+      </div>
+
+      <div class="mode-note">連続学習：終了後に「間違いだけ復習」を選べます。</div>
     </div>
+
+    <button id="startBtn" class="start-btn" type="button" disabled>読み込み中…</button>
+    <div id="startNote" class="start-note">BGMはスタート時にONになります（ブラウザ制限回避のため）。</div>
   </div>
+</div>
+
 
   <!-- ===== Quiz ===== -->
   <div id="quiz" class="panel">
@@ -94,6 +99,7 @@
   <script src="./app.js"></script>
 </body>
 </html>
+
 
 
 
