@@ -500,10 +500,10 @@ h1{
   margin-top: 14px;
 }
 
+/* ✅差分記号を除去し、CSSとして正しく固定 */
 .result-actions .ctrl{
   width: 25%;
 }
-
 
 /* 復習リスト（必要最低限の見やすさ） */
 .review{
@@ -579,10 +579,6 @@ h1{
   background: radial-gradient(circle at 50% 55%, rgba(120, 220, 255, 0.34), transparent 66%);
 }
 
-/* =====================================================
-   ★5 Special Effect Boost
-   ===================================================== */
-
 /* ★5だけ演出時間を伸ばす */
 .card-effect.r5{
   animation-duration: 1.4s;
@@ -620,7 +616,6 @@ h1{
   100% { opacity:0; transform:scale(1.65); }
 }
 
-
 /* subtle sparkles (lightweight) */
 .card-effect::before,
 .card-effect::after {
@@ -652,48 +647,6 @@ h1{
   30%  { opacity: 0.8; }
   100% { opacity: 0; transform: translateY(-10px); }
 }
-
-/* =====================================================
-   ★5 Special Effect Boost（SSR演出）
-   ===================================================== */
-
-/* ★5だけ演出時間を長くする */
-.card-effect.r5{
-  animation-duration: 1.4s;
-}
-
-/* ★5だけ光を巨大化＋強化 */
-.card-effect.r5 .card-effect-glow{
-  filter: blur(1px);
-  animation: cardFxGlow5 1.4s ease-out forwards;
-}
-
-/* ★5だけ “リング拡散” を追加 */
-.card-effect.r5::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius:50%;
-  border: 2px solid rgba(120,220,255,0.55);
-  transform: scale(0.6);
-  opacity:0;
-  animation: cardFxRing 1.4s ease-out forwards;
-}
-
-/* ★5専用キーフレーム */
-@keyframes cardFxGlow5{
-  0%   { opacity:0; transform:scale(0.75); }
-  25%  { opacity:1; transform:scale(1.10); }
-  60%  { opacity:0.9; transform:scale(1.28); }
-  100% { opacity:0; transform:scale(1.45); }
-}
-
-@keyframes cardFxRing{
-  0%   { opacity:0; transform:scale(0.55); }
-  30%  { opacity:0.8; transform:scale(0.95); }
-  100% { opacity:0; transform:scale(1.65); }
-}
-
 
 /* Card reveal block inside result overlay */
 .card-reward {
@@ -781,44 +734,6 @@ h1{
   opacity: .75;
 }
 
-/* ===== Card Collection Grid ===== */
-
-.card-grid{
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.card-entry{
-  border-radius: 14px;
-  padding: 10px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(0,255,255,0.14);
-  text-align:left;
-}
-
-.card-entry img{
-  width:100%;
-  height:120px;
-  object-fit:cover;
-  border-radius: 12px;
-}
-
-.card-info{
-  margin-top: 6px;
-}
-
-.card-title{
-  font-weight: 800;
-  font-size: 13px;
-}
-
-.card-count{
-  font-size: 12px;
-  opacity: 0.75;
-}
-
 /* ===== Locked Card (No Spoiler) ===== */
 
 .card-locked .locked-img{
@@ -857,42 +772,40 @@ h1{
   margin-top: 3px;
 }
 
-/* Start画面：補助ボタン領域（図鑑） */
-.start-sub {
-  margin-top: 10px;
-  text-align: center;
-}
-
-/* 図鑑ボタンは控えめサイズにする */
-.ctrl.ctrl-mini {
-  padding: 6px 12px;
-  font-size: 12px;
-  line-height: 1.2;
-  opacity: 0.9;
-}
-
-.ctrl.ctrl-mini:hover {
-  opacity: 1;
-}
-
-/* Start画面：図鑑ボタンを「モード2ボタンの下」に固定 */
+/* ===== Start画面：補助ボタン領域（図鑑/トップ） ===== */
 .start-sub{
   margin-top: 10px;
   width: 100%;
   flex-basis: 100%;       /* 親がflexでも必ず改行させる */
   display: flex;
   justify-content: flex-start;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;        /* ✅狭い端末では折り返してはみ出し防止 */
 }
 
-/* 図鑑ボタン：縦折り返し防止＋小さめ */
-#openCollectionBtn{
-  white-space: nowrap;
-}
-
+/* 図鑑/トップボタン：縦折り返し防止＋小さめ＋リンク対応 */
 .ctrl.ctrl-mini{
+  width: auto;            /* ✅小型ボタンは自動幅 */
   padding: 6px 10px;
   font-size: 12px;
   line-height: 1.2;
   opacity: 0.9;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;  /* ✅ <a> でも下線なし */
 }
+
 .ctrl.ctrl-mini:hover{ opacity: 1; }
+
+/* ✅ TOPへ戻る：世界観を壊さず、視認性だけ少し上げる（黄系アクセント） */
+#backToTopBtn{
+  border-color: rgba(255, 213, 74, 0.35);
+  box-shadow: 0 0 16px rgba(255, 213, 74, 0.14);
+}
+#backToTopBtn:hover{
+  border-color: rgba(255, 213, 74, 0.55);
+  box-shadow: 0 0 20px rgba(255, 213, 74, 0.20);
+}
