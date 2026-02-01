@@ -776,27 +776,31 @@ h1{
 .start-sub{
   margin-top: 10px;
   width: 100%;
-  flex-basis: 100%;       /* 親がflexでも必ず改行させる */
-  display: flex;
-  justify-content: flex-start;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;        /* ✅狭い端末では折り返してはみ出し防止 */
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* ✅2つを同幅で横並び */
+  gap: 8px;
+  align-items: stretch;
 }
 
 /* 図鑑/トップボタン：縦折り返し防止＋小さめ＋リンク対応 */
 .ctrl.ctrl-mini{
-  width: auto;            /* ✅小型ボタンは自動幅 */
-  padding: 6px 10px;
-  font-size: 12px;
+  width: 100%;                /* ✅グリッド列いっぱい */
+  min-height: 44px;           /* ✅seg-btnと同等のタップ高 */
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 800;
   line-height: 1.2;
-  opacity: 0.9;
+
+  opacity: 0.95;
   white-space: nowrap;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-decoration: none;  /* ✅ <a> でも下線なし */
+
+  text-decoration: none;      /* ✅aタグでも下線なし */
 }
+
 
 .ctrl.ctrl-mini:hover{ opacity: 1; }
 
