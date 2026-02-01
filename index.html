@@ -10,95 +10,78 @@
 <body>
   <h1>古文単語330マスター</h1>
 
-<!-- ===== Start Screen ===== -->
-<div id="startScreen" class="start-screen">
-  <div class="start-inner">
-    <div class="start-title">古文単語330マスター</div>
+  <!-- ===== Start Screen ===== -->
+  <div id="startScreen" class="start-screen">
+    <div class="start-inner">
+      <div class="start-title">古文単語330マスター</div>
 
-    <!-- assets/kaishi.gif -->
-    <img class="start-image" src="./assets/kaishi.gif" alt="開始画面" />
+      <!-- assets/kaishi.gif -->
+      <img class="start-image" src="./assets/kaishi.gif" alt="開始画面" />
 
-    <!-- モード選択（ゲーム風） -->
-    <div class="mode-card">
-      <div class="mode-label">モード選択</div>
+      <!-- モード選択（ゲーム風） -->
+      <div class="mode-card">
+        <div class="mode-label">モード選択</div>
 
-      <div id="modeSwitch" class="seg">
-  <button type="button" id="modeNormalBtn" class="seg-btn active">通常（10問）</button>
-  <button type="button" id="modeEndlessBtn" class="seg-btn">連続学習</button>
-</div>
+        <div class="seg">
+          <button type="button" id="modeNormalBtn" class="seg-btn active">通常（10問）</button>
+          <button type="button" id="modeEndlessBtn" class="seg-btn">連続学習</button>
+        </div>
 
-<div class="start-sub">
-  <button class="ctrl ctrl-mini" id="openCollectionBtn" type="button">図鑑を見る</button>
-</div>
+        <!-- ✅ ここに「TOPへ戻る」を追加（図鑑の右隣 / 連続学習の下） -->
+        <div class="start-sub">
+          <button class="ctrl ctrl-mini" id="openCollectionBtn" type="button">図鑑を見る</button>
+          <a class="ctrl ctrl-mini" id="backToTopBtn" href="https://naoki496.github.io/kokugo-dojo/">TOPへ戻る</a>
+        </div>
 
-      <div class="mode-note">連続学習：終了後に「間違いだけ復習」を選べます。</div>
+        <div class="mode-note">連続学習：終了後に「間違いだけ復習」を選べます。</div>
+      </div>
+
+      <button id="startBtn" class="start-btn" type="button" disabled>読み込み中…</button>
+      <div id="startNote" class="start-note">BGMはスタート時にONになります（ブラウザ制限回避のため）。</div>
     </div>
-
-    <button id="startBtn" class="start-btn" type="button" disabled>読み込み中…</button>
-    <div id="startNote" class="start-note">BGMはスタート時にONになります（ブラウザ制限回避のため）。</div>
   </div>
-</div>
-
 
   <!-- ===== Quiz ===== -->
   <div id="quiz" class="panel">
     <!-- 上段メタ -->
     <div id="meta">
       <div id="metaLeft">
-        <div id="progress">読み込み中…</div>
-        <div id="score">Score: 0</div>
-        <div id="modePill" class="mode-pill">通常（10問）</div>
+        <div class="mode-pill" id="modeLabel">通常（10問）</div>
+        <div id="scoreLine">Score: 0</div>
+        <div id="comboLine">最大COMBO x0</div>
       </div>
 
-      <button id="bgmToggle" class="pill bgm-btn" type="button">BGM: OFF</button>
+      <button id="bgmBtn" class="pill bgm-btn" type="button">BGM: OFF</button>
     </div>
 
-    <!-- 問題文（上の枠） -->
-    <div id="questionBox" class="panel-inner">
-      <!-- 進捗バー -->
+    <div class="panel-inner">
       <div id="meterArea">
         <div id="meterText">
-          <div id="meterLabel">進捗 0/0</div>
-          <div id="comboLabel">最大COMBO x0</div>
+          <div id="progText">進捗 0/0</div>
+          <div id="csvText">CSVを読み込んでいます。</div>
         </div>
-        <div id="meterOuter">
-          <div id="meterInner"></div>
-        </div>
+        <div id="meterOuter"><div id="meterInner"></div></div>
       </div>
 
-      <!-- 余白：進捗バーと問題文の間に1行ぶん程度 -->
       <div class="q-gap"></div>
 
-      <div id="question" class="question">CSVを読み込んでいます。</div>
-      <div id="subline" class="subline"></div>
+      <div class="question" id="question">読み込み中…</div>
+      <div class="subline" id="subline">---</div>
+
+      <div id="choicesArea"></div>
+
+      <div class="status" id="status"></div>
+
+      <div id="controls">
+        <button id="nextBtn" class="ctrl" type="button" disabled>次へ</button>
+        <button id="resetBtn" class="ctrl" type="button">最初から</button>
+      </div>
+
+      <div id="hint">※〖〗で囲われた箇所は黄色発光でハイライトされます。</div>
     </div>
-
-    <!-- 選択肢 -->
-    <div id="choicesArea">
-      <button class="choice" data-idx="0" type="button">---</button>
-      <button class="choice" data-idx="1" type="button">---</button>
-      <button class="choice" data-idx="2" type="button">---</button>
-      <button class="choice" data-idx="3" type="button">---</button>
-    </div>
-
-    <div id="status" class="status"></div>
-
-    <div id="controls">
-      <button class="ctrl" id="nextBtn" type="button" disabled>次へ</button>
-      <button class="ctrl" id="restartBtn" type="button">最初から</button>
-    </div>
-
-    <div id="hint">※【】で囲われた箇所は黄色発光でハイライトされます。</div>
   </div>
 
-  <!-- csv.js → app.js の順（依存関係） -->
-  <script src="./csv.js"></script>
+  <!-- Result Overlay 等は app.js 側で生成される想定 -->
   <script src="./app.js"></script>
 </body>
 </html>
-
-
-
-
-
-
