@@ -37,37 +37,60 @@ function renderCollection() {
   const counts = loadCounts();
   grid.innerHTML = "";
 
-  ALL_CARDS.forEach((card) => {
+    ALL_CARDS.forEach((card) => {
     const owned = counts[card.id] ?? 0;
-    const unlocked = previewAll || owned > 0;
+    const unlocked = owned > 0;
 
-    const div = document.createElement("div");
-    div.className = "card-entry";
+    // 外枠（CSSの .card-item / .card-locked を使う）
+    const item = document.createElement("div");
+    item.className = unlocked ? "card-item" : "card-item card-locked";
 
-    div.innerHTML = unlocked
-      ? `
-        <a href="${card.wiki}" target="_blank" rel="noopener noreferrer" class="card-link">
-          <img src="${card.img}" alt="${card.name}">
-          <div class="card-info">
-            <div class="card-title">★${card.rarity} ${card.name}</div>
-            <div class="card-count">所持：${owned}${previewAll && owned === 0 ? "（プレビュー）" : ""}</div>
-            <div class="card-hint">▶ 解説を見る</div>
-          </div>
-        </a>
-      `
-      : `
-        <div class="card-locked">
-          <div class="locked-img"></div>
-          <div class="card-info">
-            <div class="card-title">★？ ？？？？</div>
-            <div class="card-count">未発見</div>
-          </div>
-        </div>
-      `;
+    if (unlocked) {
+      // クリックで詳細へ（必要なら）
+      // いまは図鑑表示が主目的なので、リンクでラップ（CSSの .card-link）
+      const link = document.createElement("a");
+      link.className = "card-link";
+      link.href = card.wiki || "#";
+      link.target = card.wiki ? "_blank" : "_self";
+      link.rel = card.wiki ? "noopener noreferrer" : "";
 
-    grid.appendChild(div);
+      const img = document.createElement("img");
+      img.src = card.img;          // cards.csv の img が相対パスで正しい前提
+      img.alt = card.name || "card";
+
+      const name = document.createElement("div");
+      name.className = "card-item-name";
+      name.textContent = card.name || "(no name)";
+
+      const cnt = document.createElement("div");
+      cnt.className = "card-item-count";
+      cnt.textContent = `所持：${owned}`;
+
+      link.appendChild(img);
+      link.appendChild(name);
+      link.appendChild(cnt);
+      item.appendChild(link);
+    } else {
+      // ロック時：ネタバレしないUI（CSSの .locked-img / .card-hint）
+      const locked = document.createElement("div");
+      locked.className = "locked-img";
+
+      const name = document.createElement("div");
+      name.className = "card-item-name";
+      name.textContent = "？？？";
+
+      const hint = document.createElement("div");
+      hint.className = "card-hint";
+      hint.textContent = "未入手";
+
+      item.appendChild(locked);
+      item.appendChild(name);
+      item.appendChild(hint);
+    }
+
+    grid.appendChild(item);
   });
-}
+
 
 // ===== Debug Unlock (only with ?debug=1) =====
 function enableDebugUnlock() {
