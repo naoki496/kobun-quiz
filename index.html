@@ -27,7 +27,6 @@
           <button type="button" id="modeEndlessBtn" class="seg-btn">連続学習</button>
         </div>
 
-        <!-- ✅ ここに「TOPへ戻る」を追加（図鑑の右隣 / 連続学習の下） -->
         <div class="start-sub">
           <button class="ctrl ctrl-mini" id="openCollectionBtn" type="button">図鑑を見る</button>
           <a class="ctrl ctrl-mini" id="backToTopBtn" href="https://naoki496.github.io/kokugo-dojo/">TOPへ戻る</a>
@@ -46,18 +45,22 @@
     <!-- 上段メタ -->
     <div id="meta">
       <div id="metaLeft">
-        <div class="mode-pill" id="modeLabel">通常（10問）</div>
-        <div id="scoreLine">Score: 0</div>
-        <div id="comboLine">最大COMBO x0</div>
+        <!-- app.js が参照するIDに統一 -->
+        <div class="mode-pill" id="modePill">通常（10問）</div>
+        <div id="progress">読み込み中…</div>
+        <div id="score">Score: 0</div>
+        <div id="comboLabel">最大COMBO x0</div>
       </div>
 
-      <button id="bgmBtn" class="pill bgm-btn" type="button">BGM: OFF</button>
+      <!-- app.js が参照するIDに統一 -->
+      <button id="bgmToggle" class="pill bgm-btn" type="button">BGM: OFF</button>
     </div>
 
     <div class="panel-inner">
       <div id="meterArea">
         <div id="meterText">
-          <div id="progText">進捗 0/0</div>
+          <!-- app.js は meterLabel を更新する -->
+          <div id="meterLabel">進捗 0/0 (0%)</div>
           <div id="csvText">CSVを読み込んでいます。</div>
         </div>
         <div id="meterOuter"><div id="meterInner"></div></div>
@@ -68,20 +71,26 @@
       <div class="question" id="question">読み込み中…</div>
       <div class="subline" id="subline">---</div>
 
-      <div id="choicesArea"></div>
+      <!-- choices を app.js が更新する前提で4つ用意 -->
+      <div id="choicesArea">
+        <button type="button" class="choice">---</button>
+        <button type="button" class="choice">---</button>
+        <button type="button" class="choice">---</button>
+        <button type="button" class="choice">---</button>
+      </div>
 
       <div class="status" id="status"></div>
 
       <div id="controls">
         <button id="nextBtn" class="ctrl" type="button" disabled>次へ</button>
-        <button id="resetBtn" class="ctrl" type="button">最初から</button>
+        <!-- app.js が参照する restartBtn に統一 -->
+        <button id="restartBtn" class="ctrl" type="button">最初から</button>
       </div>
 
       <div id="hint">※〖〗で囲われた箇所は黄色発光でハイライトされます。</div>
     </div>
   </div>
 
-  <!-- Result Overlay 等は app.js 側で生成される想定 -->
   <script src="./app.js"></script>
 </body>
 </html>
