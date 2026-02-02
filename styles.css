@@ -741,6 +741,53 @@ h1{
   opacity: .75;
 }
 
+/* =========================
+   ★5 only: Blue-Silver Pulse
+   ========================= */
+
+/* もし .card-item に position が無ければ付ける（安全策） */
+.card-item{
+  position: relative;
+}
+
+/* ★5：枠＋光（常時） */
+.card-item.rarity-5{
+  border-color: rgba(170, 220, 255, 0.70);
+  box-shadow:
+    0 0 16px rgba(140, 210, 255, 0.28),
+    0 0 46px rgba(140, 210, 255, 0.16);
+}
+
+/* ★5：脈動（主役） */
+@keyframes pulseR5 {
+  0% {
+    box-shadow:
+      0 0 14px rgba(140, 210, 255, 0.18),
+      0 0 36px rgba(140, 210, 255, 0.10);
+  }
+  45% {
+    box-shadow:
+      0 0 26px rgba(170, 230, 255, 0.40),
+      0 0 80px rgba(120, 200, 255, 0.22);
+  }
+  100% {
+    box-shadow:
+      0 0 14px rgba(140, 210, 255, 0.18),
+      0 0 36px rgba(140, 210, 255, 0.10);
+  }
+}
+
+/* 動きを付ける（既に box-shadow を持っていても上書きされます） */
+.card-item.rarity-5{
+  animation: pulseR5 1.9s ease-in-out infinite;
+}
+
+/* モーション低減設定を尊重（端末側設定がONなら止める） */
+@media (prefers-reduced-motion: reduce){
+  .card-item.rarity-5{ animation: none; }
+}
+
+
 /* ===== Locked Card (No Spoiler) ===== */
 
 .card-locked .locked-img{
