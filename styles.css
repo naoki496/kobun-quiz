@@ -8,6 +8,13 @@
   --yellow: #ffd54a;
 }
 
+/* ===== Global image safety (prevents full-size blowups) ===== */
+img{
+  max-width:100%;
+  height:auto;
+  display:block;
+}
+
 *{ box-sizing:border-box; }
 body{
   margin:0;
