@@ -750,8 +750,10 @@ h1{
   background: rgba(255,255,255,0.05);
   filter: blur(1px);
   position: relative;
+  overflow: hidden;
 }
 
+/* 🔒を出す（今は content:"" になっていて消えている） */
 .card-locked .locked-img::after{
   content:"🔒";
   position:absolute;
@@ -762,6 +764,18 @@ h1{
   font-size: 28px;
   opacity: 0.75;
 }
+
+/* （任意）うっすら“影絵”っぽいノイズを足す：ロック感を強める */
+.card-locked .locked-img::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.10), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(0,255,255,0.10), transparent 60%);
+  opacity: .7;
+}
+
 
 .card-link{
   display:block;
