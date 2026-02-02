@@ -1,16 +1,14 @@
-// collection.js（完全復旧版）
-
+// collection.js（B案：CSVUtil.load 前提の安全版）
 const STORAGE_KEY_CARD_COUNTS = "kobunQuiz.v1.cardCounts";
 
-// ==== 図鑑カードデータ（CSVから読み込み） ====
+// 図鑑カードデータ（CSVから読み込み）
 let ALL_CARDS = [];
 
-// ==== URLパラメータ ====
+// URL params
 const params = new URLSearchParams(location.search);
 const previewAll = params.get("preview") === "1"; // 表示だけ全解放
-const debugMode = params.get("debug") === "1";    // 強制解放ボタン表示
+const debugMode  = params.get("debug") === "1";   // 強制解放ボタン表示
 
-// ==== 保存データ取得 ====
 function loadCounts() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CARD_COUNTS);
@@ -20,7 +18,6 @@ function loadCounts() {
   }
 }
 
-// ==== CSV → カードオブジェクト正規化 ====
 function normalizeCardRow(r) {
   return {
     id: String(r.id ?? "").trim(),
@@ -31,7 +28,6 @@ function normalizeCardRow(r) {
   };
 }
 
-// ==== imgパス補正 ====
 function resolveCardImgPath(p) {
   p = String(p ?? "").trim();
   if (!p) return "";
@@ -39,7 +35,6 @@ function resolveCardImgPath(p) {
   return `assets/cards/${p}`;
 }
 
-// ==== 図鑑描画 ====
 function renderCollection() {
   const grid = document.getElementById("cardGrid");
   if (!grid) return;
@@ -49,18 +44,12 @@ function renderCollection() {
 
   ALL_CARDS.forEach((card) => {
     const owned = counts[card.id] ?? 0;
-
-    // ✅preview=1なら全部表示
     const unlocked = previewAll ? true : owned > 0;
 
-    // 外枠
     const item = document.createElement("div");
-    item.className = unlocked
-      ? "card-item"
-      : "card-item card-locked";
+    item.className = unlocked ? "card-item" : "card-item card-locked";
 
     if (unlocked) {
-      // ✅表示カード
       const link = document.createElement("a");
       link.className = "card-link";
       link.href = card.wiki || "#";
@@ -82,11 +71,8 @@ function renderCollection() {
       link.appendChild(img);
       link.appendChild(name);
       link.appendChild(cnt);
-
       item.appendChild(link);
-
     } else {
-      // ✅ロックカード
       const locked = document.createElement("div");
       locked.className = "locked-img";
 
@@ -106,12 +92,10 @@ function renderCollection() {
     grid.appendChild(item);
   });
 
-  // ✅debug=1なら強制解放ボタンを出す
   if (debugMode) {
     const btn = document.createElement("button");
     btn.textContent = "全カード解放（デバッグ）";
     btn.style.marginTop = "14px";
-
     btn.onclick = () => {
       const fake = {};
       ALL_CARDS.forEach((c) => (fake[c.id] = 1));
@@ -119,18 +103,16 @@ function renderCollection() {
       alert("全カードを解放しました（端末内のみ）");
       location.reload();
     };
-
     grid.appendChild(btn);
   }
 }
 
-// ==== CSV読み込み ====
 async function loadCardsCSV() {
-  const rows = await loadCSV("./cards.csv");
+  // csv.js は CSVUtil.load を提供している
+  const rows = await CSVUtil.load("./cards.csv");
   ALL_CARDS = rows.map(normalizeCardRow);
 }
 
-// ==== 起動 ====
 (async () => {
   await loadCardsCSV();
   renderCollection();
