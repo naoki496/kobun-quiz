@@ -141,6 +141,16 @@ const startNoteEl = document.getElementById("startNote");
 const modeNormalBtn = document.getElementById("modeNormalBtn");
 const modeEndlessBtn = document.getElementById("modeEndlessBtn");
 
+// =====================================================
+// ✅ URL Params (mode/start)
+//   - mode: "normal" | "endless"
+//   - start=1: 自動開始
+// =====================================================
+const URLP = new URLSearchParams(location.search);
+const URL_MODE = URLP.get("mode");               // "normal" | "endless" | null
+const URL_AUTOSTART = URLP.get("start") === "1"; // true/false
+
+
 // ✅図鑑ボタン（Start画面）
 const openCollectionBtn = document.getElementById("openCollectionBtn");
 
@@ -867,7 +877,10 @@ function showError(err) {
 // ===== Boot =====
 (async function boot() {
   try {
-    setMode("normal"); // 初期は通常
+    // ✅ 初期モード：URL優先（無ければnormal）
+      if (URL_MODE === "endless" || URL_MODE === "normal") setMode(URL_MODE);
+      else setMode("normal");
+
 
     if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
       throw new Error("CSVUtil が見つかりません（csv.js の読み込み順/内容を確認）");
@@ -941,3 +954,13 @@ function showError(err) {
     showError(e);
   }
 })();
+
+    // ✅ start=1 が付いていたら自動開始（リンク遷移方式の本体）
+    if (URL_AUTOSTART) {
+      try {
+        // ここで開始すると、開始画面の「カード押下」と同等の挙動になる
+        await beginFromStartScreen();
+      } catch (e) {
+        console.warn("auto start failed:", e);
+      }
+    }
