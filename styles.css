@@ -970,3 +970,8 @@ h1{
   display:none !important;
   pointer-events:none !important;
 }
+
+#quiz{
+  position: relative;
+  overflow: hidden;
+}
