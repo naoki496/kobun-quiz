@@ -1,6 +1,12 @@
 // app.js (global)
 const TOTAL_QUESTIONS = 10;
 
+window.addEventListener("beforeunload", () => {
+  console.warn("[DEBUG] page is unloading (reload or navigation)");
+});
+
+
+
 // ✅音声ファイル（root/assets/ 配下）
 const AUDIO_FILES = {
   bgm: "./assets/bgm.mp3",
