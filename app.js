@@ -501,33 +501,40 @@ function startTimerForQuestion() {
   setTimerBarStyleByRemain(timerTotalMs);
 
   // 100ms刻み（軽量）
-  timerLoopId = setInterval(() => {
-    const now = Date.now();
-    const remain = timerEndAt - now;
+timerLoopId = setInterval(() => {
+  const now = Date.now();
+  const remain = timerEndAt - now;
 
-    if (remain <= 0) {
-      // TIME UP
-      stopTimer();
-      onTimeUp();
-      return;
-    }
+  if (remain <= 0) {
+    stopTimer();
+    onTimeUp();
+    return;
+  }
 
-    const sec = remain / 1000;
-    if (timerTextEl) timerTextEl.textContent = `${sec.toFixed(1)}s`;
+  const sec = remain / 1000;
+  if (timerTextEl) timerTextEl.textContent = `${sec.toFixed(1)}s`;
 
-    const pct = Math.max(0, Math.min(100, (remain / timerTotalMs) * 100));
-    if (timerInnerEl) timerInnerEl.style.width = `${pct}%`;
+  const pct = Math.max(0, Math.min(100, (remain / timerTotalMs) * 100));
+  if (timerInnerEl) timerInnerEl.style.width = `${pct}%`;
 
-    // 残りが少ないほど青→白
-    setTimerBarStyleByRemain(remain);
+  // warn（残り5秒）
+  const isWarn = sec <= WARN_AT_SEC;
+  if (timerOuterEl) {
+    if (isWarn) timerOuterEl.classList.add("warn");
+    else timerOuterEl.classList.remove("warn");
+  }
 
-    // warn（残り5秒）
-    if (timerOuterEl) {
-      if (sec <= WARN_AT_SEC) timerOuterEl.classList.add("warn");
-      else timerOuterEl.classList.remove("warn");
-    }
-  }, 100);
-}
+  // ✅ バー色：通常は青→白、残り5秒は「赤」に強制
+  if (isWarn && timerInnerEl) {
+    timerInnerEl.style.background =
+      "linear-gradient(90deg, rgba(255,70,70,0.95), rgba(255,180,80,0.65))";
+    timerInnerEl.style.boxShadow =
+      "0 0 28px rgba(255,70,70,0.35), 0 0 60px rgba(255,70,70,0.16)";
+  } else {
+    setTimerBarStyleByRemain(remain); // 青→白
+  }
+}, 100);
+
 
 // TIME UP時のみ：淡いノイズ走査線（軽量）
 function triggerTimeUpScanlineOnce() {
