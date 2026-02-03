@@ -542,7 +542,7 @@ function triggerTimeUpScanlineOnce() {
   quizEl.classList.remove("timeup-scan");
   void quizEl.offsetWidth;
   quizEl.classList.add("timeup-scan");
-  setTimeout(() => quizEl.classList.remove("timeup-scan"), 700);
+  setTimeout(() => quizEl.classList.remove("timeup-scan"), 900);
 }
 
 function onTimeUp() {
