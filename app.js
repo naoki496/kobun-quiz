@@ -822,8 +822,24 @@ async function beginFromStartScreen() {
   await unlockAudioOnce();
   await setBgm(true);
   startNewSession();
-  startScreenEl.style.display = "none";
+
+  // ✅ “隠す” ではなく “消す”
+  try {
+    if (startScreenEl) startScreenEl.remove();
+  } catch (_) {
+    // removeが効かない古い環境対策
+    if (startScreenEl) startScreenEl.style.display = "none";
+  }
+
+  // ✅ ついでにURLから start=1 を消して「自動開始の再発」を防ぐ
+  try {
+    const p = new URLSearchParams(location.search);
+    p.delete("start");
+    const next = `${location.pathname}${p.toString() ? "?" + p.toString() : ""}`;
+    history.replaceState(null, "", next);
+  } catch (_) {}
 }
+
 
 function canBeginNow() {
   // boot が完了すると startBtn が有効化される
