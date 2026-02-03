@@ -234,29 +234,39 @@ h1{
 #quiz.timeup-scan::after{
   content:"";
   position:absolute;
-  inset:-30%;
+  inset:-40%;
   pointer-events:none;
-  opacity: 0;
+
+  /* ✅見えやすさ優先：走査線＋薄いノイズ */
   background:
     repeating-linear-gradient(
       to bottom,
-      rgba(255,255,255,0.05) 0px,
-      rgba(255,255,255,0.05) 1px,
-      rgba(0,0,0,0) 3px,
-      rgba(0,0,0,0) 7px
+      rgba(255,255,255,0.12) 0px,
+      rgba(255,255,255,0.12) 2px,
+      rgba(0,0,0,0) 4px,
+      rgba(0,0,0,0) 9px
     ),
-    radial-gradient(circle at 50% 45%, rgba(0,255,255,0.10), transparent 60%);
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,0.03),
+      rgba(0,255,255,0.06),
+      rgba(255,255,255,0.03)
+    );
+
+  opacity: 0;
   mix-blend-mode: screen;
-  transform: translateY(-8px);
-  animation: timeUpScan 680ms ease-out forwards;
+  filter: contrast(125%) brightness(110%);
+  transform: translateY(-18px);
+  animation: timeUpScan 900ms ease-out forwards;
 }
 
 @keyframes timeUpScan{
-  0%   { opacity: 0; transform: translateY(-10px); }
-  25%  { opacity: .22; transform: translateY(0px); }
-  60%  { opacity: .14; transform: translateY(10px); }
-  100% { opacity: 0; transform: translateY(18px); }
+  0%   { opacity: 0;    transform: translateY(-22px); }
+  18%  { opacity: 0.55; transform: translateY(-6px);  }
+  55%  { opacity: 0.38; transform: translateY(10px);  }
+  100% { opacity: 0;    transform: translateY(26px);  }
 }
+
 
 /* =====================================================
    ✅ status glitch (TIME UP時に一瞬だけ)
