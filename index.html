@@ -1,96 +1,117 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>古文単語330マスター</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
-  <h1>古文単語330マスター</h1>
 
-  <!-- ===== Start Screen ===== -->
-  <div id="startScreen" class="start-screen">
-    <div class="start-inner">
-      <div class="start-title">古文単語330マスター</div>
+  <!-- =========================
+       START SCREEN (Cyber Console)
+       ========================= -->
+  <div id="startScreen" class="start-screen" aria-label="スタート画面">
+    <div class="hub">
+      <header class="hub-bar">
+        <div class="hub-title">KOBUN CONSOLE</div>
+        <div class="hub-status"><span class="hub-dot" aria-hidden="true"></span><span>ONLINE</span></div>
+      </header>
 
-      <!-- assets/kaishi.gif -->
-      <img class="start-image" src="./assets/kaishi.gif" alt="開始画面" />
-
-      <!-- モード選択（ゲーム風） -->
-      <div class="mode-card">
-        <div class="mode-label">モード選択</div>
-
-        <div class="seg">
-          <button type="button" id="modeNormalBtn" class="seg-btn active">通常（10問）</button>
-          <button type="button" id="modeEndlessBtn" class="seg-btn">連続学習</button>
-        </div>
-
-        <div class="start-sub">
-          <button class="ctrl ctrl-mini" id="openCollectionBtn" type="button">図鑑を見る</button>
-          <a class="ctrl ctrl-mini" id="backToTopBtn" href="https://naoki496.github.io/kokugo-dojo/">TOPへ戻る</a>
-        </div>
-
-        <div class="mode-note">連続学習：終了後に「間違いだけ復習」を選べます。</div>
+      <div class="hub-lead">
+        生徒向け自学モジュール：始めたいものを選んでください
       </div>
 
-      <button id="startBtn" class="start-btn" type="button" disabled>読み込み中…</button>
-      <div id="startNote" class="start-note">BGMはスタート時にONになります（ブラウザ制限回避のため）。</div>
+      <main class="hub-grid" aria-label="メニュー">
+        <!-- 通常10問：modeNormalBtn（app.js既存ID） -->
+        <button id="modeNormalBtn" class="hub-card primary" type="button">
+          <div class="hub-main">通常10問</div>
+          <div class="hub-sub">10 QUESTIONS / QUICK</div>
+        </button>
+
+        <!-- 連続学習：modeEndlessBtn（app.js既存ID） -->
+        <button id="modeEndlessBtn" class="hub-card primary" type="button">
+          <div class="hub-main">連続学習</div>
+          <div class="hub-sub">ENDLESS / FOCUS</div>
+        </button>
+
+        <!-- 図鑑：openCollectionBtn（app.js既存ID） -->
+        <button id="openCollectionBtn" class="hub-card" type="button">
+          <div class="hub-main">図鑑</div>
+          <div class="hub-sub">COLLECTION / CARDS</div>
+        </button>
+
+        <!-- TOPへ戻る：kokugo-dojo へ -->
+        <a id="backToTopBtn" class="hub-card exit" href="https://naoki496.github.io/kokugo-dojo/">
+          <div class="hub-main">TOPへ戻る</div>
+          <div class="hub-sub">EXIT / PORTAL</div>
+        </a>
+      </main>
+
+      <!-- app.js 互換のため残す（表示はしない） -->
+      <button id="startBtn" class="start-hidden" type="button">START</button>
+      <div id="startNote" class="start-hidden">BGMはスタート時にONになります。</div>
+
+      <footer class="hub-foot">
+        <div class="hub-note">※BGMは開始時にON（ブラウザ制限回避のため）</div>
+        <div class="hub-meta">v1 / GitHub Pages</div>
+      </footer>
     </div>
   </div>
 
-  <!-- ===== Quiz ===== -->
+  <!-- =========================
+       QUIZ UI (existing structure)
+       ========================= -->
+  <h1>古文単語330マスター</h1>
+
   <div id="quiz" class="panel">
-    <!-- 上段メタ -->
     <div id="meta">
       <div id="metaLeft">
-        <!-- app.js が参照するIDに統一 -->
-        <div class="mode-pill" id="modePill">通常（10問）</div>
+        <div id="modePill" class="mode-pill">通常（10問）</div>
         <div id="progress">読み込み中…</div>
         <div id="score">Score: 0</div>
         <div id="comboLabel">最大COMBO x0</div>
       </div>
 
-      <!-- app.js が参照するIDに統一 -->
       <button id="bgmToggle" class="pill bgm-btn" type="button">BGM: OFF</button>
     </div>
 
     <div class="panel-inner">
       <div id="meterArea">
         <div id="meterText">
-          <!-- app.js は meterLabel を更新する -->
           <div id="meterLabel">進捗 0/0 (0%)</div>
-          <div id="csvText">CSVを読み込んでいます。</div>
+          <div id="meterRight"> </div>
         </div>
         <div id="meterOuter"><div id="meterInner"></div></div>
       </div>
 
       <div class="q-gap"></div>
 
-      <div class="question" id="question">読み込み中…</div>
-      <div class="subline" id="subline">---</div>
+      <div id="question" class="question">CSVを読み込んでいます。</div>
+      <div id="subline" class="subline"></div>
 
-      <!-- choices を app.js が更新する前提で4つ用意 -->
       <div id="choicesArea">
-        <button type="button" class="choice">---</button>
-        <button type="button" class="choice">---</button>
-        <button type="button" class="choice">---</button>
-        <button type="button" class="choice">---</button>
+        <button class="choice" type="button" data-idx="0">読み込み中…</button>
+        <button class="choice" type="button" data-idx="1">---</button>
+        <button class="choice" type="button" data-idx="2">---</button>
+        <button class="choice" type="button" data-idx="3">---</button>
       </div>
 
-      <div class="status" id="status"></div>
+      <div id="status" class="status"></div>
 
       <div id="controls">
         <button id="nextBtn" class="ctrl" type="button" disabled>次へ</button>
-        <!-- app.js が参照する restartBtn に統一 -->
         <button id="restartBtn" class="ctrl" type="button">最初から</button>
       </div>
 
-      <div id="hint">※〖〗で囲われた箇所は黄色発光でハイライトされます。</div>
+      <div id="hint">
+        ※〖〗で囲われた箇所は黄色発光でハイライトされます。
+      </div>
     </div>
   </div>
 
+  <script src="./csv.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
