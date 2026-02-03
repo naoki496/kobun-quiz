@@ -285,7 +285,7 @@ function escapeHtml(str) {
 
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
-  return safe.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
+  return safe.replace(/【(.*?)】/g, '【<span class="hl">$1</span>】');
 }
 
 function pickRandom(arr) {
