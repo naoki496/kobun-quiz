@@ -19,49 +19,40 @@
         <div class="hub-status"><span class="hub-dot" aria-hidden="true"></span><span>ONLINE</span></div>
       </header>
 
-      <div class="hub-lead">
-        生徒向け自学モジュール：始めたいものを選んでください
-      </div>
-
       <main class="hub-grid" aria-label="メニュー">
-        <!-- 通常10問：modeNormalBtn（app.js既存ID） -->
-        <button id="modeNormalBtn" class="hub-card primary" type="button">
+        <!-- ✅リンク化：通常10問 -->
+        <a id="modeNormalBtn" class="hub-card primary" href="./index.html?mode=normal&start=1">
           <div class="hub-main">通常10問</div>
           <div class="hub-sub">10 QUESTIONS / QUICK</div>
-        </button>
+        </a>
 
-        <!-- 連続学習：modeEndlessBtn（app.js既存ID） -->
-        <button id="modeEndlessBtn" class="hub-card primary" type="button">
+        <!-- ✅リンク化：連続学習 -->
+        <a id="modeEndlessBtn" class="hub-card primary" href="./index.html?mode=endless&start=1">
           <div class="hub-main">連続学習</div>
           <div class="hub-sub">ENDLESS / FOCUS</div>
-        </button>
+        </a>
 
-        <!-- 図鑑：openCollectionBtn（app.js既存ID） -->
-        <button id="openCollectionBtn" class="hub-card" type="button">
+        <!-- 図鑑（既存） -->
+        <a id="openCollectionBtn" class="hub-card" href="./collection.html">
           <div class="hub-main">図鑑</div>
           <div class="hub-sub">COLLECTION / CARDS</div>
-        </button>
+        </a>
 
-        <!-- TOPへ戻る：kokugo-dojo へ -->
+        <!-- TOPへ戻る（指定URL） -->
         <a id="backToTopBtn" class="hub-card exit" href="https://naoki496.github.io/kokugo-dojo/">
           <div class="hub-main">TOPへ戻る</div>
           <div class="hub-sub">EXIT / PORTAL</div>
         </a>
       </main>
 
-      <!-- app.js 互換のため残す（表示はしない） -->
+      <!-- app.js互換のため残す（画面には出さない） -->
       <button id="startBtn" class="start-hidden" type="button">START</button>
-      <div id="startNote" class="start-hidden">BGMはスタート時にONになります。</div>
-
-      <footer class="hub-foot">
-        <div class="hub-note">※BGMは開始時にON（ブラウザ制限回避のため）</div>
-        <div class="hub-meta">v1 / GitHub Pages</div>
-      </footer>
+      <div id="startNote" class="start-hidden"></div>
     </div>
   </div>
 
   <!-- =========================
-       QUIZ UI (existing structure)
+       QUIZ UI
        ========================= -->
   <h1>古文単語330マスター</h1>
 
