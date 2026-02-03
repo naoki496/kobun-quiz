@@ -898,6 +898,7 @@ h1{
 .rarity-5 img{
   filter: drop-shadow(0 0 10px rgba(120,220,255,0.35));
 }
+
 /* ✅開始後に start-screen が戻ってこない安全策 */
 .start-screen.is-gone{
   display:none !important;
