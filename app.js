@@ -1,11 +1,10 @@
 // app.js (global)
 const TOTAL_QUESTIONS = 10;
 
+// ✅デバッグ：ページ離脱（リロード/ナビゲーション）検知
 window.addEventListener("beforeunload", () => {
   console.warn("[DEBUG] page is unloading (reload or navigation)");
 });
-
-
 
 // ✅音声ファイル（root/assets/ 配下）
 const AUDIO_FILES = {
@@ -147,16 +146,6 @@ const startNoteEl = document.getElementById("startNote");
 const modeNormalBtn = document.getElementById("modeNormalBtn");
 const modeEndlessBtn = document.getElementById("modeEndlessBtn");
 
-// =====================================================
-// ✅ URL Params (mode/start)
-//   - mode: "normal" | "endless"
-//   - start=1: 自動開始
-// =====================================================
-const URLP = new URLSearchParams(location.search);
-const URL_MODE = URLP.get("mode");               // "normal" | "endless" | null
-const URL_AUTOSTART = URLP.get("start") === "1"; // true/false
-
-
 // ✅図鑑ボタン（Start画面）
 const openCollectionBtn = document.getElementById("openCollectionBtn");
 
@@ -168,7 +157,6 @@ const openCollectionBtn = document.getElementById("openCollectionBtn");
 const URLP = new URLSearchParams(location.search);
 const URL_MODE = URLP.get("mode");               // "normal" | "endless" | null
 const URL_AUTOSTART = URLP.get("start") === "1"; // true/false
-
 
 // ===== Audio objects =====
 const bgmAudio = new Audio(AUDIO_FILES.bgm);
@@ -826,28 +814,25 @@ if (openCollectionBtn) {
 // Mode switch（開始画面）
 function setMode(nextMode) {
   mode = nextMode;
-  // ※従来は active class を使っていたが、カードUIでは不要
   updateModeUI();
 }
 
 /* =====================================================
-   ✅ここが今回の本体：カードを押したら即スタート
-   - boot完了前は startBtn が disabled のため起動しない
+   ✅開始処理：カード押下/自動開始 共通
    ===================================================== */
 async function beginFromStartScreen() {
   await unlockAudioOnce();
   await setBgm(true);
   startNewSession();
 
-  // ✅ “隠す” ではなく “消す”
+  // ✅開始画面を確実に消す（remove → fallback）
   try {
     if (startScreenEl) startScreenEl.remove();
   } catch (_) {
-    // removeが効かない古い環境対策
     if (startScreenEl) startScreenEl.style.display = "none";
   }
 
-  // ✅ ついでにURLから start=1 を消して「自動開始の再発」を防ぐ
+  // ✅ URL から start=1 を消して再発防止
   try {
     const p = new URLSearchParams(location.search);
     p.delete("start");
@@ -856,23 +841,31 @@ async function beginFromStartScreen() {
   } catch (_) {}
 }
 
-
 function canBeginNow() {
   // boot が完了すると startBtn が有効化される
   return startBtnEl && !startBtnEl.disabled;
 }
 
-modeNormalBtn.addEventListener("click", async () => {
-  setMode("normal");
-  if (!canBeginNow()) return;
-  try { await beginFromStartScreen(); } catch (e) { console.error(e); }
-});
+// ✅カード押下（通常/連続）
+if (modeNormalBtn) {
+  modeNormalBtn.addEventListener("click", async (e) => {
+    // aタグの既定遷移を使う設計でもOKだが、体感を良くするため JS 開始を優先
+    // （URL遷移方式でも autostart があるので二重安全）
+    e.preventDefault();
+    setMode("normal");
+    if (!canBeginNow()) return;
+    try { await beginFromStartScreen(); } catch (err) { console.error(err); }
+  });
+}
 
-modeEndlessBtn.addEventListener("click", async () => {
-  setMode("endless");
-  if (!canBeginNow()) return;
-  try { await beginFromStartScreen(); } catch (e) { console.error(e); }
-});
+if (modeEndlessBtn) {
+  modeEndlessBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    setMode("endless");
+    if (!canBeginNow()) return;
+    try { await beginFromStartScreen(); } catch (err) { console.error(err); }
+  });
+}
 
 // 互換用：startBtn が存在する場合は従来通りでも開始できる
 if (startBtnEl) {
@@ -910,12 +903,8 @@ function showError(err) {
 (async function boot() {
   try {
     // ✅ 初期モード：URL優先（無ければnormal）
-      if (URL_MODE === "endless" || URL_MODE === "normal") setMode(URL_MODE);
-      // ✅ 初期モード：URL優先（無ければnormal）
-      if (URL_MODE === "endless" || URL_MODE === "normal") setMode(URL_MODE);
-      else setMode("normal");
-
-
+    if (URL_MODE === "endless" || URL_MODE === "normal") setMode(URL_MODE);
+    else setMode("normal");
 
     if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
       throw new Error("CSVUtil が見つかりません（csv.js の読み込み順/内容を確認）");
@@ -985,22 +974,16 @@ function showError(err) {
 
     // 結果オーバーレイを事前生成（ラグ低減 / 起動時クラッシュ防止）
     ensureResultOverlay();
-    // ✅ start=1 が付いていたら自動開始（リンク遷移方式の本体）
-    if (URL_AUTOSTART) {
-      try {
-        await beginFromStartScreen(); // start画面カード押下と同等の挙動
-      } catch (e) {
-        console.warn("auto start failed:", e);
-      }
-    }
-
 
     // ✅ start=1 が付いていたら自動開始（リンク遷移方式の本体）
     if (URL_AUTOSTART) {
       try {
-        // ここで開始すると、開始画面の「カード押下」と同等の挙動になる
         await beginFromStartScreen();
       } catch (e) {
         console.warn("auto start failed:", e);
       }
     }
+  } catch (e) {
+    showError(e);
+  }
+})();
