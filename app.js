@@ -160,6 +160,16 @@ const URL_AUTOSTART = URLP.get("start") === "1"; // true/false
 // ✅図鑑ボタン（Start画面）
 const openCollectionBtn = document.getElementById("openCollectionBtn");
 
+// =====================================================
+// ✅ URL Params (mode/start)
+//   - mode: "normal" | "endless"
+//   - start=1: 自動開始
+// =====================================================
+const URLP = new URLSearchParams(location.search);
+const URL_MODE = URLP.get("mode");               // "normal" | "endless" | null
+const URL_AUTOSTART = URLP.get("start") === "1"; // true/false
+
+
 // ===== Audio objects =====
 const bgmAudio = new Audio(AUDIO_FILES.bgm);
 bgmAudio.loop = true;
@@ -901,7 +911,10 @@ function showError(err) {
   try {
     // ✅ 初期モード：URL優先（無ければnormal）
       if (URL_MODE === "endless" || URL_MODE === "normal") setMode(URL_MODE);
+      // ✅ 初期モード：URL優先（無ければnormal）
+      if (URL_MODE === "endless" || URL_MODE === "normal") setMode(URL_MODE);
       else setMode("normal");
+
 
 
     if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
@@ -972,10 +985,15 @@ function showError(err) {
 
     // 結果オーバーレイを事前生成（ラグ低減 / 起動時クラッシュ防止）
     ensureResultOverlay();
-  } catch (e) {
-    showError(e);
-  }
-})();
+    // ✅ start=1 が付いていたら自動開始（リンク遷移方式の本体）
+    if (URL_AUTOSTART) {
+      try {
+        await beginFromStartScreen(); // start画面カード押下と同等の挙動
+      } catch (e) {
+        console.warn("auto start failed:", e);
+      }
+    }
+
 
     // ✅ start=1 が付いていたら自動開始（リンク遷移方式の本体）
     if (URL_AUTOSTART) {
