@@ -1,31 +1,18 @@
 // app.js (global)
 const TOTAL_QUESTIONS = 10;
 
-// =====================================================
-// ✅ Question Timer (per-question)
-//   - 20 sec each
-//   - warn at 5 sec (light glow, no SE)
-//   - time up: show correct only, enable "Next"
-// =====================================================
-const QUESTION_TIME_LIMIT = 20; // 秒
-const TIMER_WARN_AT = 5;        // 残り5秒で発光
+// ===== Timer settings =====
+const QUESTION_TIME_SEC = 20; // 1問あたり
+const WARN_AT_SEC = 5;        // 残り5秒で軽い発光（SE無し）
 
-let qTimerId = null;
-let qTimeLeft = 0;
-let qTimeExpired = false;
-
-// =====================================================
 // ✅音声ファイル（root/assets/ 配下）
-// =====================================================
 const AUDIO_FILES = {
   bgm: "./assets/bgm.mp3",
   correct: "./assets/correct.mp3",
   wrong: "./assets/wrong.mp3",
 };
 
-// =====================================================
 // ▼▼▼ A: cards.csv 受け皿（UI非変更） ▼▼▼
-// =====================================================
 let cardsAll = [];
 let cardPoolByRarity = { 3: [], 4: [], 5: [] };
 
@@ -46,9 +33,7 @@ function rebuildCardPoolsFromCsv() {
   if (!Array.isArray(cardsAll)) cardsAll = [];
   for (const c of cardsAll) {
     if (!c || !c.id) continue;
-    if (c.rarity === 3 || c.rarity === 4 || c.rarity === 5) {
-      next[c.rarity].push(c);
-    }
+    if (c.rarity === 3 || c.rarity === 4 || c.rarity === 5) next[c.rarity].push(c);
   }
   cardPoolByRarity = next;
 }
@@ -106,9 +91,6 @@ function validateCardsCsv() {
 }
 // ▲▲▲ Aここまで ▲▲▲
 
-// =====================================================
-// State
-// =====================================================
 let questions = [];
 let order = [];
 let index = 0;
@@ -120,8 +102,6 @@ let combo = 0;
 let maxCombo = 0;
 
 // mode
-// normal: 10問
-// endless: 連続学習（終了後、間違いだけ復習ボタンが出る）
 let mode = "normal";
 
 // history（復習用）
@@ -131,9 +111,7 @@ let history = [];
 let bgmOn = false;
 let audioUnlocked = false;
 
-// =====================================================
-// DOM
-// =====================================================
+// ===== DOM =====
 const progressEl = document.getElementById("progress");
 const scoreEl = document.getElementById("score");
 const questionEl = document.getElementById("question");
@@ -144,7 +122,6 @@ const nextBtn = document.getElementById("nextBtn");
 const restartBtn = document.getElementById("restartBtn");
 const meterInner = document.getElementById("meterInner");
 const meterLabel = document.getElementById("meterLabel");
-const meterRight = document.getElementById("meterRight");
 const comboLabel = document.getElementById("comboLabel");
 const quizEl = document.getElementById("quiz");
 const bgmToggleBtn = document.getElementById("bgmToggle");
@@ -158,18 +135,12 @@ const modeNormalBtn = document.getElementById("modeNormalBtn");
 const modeEndlessBtn = document.getElementById("modeEndlessBtn");
 const openCollectionBtn = document.getElementById("openCollectionBtn");
 
-// =====================================================
-// ✅ URL Params (mode/start)
-//   - mode: "normal" | "endless"
-//   - start=1: 自動開始
-// =====================================================
+// ===== URL Params (mode/start) =====
 const URLP = new URLSearchParams(location.search);
 const URL_MODE = URLP.get("mode");               // "normal" | "endless" | null
 const URL_AUTOSTART = URLP.get("start") === "1"; // true/false
 
-// =====================================================
-// Audio objects
-// =====================================================
+// ===== Audio objects =====
 const bgmAudio = new Audio(AUDIO_FILES.bgm);
 bgmAudio.loop = true;
 bgmAudio.preload = "auto";
@@ -211,9 +182,7 @@ function makeSEPool(src, volume) {
 const seCorrectPool = makeSEPool(AUDIO_FILES.correct, 0.9);
 const seWrongPool = makeSEPool(AUDIO_FILES.wrong, 0.9);
 
-// =====================================================
-// Storage (localStorage 可用性チェック + フォールバック)
-// =====================================================
+// ===== Storage (localStorage 可用性チェック + フォールバック) =====
 const STORAGE_KEY_CARD_COUNTS = "kobunQuiz.v1.cardCounts";
 
 function storageAvailable() {
@@ -262,12 +231,11 @@ function saveCardCounts(counts) {
   StorageAdapter.set(STORAGE_KEY_CARD_COUNTS, JSON.stringify(counts));
 }
 
-// =====================================================
-// Utils
-// =====================================================
+// ===== Utils =====
 function disableChoices(disabled) {
   choiceBtns.forEach((b) => (b.disabled = disabled));
 }
+
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -315,7 +283,6 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-// 〖...〗 の中だけ黄色発光（span付与）
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
   return safe.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
@@ -345,9 +312,7 @@ function pickWeighted(arr, getWeight) {
   return arr[arr.length - 1];
 }
 
-// =====================================================
-// Card reward helpers
-// =====================================================
+// ===== Card reward helpers =====
 function rollCardByStars(stars) {
   if (stars < 3) return null;
   const tier = Math.min(5, Math.max(3, stars));
@@ -366,7 +331,6 @@ function recordCard(card) {
   return counts[card.id];
 }
 
-// CSSアニメ（.card-effect）を使う前提。存在しなくても落とさない。
 function playCardEffect(rarity) {
   try {
     const el = document.createElement("div");
@@ -377,16 +341,15 @@ function playCardEffect(rarity) {
   } catch (_) {}
 }
 
-// =====================================================
-// UI helpers
-// =====================================================
 function updateScoreUI() {
   scoreEl.textContent = `Score: ${score}`;
 }
+
 function updateModeUI() {
   const label = mode === "endless" ? "連続学習" : "通常（10問）";
   modePillEl.textContent = label;
 }
+
 function updateMeterUI() {
   const total = order.length || 1;
   const cur = Math.min(index + 1, total);
@@ -395,14 +358,22 @@ function updateMeterUI() {
   comboLabel.textContent = `最大COMBO x${maxCombo}`;
   meterInner.style.width = `${percent}%`;
 }
-function updateStatusUI(message) {
-  const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
-  statusEl.textContent = `${message}${comboText}`;
+
+function setStatusGlitchOnce() {
+  if (!statusEl) return;
+  statusEl.classList.remove("glitch");
+  void statusEl.offsetWidth;
+  statusEl.classList.add("glitch");
+  setTimeout(() => statusEl.classList.remove("glitch"), 420);
 }
 
-// =====================================================
-// Effects
-// =====================================================
+function updateStatusUI(message, { glitch = false } = {}) {
+  const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
+  statusEl.textContent = `${message}${comboText}`;
+  if (glitch) setStatusGlitchOnce();
+}
+
+// ===== Effects =====
 function flashGood() {
   quizEl.classList.remove("flash-good");
   void quizEl.offsetWidth;
@@ -419,121 +390,7 @@ function pulseNext() {
   nextBtn.classList.add("pulse-next");
 }
 
-// =====================================================
-// Timer CSS injection (app.jsだけで完結させる安全策)
-// =====================================================
-function injectTimerStyleOnce() {
-  if (document.getElementById("timer-style")) return;
-  const style = document.createElement("style");
-  style.id = "timer-style";
-  style.textContent = `
-    /* === Timer warning: light cyber glow (no SE) === */
-    @keyframes timerWarnGlow {
-      0%   { box-shadow: 0 0 0 rgba(0,255,255,0); }
-      40%  { box-shadow: 0 0 18px rgba(0,255,255,0.18), inset 0 0 14px rgba(0,255,255,0.08); }
-      100% { box-shadow: 0 0 0 rgba(0,255,255,0); }
-    }
-    #quiz.timer-warn {
-      animation: timerWarnGlow 700ms ease-in-out infinite;
-    }
-    #meterRight.timer-warn {
-      color: rgba(0,255,255,0.95);
-      text-shadow: 0 0 10px rgba(0,255,255,0.35);
-      font-weight: 800;
-      letter-spacing: .08em;
-    }
-    #meterRight.timer-ok {
-      opacity: .85;
-      letter-spacing: .08em;
-      text-shadow: 0 0 8px rgba(0,255,255,0.22);
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-// =====================================================
-// Timer control
-// =====================================================
-function stopQuestionTimer() {
-  if (qTimerId) clearInterval(qTimerId);
-  qTimerId = null;
-  qTimeExpired = false;
-  if (quizEl) quizEl.classList.remove("timer-warn");
-  if (meterRight) {
-    meterRight.classList.remove("timer-warn");
-    meterRight.classList.remove("timer-ok");
-    meterRight.textContent = "";
-  }
-}
-
-function setTimerUI(left) {
-  if (!meterRight) return;
-  const txt = `T-${String(left).padStart(2, "0")}`;
-  meterRight.textContent = txt;
-
-  if (left <= TIMER_WARN_AT) {
-    meterRight.classList.remove("timer-ok");
-    meterRight.classList.add("timer-warn");
-    if (quizEl) quizEl.classList.add("timer-warn");
-  } else {
-    meterRight.classList.remove("timer-warn");
-    meterRight.classList.add("timer-ok");
-    if (quizEl) quizEl.classList.remove("timer-warn");
-  }
-}
-
-function onTimeUp() {
-  qTimeExpired = true;
-  stopQuestionTimer();
-
-  // 未回答なら、正解だけ表示して「次へ」OK
-  if (!locked) {
-    locked = true;
-    disableChoices(true);
-
-    const q = order[index];
-    const correctIdx = q.answer - 1;
-
-    // 履歴（時間切れ＝不正解扱い、ただし表示は正解のみ）
-    history.push({ q, selectedIdx: -1, correctIdx, isCorrect: false, timeUp: true });
-
-    combo = 0;
-    // 不正解マークは付けない（仕様）
-    choiceBtns[correctIdx].classList.add("correct");
-
-    updateStatusUI("TIME UP");
-    nextBtn.disabled = false;
-    pulseNext();
-  }
-}
-
-function startQuestionTimer() {
-  stopQuestionTimer();
-  if (!(QUESTION_TIME_LIMIT > 0)) return;
-
-  qTimeLeft = QUESTION_TIME_LIMIT;
-  qTimeExpired = false;
-  setTimerUI(qTimeLeft);
-
-  qTimerId = setInterval(() => {
-    // すでに解答済なら回さない（保険）
-    if (locked) {
-      stopQuestionTimer();
-      return;
-    }
-
-    qTimeLeft -= 1;
-    if (qTimeLeft <= 0) {
-      onTimeUp();
-      return;
-    }
-    setTimerUI(qTimeLeft);
-  }, 1000);
-}
-
-// =====================================================
-// Audio
-// =====================================================
+// ===== Audio =====
 async function unlockAudioOnce() {
   if (audioUnlocked) return;
   audioUnlocked = true;
@@ -557,14 +414,12 @@ async function setBgm(on) {
     try { bgmAudio.pause(); } catch (_) {}
     return;
   }
-
   try {
     await unlockAudioOnce();
     await bgmAudio.play();
   } catch (e) {
-    // NotAllowedError 対応：ユーザー操作が無い自動開始では発生し得る
     console.warn(e);
-    statusEl.textContent = "BGMがブロックされました。BGMボタンを押すと再生できます。";
+    statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
     bgmOn = false;
     bgmToggleBtn.classList.remove("on");
     bgmToggleBtn.textContent = "BGM: OFF";
@@ -577,11 +432,143 @@ function playSE(which) {
 }
 
 // =====================================================
-// Rendering / Session
+// ✅ TIMER UI (injected) / timer logic
 // =====================================================
+let timerOuterEl = null;
+let timerInnerEl = null;
+let timerTextEl = null;
+let timerLoopId = null;
+let timerEndAt = 0;
+let timerTotalMs = QUESTION_TIME_SEC * 1000;
+
+function ensureTimerUI() {
+  if (timerOuterEl && timerInnerEl && timerTextEl) return;
+
+  const meterArea = document.getElementById("meterArea");
+  if (!meterArea) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "timer-wrap";
+  wrap.innerHTML = `
+    <div class="timer-head">
+      <div class="timer-title">TIME</div>
+      <div id="timerText" class="timer-text">--</div>
+    </div>
+    <div id="timerOuter" class="timer-outer"><div id="timerInner" class="timer-inner"></div></div>
+  `;
+
+  meterArea.appendChild(wrap);
+  timerOuterEl = wrap.querySelector("#timerOuter");
+  timerInnerEl = wrap.querySelector("#timerInner");
+  timerTextEl = wrap.querySelector("#timerText");
+}
+
+function stopTimer() {
+  if (timerLoopId) {
+    clearInterval(timerLoopId);
+    timerLoopId = null;
+  }
+  if (timerOuterEl) timerOuterEl.classList.remove("warn");
+}
+
+function setTimerBarStyleByRemain(remainMs) {
+  if (!timerInnerEl) return;
+
+  const frac = Math.max(0, Math.min(1, remainMs / timerTotalMs)); // 1 -> 0
+  // 冷色(青) -> 白寄りへ
+  // 残りが少ないほど whiten を増やす
+  const whiten = Math.round((1 - frac) * 85); // 0..85
+  const alphaA = 0.75 + (1 - frac) * 0.15;
+  const alphaB = 0.35 + (1 - frac) * 0.20;
+
+  const cA = `rgba(${Math.min(120 + whiten, 235)}, ${Math.min(220 + whiten, 255)}, 255, ${alphaA.toFixed(2)})`;
+  const cB = `rgba(${Math.min(0 + whiten, 240)}, ${Math.min(180 + whiten, 255)}, ${Math.min(255, 255)}, ${alphaB.toFixed(2)})`;
+
+  timerInnerEl.style.background = `linear-gradient(90deg, ${cA}, ${cB})`;
+  timerInnerEl.style.boxShadow = `0 0 ${Math.round(18 + (1 - frac) * 16)}px rgba(170, 230, 255, ${Math.min(0.36, 0.20 + (1 - frac) * 0.22).toFixed(2)})`;
+}
+
+function startTimerForQuestion() {
+  ensureTimerUI();
+  stopTimer();
+
+  timerTotalMs = QUESTION_TIME_SEC * 1000;
+  timerEndAt = Date.now() + timerTotalMs;
+
+  // 初期表示
+  if (timerTextEl) timerTextEl.textContent = `${QUESTION_TIME_SEC.toFixed(0)}.0s`;
+  if (timerInnerEl) timerInnerEl.style.width = "100%";
+  setTimerBarStyleByRemain(timerTotalMs);
+
+  // 100ms刻み（軽量）
+  timerLoopId = setInterval(() => {
+    const now = Date.now();
+    const remain = timerEndAt - now;
+
+    if (remain <= 0) {
+      // TIME UP
+      stopTimer();
+      onTimeUp();
+      return;
+    }
+
+    const sec = remain / 1000;
+    if (timerTextEl) timerTextEl.textContent = `${sec.toFixed(1)}s`;
+
+    const pct = Math.max(0, Math.min(100, (remain / timerTotalMs) * 100));
+    if (timerInnerEl) timerInnerEl.style.width = `${pct}%`;
+
+    // 残りが少ないほど青→白
+    setTimerBarStyleByRemain(remain);
+
+    // warn（残り5秒）
+    if (timerOuterEl) {
+      if (sec <= WARN_AT_SEC) timerOuterEl.classList.add("warn");
+      else timerOuterEl.classList.remove("warn");
+    }
+  }, 100);
+}
+
+// TIME UP時のみ：淡いノイズ走査線（軽量）
+function triggerTimeUpScanlineOnce() {
+  if (!quizEl) return;
+  quizEl.classList.remove("timeup-scan");
+  void quizEl.offsetWidth;
+  quizEl.classList.add("timeup-scan");
+  setTimeout(() => quizEl.classList.remove("timeup-scan"), 700);
+}
+
+function onTimeUp() {
+  if (locked) return;
+
+  locked = true;
+  disableChoices(true);
+
+  const q = order[index];
+  const correctIdx = q.answer - 1;
+
+  // 正解だけ表示（不正解の赤は付けない）
+  try {
+    choiceBtns.forEach((btn) => btn.classList.remove("correct", "wrong"));
+    if (choiceBtns[correctIdx]) choiceBtns[correctIdx].classList.add("correct");
+  } catch (_) {}
+
+  // コンボは途切れる扱い
+  combo = 0;
+  updateMeterUI();
+  updateScoreUI();
+
+  triggerTimeUpScanlineOnce();
+  updateStatusUI("TIME UP", { glitch: true });
+
+  // 「次へ」解禁
+  nextBtn.disabled = false;
+  pulseNext();
+}
+
+// ===== Rendering / Session =====
 function render() {
   const q = order[index];
-
   progressEl.textContent = `第${index + 1}問 / ${order.length}`;
   updateScoreUI();
   updateModeUI();
@@ -596,13 +583,12 @@ function render() {
     btn.classList.remove("correct", "wrong");
     btn.disabled = false;
   });
-
   statusEl.textContent = "";
   nextBtn.disabled = true;
   locked = false;
 
-  // ✅タイマー開始
-  startQuestionTimer();
+  // ✅各問の開始タイマー
+  startTimerForQuestion();
 }
 
 function startWithPool(pool) {
@@ -632,21 +618,20 @@ function retryWrongOnlyOnce() {
   startWithPool(wrong);
 }
 
-// =====================================================
-// Judge
-// =====================================================
+// ===== Judge =====
 function judge(selectedIdx) {
   if (locked) return;
   locked = true;
 
-  // ✅解答したらタイマー停止
-  stopQuestionTimer();
+  // ✅回答が入ったらタイマー停止
+  stopTimer();
 
   disableChoices(true);
   const q = order[index];
   const correctIdx = q.answer - 1;
   const isCorrect = selectedIdx === correctIdx;
 
+  // 履歴
   history.push({ q, selectedIdx, correctIdx, isCorrect });
 
   if (isCorrect) {
@@ -674,9 +659,7 @@ function judge(selectedIdx) {
   pulseNext();
 }
 
-// =====================================================
-// Result Overlay（元ロジック維持：省略せず全部）
-// =====================================================
+// ===== Result Overlay（元ロジック維持） =====
 let resultOverlay = null;
 
 function getUserMessageByRate(percent) {
@@ -712,20 +695,21 @@ function buildReviewHtml() {
   const items = wrong.map((h, idx) => {
     const q = h.q;
     const qText = q.source ? `${q.question}（${q.source}）` : q.question;
-    const choicesHtml = q.choices.map((c, i) => {
-      const isC = i === h.correctIdx;
-      const isS = i === h.selectedIdx;
-      const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""].filter(Boolean).join(" ");
-      return `<div class="${cls}">${highlightBrackets(c)}</div>`;
-    }).join("");
-
-    const tag = h.timeUp ? `<div style="margin:6px 0 0;opacity:.75;">⌛ TIME UP</div>` : "";
+    const choicesHtml = q.choices
+      .map((c, i) => {
+        const isC = i === h.correctIdx;
+        const isS = i === h.selectedIdx;
+        const cls = ["rv-choice", isC ? "is-correct" : "", isS ? "is-selected" : ""]
+          .filter(Boolean)
+          .join(" ");
+        return `<div class="${cls}">${highlightBrackets(c)}</div>`;
+      })
+      .join("");
 
     return `
       <div class="rv-item">
         <div class="rv-q">#${idx + 1} ${highlightBrackets(qText)}</div>
         <div class="rv-choices">${choicesHtml}</div>
-        ${tag}
       </div>
     `;
   }).join("");
@@ -862,8 +846,7 @@ function showResultOverlay() {
       const n = recordCard(card);
       playCardEffect(card.rarity);
 
-      const specialMsg =
-        card.rarity === 5 ? `<div style="margin-top:6px;">✨SSR！✨</div>` : "";
+      const specialMsg = card.rarity === 5 ? `<div style="margin-top:6px;">✨SSR！✨</div>` : "";
 
       rewardHtml = `
         <div class="card-reward">
@@ -899,8 +882,7 @@ function showResultOverlay() {
 }
 
 function finish() {
-  // ✅終了時はタイマー停止
-  stopQuestionTimer();
+  stopTimer();
 
   progressEl.textContent = "終了";
   disableChoices(true);
@@ -913,21 +895,17 @@ function finish() {
   showResultOverlay();
 }
 
-// =====================================================
-// Events
-// =====================================================
+// ===== Events =====
 choiceBtns.forEach((btn) => {
   btn.addEventListener("click", async () => {
-    await unlockAudioOnce();
+    await unlockAudioOnce(); // ユーザー操作なのでOK
     const idx = Number(btn.dataset.idx);
     judge(idx);
   });
 });
 
 nextBtn.addEventListener("click", () => {
-  // ✅次へ時もタイマー停止（保険）
-  stopQuestionTimer();
-
+  // 次へ押下でタイマーは次のrenderで再開
   index++;
   if (index >= order.length) finish();
   else render();
@@ -935,7 +913,6 @@ nextBtn.addEventListener("click", () => {
 
 restartBtn.addEventListener("click", async () => {
   try {
-    stopQuestionTimer();
     await unlockAudioOnce();
     startNewSession();
   } catch (e) {
@@ -948,11 +925,9 @@ bgmToggleBtn.addEventListener("click", async () => {
   await setBgm(!bgmOn);
 });
 
-// Start画面：図鑑を開く
+// Start画面：図鑑を開く（保険）
 if (openCollectionBtn) {
-  openCollectionBtn.addEventListener("click", (e) => {
-    // aタグなので保険で抑止
-    if (e) e.preventDefault();
+  openCollectionBtn.addEventListener("click", () => {
     window.location.href = "./collection.html";
   });
 }
@@ -963,28 +938,24 @@ function setMode(nextMode) {
   updateModeUI();
 }
 
-/* =====================================================
-   ✅開始：カードを押したら即スタート（ページ遷移はさせない）
-   ===================================================== */
-async function beginFromStartScreen() {
-  // タイマースタイル注入（安全）
-  injectTimerStyleOnce();
-
-  await unlockAudioOnce();
-
-  // BGMをONにする（NotAllowedは setBgm 内でハンドリング）
-  await setBgm(true);
+// ✅開始処理
+async function beginFromStartScreen({ auto = false } = {}) {
+  // auto start は「ユーザー操作」ではないので BGM自動ONしない
+  if (!auto) {
+    await unlockAudioOnce();
+    await setBgm(true);
+  }
 
   startNewSession();
 
-  // “隠す”ではなくDOMから消す（戻り事故を防止）
+  // “隠す” ではなく “消す”
   try {
     if (startScreenEl) startScreenEl.remove();
   } catch (_) {
     if (startScreenEl) startScreenEl.style.display = "none";
   }
 
-  // URLから start=1 を消して「自動開始再発」を防ぐ
+  // URLから start=1 を消す（自動開始の再発防止）
   try {
     const p = new URLSearchParams(location.search);
     p.delete("start");
@@ -997,50 +968,31 @@ function canBeginNow() {
   return startBtnEl && !startBtnEl.disabled;
 }
 
-function updateUrlModeAndStart(nextMode) {
-  try {
-    const p = new URLSearchParams(location.search);
-    p.set("mode", nextMode);
-    p.set("start", "1"); // begin相当の状態を表す（ただし直後に消す）
-    const next = `${location.pathname}?${p.toString()}`;
-    history.replaceState(null, "", next);
-  } catch (_) {}
-}
-
 if (modeNormalBtn) {
   modeNormalBtn.addEventListener("click", async (e) => {
-    if (e) e.preventDefault(); // ✅ページ遷移を抑止
+    // aタグなので「遷移」させず、JSで開始（画面内遷移）
+    e.preventDefault();
     setMode("normal");
     if (!canBeginNow()) return;
-    try {
-      updateUrlModeAndStart("normal");
-      await beginFromStartScreen();
-    } catch (err) {
-      console.error(err);
-    }
+    try { await beginFromStartScreen({ auto: false }); } catch (err) { console.error(err); }
   });
 }
 
 if (modeEndlessBtn) {
   modeEndlessBtn.addEventListener("click", async (e) => {
-    if (e) e.preventDefault(); // ✅ページ遷移を抑止
+    e.preventDefault();
     setMode("endless");
     if (!canBeginNow()) return;
-    try {
-      updateUrlModeAndStart("endless");
-      await beginFromStartScreen();
-    } catch (err) {
-      console.error(err);
-    }
+    try { await beginFromStartScreen({ auto: false }); } catch (err) { console.error(err); }
   });
 }
 
-// 互換用：startBtn が存在する場合は従来通りでも開始できる
+// 互換用：startBtn が存在する場合
 if (startBtnEl) {
   startBtnEl.addEventListener("click", async () => {
     try {
       if (!canBeginNow()) return;
-      await beginFromStartScreen();
+      await beginFromStartScreen({ auto: false });
     } catch (e) {
       console.error(e);
       if (startNoteEl) startNoteEl.textContent = `開始に失敗しました: ${e?.message ?? e}`;
@@ -1048,13 +1000,10 @@ if (startBtnEl) {
   });
 }
 
-// =====================================================
-// Error
-// =====================================================
+// ===== Error =====
 function showError(err) {
   console.error(err);
-
-  stopQuestionTimer();
+  stopTimer();
 
   progressEl.textContent = "読み込み失敗";
   scoreEl.textContent = "Score: 0";
@@ -1071,14 +1020,10 @@ function showError(err) {
   if (startNoteEl) startNoteEl.textContent = `詳細: ${err?.message ?? err}`;
 }
 
-// =====================================================
-// Boot
-// =====================================================
+// ===== Boot =====
 (async function boot() {
   try {
-    injectTimerStyleOnce();
-
-    // 初期モード：URL優先（無ければnormal）
+    // 初期モード：URL優先
     if (URL_MODE === "endless" || URL_MODE === "normal") setMode(URL_MODE);
     else setMode("normal");
 
@@ -1099,7 +1044,7 @@ function showError(err) {
     const raw = await window.CSVUtil.load(csvUrl);
     questions = raw.map(normalizeRow);
 
-    // ▼▼▼ A: cards.csv 読み込み＋検査。失敗しても落とさない ▼▼▼
+    // cards.csv（失敗しても落とさない）
     try {
       const cardsUrl = new URL("cards.csv", baseUrl).toString();
       const rawCards = await window.CSVUtil.load(cardsUrl);
@@ -1117,22 +1062,20 @@ function showError(err) {
 
       cardsAll = nextCards;
       rebuildCardPoolsFromCsv();
-      validateCardsCsv(); // consoleのみ
+      validateCardsCsv();
     } catch (e) {
       console.warn("[cards.csv] load/validate failed (fallback to empty).", e);
       cardsAll = [];
       cardPoolByRarity = { 3: [], 4: [], 5: [] };
     }
-    // ▲▲▲ Aここまで ▲▲▲
 
-    // UIだけ準備（開始はStart画面のカードで）
+    // UIだけ準備
     progressEl.textContent = `準備完了（問題数 ${questions.length}）`;
     updateScoreUI();
     updateModeUI();
     meterLabel.textContent = `進捗 0/0`;
     comboLabel.textContent = `最大COMBO x0`;
     meterInner.style.width = `0%`;
-    if (meterRight) meterRight.textContent = "";
 
     questionEl.textContent = "始めたいメニューを選んでください。";
     sublineEl.textContent = "";
@@ -1141,19 +1084,28 @@ function showError(err) {
     disableChoices(true);
     nextBtn.disabled = true;
 
+    // timer UI だけ先に出しておく
+    ensureTimerUI();
+    if (timerTextEl) timerTextEl.textContent = `${QUESTION_TIME_SEC.toFixed(0)}.0s`;
+    if (timerInnerEl) {
+      timerInnerEl.style.width = "100%";
+      setTimerBarStyleByRemain(QUESTION_TIME_SEC * 1000);
+    }
+
     if (startBtnEl) {
       startBtnEl.disabled = false;
       startBtnEl.textContent = "START";
     }
-    if (startNoteEl) startNoteEl.textContent = "BGMは開始時にONになります。";
+    if (startNoteEl) {
+      startNoteEl.textContent = "BGMは開始後にONにできます。";
+    }
 
-    // 結果オーバーレイを事前生成（ラグ低減 / 起動時クラッシュ防止）
     ensureResultOverlay();
 
-    // start=1 が付いていたら自動開始（ただし NotAllowedError でBGMは落ち得る）
+    // ✅ start=1 が付いていたら「自動開始」するが、BGMは自動ONしない（NotAllowedError回避）
     if (URL_AUTOSTART) {
       try {
-        await beginFromStartScreen();
+        await beginFromStartScreen({ auto: true });
       } catch (e) {
         console.warn("auto start failed:", e);
       }
