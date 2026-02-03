@@ -288,121 +288,165 @@ h1{
   animation: pulseNext 500ms ease-out;
 }
 
-/* ===== Start Screen ===== */
+/* =====================================================
+   START SCREEN - Cyber Console (NEW)
+   ===================================================== */
 .start-screen{
   position: fixed;
   inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: radial-gradient(circle at 50% 40%, #0b1020 0%, #05060b 55%, #000 100%);
+  padding: 18px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(0,255,255,0.10) 0%, rgba(0,0,0,0) 55%),
+    radial-gradient(circle at 50% 40%, #0b1020 0%, #05060b 55%, #000 100%);
   z-index: 9999;
 }
 
-.start-inner{
-  width: min(92vw, 520px);
-  display: grid;
-  gap: 14px;
-  justify-items: center;
-  padding: 18px;
-}
-
-.start-title{
-  font-size: 18px;
-  letter-spacing: .06em;
-  text-shadow: 0 0 14px rgba(0,255,255,0.35);
-  opacity: .95;
-}
-
-.start-image{
-  width: 100%;
-  height: auto;
+.hub{
+  width: min(92vw, 560px);
   border-radius: 18px;
-  box-shadow:
-    0 0 28px rgba(0, 255, 255, 0.18),
-    0 0 60px rgba(0, 140, 255, 0.10);
-}
-
-.start-btn{
-  width: min(92vw, 320px);
-  height: 56px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: linear-gradient(90deg, rgba(0,120,255,0.95), rgba(0,255,255,0.85));
-  color: #fff;
-  font-size: 1.15rem;
-  font-weight: 900;
-  cursor: pointer;
-  box-shadow: 0 0 18px rgba(0,255,255,0.35);
-}
-
-.start-btn:disabled{
-  opacity: .55;
-  cursor: default;
-}
-
-.start-btn:active{
-  transform: translateY(1px) scale(0.995);
-}
-
-.start-note{
-  color: rgba(255,255,255,0.72);
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.mode-card{
-  width: 100%;
-  border-radius: 16px;
-  background: rgba(255,255,255,0.04);
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
   border: 1px solid rgba(0,255,255,0.14);
-  box-shadow: 0 0 18px rgba(0,255,255,0.10);
-  padding: 12px;
-  text-align:left;
+  box-shadow:
+    0 24px 60px rgba(0,0,0,0.65),
+    inset 0 0 0 1px rgba(0,255,255,0.08);
+  padding: 14px;
+  text-align: left;
 }
 
-.mode-label{
-  font-size: 13px;
-  opacity: .85;
-  margin-bottom: 10px;
-}
-
-.mode-note{
-  font-size: 12px;
-  opacity: .70;
-  margin-top: 10px;
-  line-height: 1.4;
-}
-
-/* ===== Mode Switch (ゲーム風セグメント) ===== */
-.seg{
+.hub-bar{
   display:flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 10px;
+}
+
+.hub-title{
+  font-weight: 900;
+  letter-spacing: .08em;
+  font-size: 13px;
+  opacity: .92;
+}
+
+.hub-status{
+  display:flex;
+  align-items:center;
   gap: 8px;
+  font-size: 12px;
+  opacity: .85;
+  letter-spacing: .06em;
 }
 
-.seg-btn{
-  flex: 1 1 0;
-  height: 44px;
-  border-radius: 14px;
-  border: 1px solid rgba(0,255,255,0.18);
+.hub-dot{
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(0,255,255,0.90);
+  box-shadow: 0 0 14px rgba(0,255,255,0.35);
+}
+
+.hub-lead{
+  margin: 4px 8px 12px;
+  font-size: 12px;
+  opacity: .75;
+  line-height: 1.5;
+}
+
+.hub-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 6px 6px;
+}
+
+.hub-card{
+  display:block;
+  text-decoration: none;
+  color: #fff;
+  padding: 14px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,255,255,0.16);
   background: rgba(0,0,0,0.35);
-  color:#fff;
-  font-size: 14px;
-  font-weight: 800;
-  cursor:pointer;
-  box-shadow: 0 0 18px rgba(0,255,255,0.08);
+  box-shadow: 0 0 18px rgba(0,255,255,0.10);
+  cursor: pointer;
+  user-select: none;
   transition: transform 80ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  min-height: 86px;
 }
 
-.seg-btn:active{
+.hub-card:active{
   transform: scale(0.99);
 }
 
-.seg-btn.active{
-  border-color: rgba(0,255,255,0.55);
+.hub-card:hover{
+  border-color: rgba(0,255,255,0.45);
   box-shadow: 0 0 22px rgba(0,255,255,0.22);
-  background: linear-gradient(180deg, rgba(0,255,255,0.22), rgba(0,0,0,0.35));
 }
+
+.hub-card.primary{
+  background: linear-gradient(180deg, rgba(0,255,255,0.14), rgba(0,0,0,0.35));
+  border-color: rgba(0,255,255,0.28);
+}
+
+.hub-card.exit{
+  border-color: rgba(255, 213, 74, 0.30);
+  box-shadow: 0 0 16px rgba(255, 213, 74, 0.12);
+}
+.hub-card.exit:hover{
+  border-color: rgba(255, 213, 74, 0.55);
+  box-shadow: 0 0 22px rgba(255, 213, 74, 0.20);
+}
+
+.hub-main{
+  font-weight: 900;
+  font-size: 16px;
+  letter-spacing: .03em;
+}
+
+.hub-sub{
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: .72;
+  letter-spacing: .06em;
+}
+
+.hub-foot{
+  margin: 8px 8px 4px;
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  opacity: .72;
+}
+
+.hub-meta{
+  opacity: .55;
+  white-space: nowrap;
+}
+
+.start-hidden{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 420px){
+  .hub-grid{ grid-template-columns: 1fr; }
+}
+
+/* =====================================================
+   Result Overlay / Card effects / Collection CSS
+   （あなたの既存資産をそのまま残す）
+   ===================================================== */
 
 /* ===== Result Overlay（濃くして見やすく） ===== */
 .result-overlay{
@@ -418,8 +462,8 @@ h1{
   opacity: 0;
   pointer-events: none;
   transition: opacity 160ms ease;
-  overflow-y: auto;                 /* ✅オーバーレイ自体がスクロールを持つ */
-  -webkit-overflow-scrolling: touch;/* ✅iOSの慣性スクロール */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .result-overlay.show{
@@ -437,9 +481,9 @@ h1{
     0 0 26px rgba(0,255,255,0.12);
   padding: 16px;
   text-align:left;
-  max-height: calc(100vh - 36px);   /* ✅上下の余白を残して収める */
-  overflow-y: auto;                 /* ✅カード内をスクロール */
-  -webkit-overflow-scrolling: touch;/* ✅iOSの慣性スクロール */
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .result-head{
@@ -507,9 +551,10 @@ h1{
   margin-top: 14px;
 }
 
-/* ✅差分記号を除去し、CSSとして正しく固定 */
+/* ✅ボタン幅は均等割り（将来増減しても崩れない） */
 .result-actions .ctrl{
-  width: 25%;
+  flex: 1 1 0;
+  width: auto;
 }
 
 /* 復習リスト（必要最低限の見やすさ） */
@@ -561,7 +606,7 @@ h1{
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 10000; /* ✅安全側へ（overlay等が増えても上に出す） */
+  z-index: 10000;
   opacity: 0;
   animation: cardFxFade 0.9s ease-out forwards;
 }
@@ -609,6 +654,19 @@ h1{
   animation: cardFxRing 1.4s ease-out forwards;
 }
 
+/* スパークルは ::before のみに（::after はリング専用にして衝突回避） */
+.card-effect::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle, rgba(255,255,255,0.35) 0 2px, transparent 3px) 10% 30%/140px 140px,
+    radial-gradient(circle, rgba(255,255,255,0.25) 0 2px, transparent 3px) 70% 20%/160px 160px,
+    radial-gradient(circle, rgba(255,255,255,0.20) 0 2px, transparent 3px) 30% 80%/180px 180px;
+  opacity: 0;
+  animation: cardFxSpark 0.9s ease-out forwards;
+}
+
 /* ★5専用キーフレーム */
 @keyframes cardFxGlow5{
   0%   { opacity:0; transform:scale(0.75); }
@@ -621,20 +679,6 @@ h1{
   0%   { opacity:0; transform:scale(0.55); }
   30%  { opacity:0.8; transform:scale(0.95); }
   100% { opacity:0; transform:scale(1.65); }
-}
-
-/* subtle sparkles (lightweight) */
-.card-effect::before,
-.card-effect::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle, rgba(255,255,255,0.35) 0 2px, transparent 3px) 10% 30%/140px 140px,
-    radial-gradient(circle, rgba(255,255,255,0.25) 0 2px, transparent 3px) 70% 20%/160px 160px,
-    radial-gradient(circle, rgba(255,255,255,0.20) 0 2px, transparent 3px) 30% 80%/180px 180px;
-  opacity: 0;
-  animation: cardFxSpark 0.9s ease-out forwards;
 }
 
 @keyframes cardFxFade {
@@ -671,10 +715,10 @@ h1{
 .card-reward img {
   width: 96px;
   height: 96px;
-  object-fit: contain; /* ✅切らずに表示 */
+  object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-  background: rgba(0,0,0,0.18); /* ✅余白が出たときの下地 */
+  background: rgba(0,0,0,0.18);
 }
 
 .card-reward .card-name {
@@ -704,7 +748,6 @@ h1{
 /* =====================================================
    Card Collection Page
    ===================================================== */
-
 .card-grid{
   display:grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -719,6 +762,7 @@ h1{
   border: 1px solid rgba(0,255,255,0.14);
   box-shadow: 0 0 18px rgba(0,255,255,0.10);
   text-align:center;
+  position: relative;
 }
 
 .card-item img{
@@ -741,24 +785,7 @@ h1{
   opacity: .75;
 }
 
-/* =========================
-   ★5 only: Blue-Silver Pulse
-   ========================= */
-
-/* もし .card-item に position が無ければ付ける（安全策） */
-.card-item{
-  position: relative;
-}
-
-/* ★5：枠＋光（常時） */
-.card-item.rarity-5{
-  border-color: rgba(170, 220, 255, 0.70);
-  box-shadow:
-    0 0 16px rgba(140, 210, 255, 0.28),
-    0 0 46px rgba(140, 210, 255, 0.16);
-}
-
-/* ★5：脈動（主役） */
+/* ★5 only: Blue-Silver Pulse */
 @keyframes pulseR5 {
   0% {
     box-shadow:
@@ -777,19 +804,16 @@ h1{
   }
 }
 
-/* 動きを付ける（既に box-shadow を持っていても上書きされます） */
 .card-item.rarity-5{
+  border-color: rgba(170, 220, 255, 0.70);
   animation: pulseR5 1.9s ease-in-out infinite;
 }
 
-/* モーション低減設定を尊重（端末側設定がONなら止める） */
 @media (prefers-reduced-motion: reduce){
   .card-item.rarity-5{ animation: none; }
 }
 
-
-/* ===== Locked Card (No Spoiler) ===== */
-
+/* Locked Card */
 .card-locked .locked-img{
   width:100%;
   height:120px;
@@ -800,7 +824,6 @@ h1{
   overflow: hidden;
 }
 
-/* 🔒を出す（今は content:"" になっていて消えている） */
 .card-locked .locked-img::after{
   content:"🔒";
   position:absolute;
@@ -812,7 +835,6 @@ h1{
   opacity: 0.75;
 }
 
-/* （任意）うっすら“影絵”っぽいノイズを足す：ロック感を強める */
 .card-locked .locked-img::before{
   content:"";
   position:absolute;
@@ -822,7 +844,6 @@ h1{
     radial-gradient(circle at 70% 60%, rgba(0,255,255,0.10), transparent 60%);
   opacity: .7;
 }
-
 
 .card-link{
   display:block;
@@ -840,52 +861,7 @@ h1{
   margin-top: 3px;
 }
 
-/* ===== Start画面：補助ボタン領域（図鑑/トップ） ===== */
-.start-sub{
-  margin-top: 10px;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* ✅2つを同幅で横並び */
-  gap: 8px;
-  align-items: stretch;
-}
-
-/* 図鑑/トップボタン：縦折り返し防止＋小さめ＋リンク対応 */
-.ctrl.ctrl-mini{
-  width: 100%;                /* ✅グリッド列いっぱい */
-  min-height: 44px;           /* ✅seg-btnと同等のタップ高 */
-  padding: 10px 12px;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.2;
-
-  opacity: 0.95;
-  white-space: nowrap;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  text-decoration: none;      /* ✅aタグでも下線なし */
-}
-
-
-.ctrl.ctrl-mini:hover{ opacity: 1; }
-
-/* ✅ TOPへ戻る：世界観を壊さず、視認性だけ少し上げる（黄系アクセント） */
-#backToTopBtn{
-  border-color: rgba(255, 213, 74, 0.35);
-  box-shadow: 0 0 16px rgba(255, 213, 74, 0.14);
-}
-#backToTopBtn:hover{
-  border-color: rgba(255, 213, 74, 0.55);
-  box-shadow: 0 0 20px rgba(255, 213, 74, 0.20);
-}
-/* ===========================
-   図鑑：追加UI（★＋詳細＋枠色）
-   =========================== */
-
-/* ★レアリティ */
+/* 図鑑：追加UI（★＋詳細＋枠色） */
 .card-item-rarity{
   margin-top: 4px;
   font-size: 13px;
@@ -894,7 +870,6 @@ h1{
   text-shadow: 0 0 10px rgba(255,230,107,0.45);
 }
 
-/* ▶詳細を見る */
 .card-item-detail{
   margin-top: 4px;
   font-size: 12px;
@@ -905,28 +880,21 @@ h1{
   opacity: 1;
 }
 
-/* ===========================
-   rarity別：枠の色演出
-   =========================== */
-
-/* ★3（標準） */
+/* rarity別 */
 .rarity-3{
   border-color: rgba(255,215,80,0.25);
 }
 
-/* ★4（紫） */
 .rarity-4{
   border-color: rgba(180,120,255,0.42);
   box-shadow: 0 0 18px rgba(180,120,255,0.16);
 }
 
-/* ★5（青銀＋最強） */
 .rarity-5{
   border-color: rgba(120,220,255,0.55);
   box-shadow: 0 0 26px rgba(120,220,255,0.22);
 }
 
-/* ★5だけ画像も少し光らせる */
 .rarity-5 img{
   filter: drop-shadow(0 0 10px rgba(120,220,255,0.35));
 }
