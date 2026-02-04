@@ -825,7 +825,7 @@ function ensureResultOverlay() {
 
   if (resultBtnCollectionEl) {
     resultBtnCollectionEl.addEventListener("click", () => {
-      window.location.href = "./collection.html";
+      window.location.href = "https://naoki496.github.io/cards-hub/";
     });
   }
 
@@ -955,11 +955,12 @@ bgmToggleBtn.addEventListener("click", async () => {
 });
 
 // Start画面：図鑑を開く（保険）
-if (openCollectionBtn) {
-  openCollectionBtn.addEventListener("click", () => {
-    window.location.href = "./collection.html";
+if (resultBtnCollectionEl) {
+  resultBtnCollectionEl.addEventListener("click", () => {
+    window.location.href = "https://naoki496.github.io/cards-hub/";
   });
 }
+
 
 // Mode switch（開始画面）
 function setMode(nextMode) {
