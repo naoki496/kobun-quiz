@@ -823,11 +823,6 @@ function ensureResultOverlay() {
     });
   }
 
-  if (resultBtnCollectionEl) {
-    resultBtnCollectionEl.addEventListener("click", () => {
-      window.location.href = "https://naoki496.github.io/cards-hub/";
-    });
-  }
 
   resultOverlay._set = ({ stars, rankName, percent, summary, details, reviewHtml, canRetryWrong }) => {
     if (resultBtnRetryWrongEl) {
