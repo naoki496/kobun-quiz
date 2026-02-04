@@ -46,6 +46,17 @@
         </a>
       </main>
 
+      <!-- ✅追加：4ボタン直下の注記（レイアウト非破壊） -->
+      <div style="margin-top:10px;font-size:12px;line-height:1.4;color:rgba(255,255,255,0.72);text-align:center;">
+        開始後はBGMが流れます
+      </div>
+
+      <!-- app.js互換のため残す（画面には出さない） -->
+      <button id="startBtn" class="start-hidden" type="button">START</button>
+      <div id="startNote" class="start-hidden"></div>
+
+      
+      
       <!-- app.js互換のため残す（画面には出さない） -->
       <button id="startBtn" class="start-hidden" type="button">START</button>
       <div id="startNote" class="start-hidden"></div>
@@ -107,6 +118,7 @@
   <script src="./app.js"></script>
 </body>
 </html>
+
 
 
 
