@@ -252,7 +252,6 @@ function migrateCardCountsOnce() {
 // boot時に1回呼ぶ（cards.csv読み込み前後どちらでもOK）
 migrateCardCountsOnce();
 
-
 // ===== Utils =====
 function disableChoices(disabled) {
   choiceBtns.forEach((b) => (b.disabled = disabled));
@@ -369,16 +368,16 @@ function updateScoreUI() {
 
 function updateModeUI() {
   const label = mode === "endless" ? "連続学習" : "通常（10問）";
-  modePillEl.textContent = label;
+  if (modePillEl) modePillEl.textContent = label;
 }
 
 function updateMeterUI() {
   const total = order.length || 1;
   const cur = Math.min(index + 1, total);
   const percent = Math.round((cur / total) * 100);
-  meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
-  comboLabel.textContent = `最大COMBO x${maxCombo}`;
-  meterInner.style.width = `${percent}%`;
+  if (meterLabel) meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
+  if (comboLabel) comboLabel.textContent = `最大COMBO x${maxCombo}`;
+  if (meterInner) meterInner.style.width = `${percent}%`;
 }
 
 function setStatusGlitchOnce() {
@@ -391,22 +390,25 @@ function setStatusGlitchOnce() {
 
 function updateStatusUI(message, { glitch = false } = {}) {
   const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
-  statusEl.textContent = `${message}${comboText}`;
+  if (statusEl) statusEl.textContent = `${message}${comboText}`;
   if (glitch) setStatusGlitchOnce();
 }
 
 // ===== Effects =====
 function flashGood() {
+  if (!quizEl) return;
   quizEl.classList.remove("flash-good");
   void quizEl.offsetWidth;
   quizEl.classList.add("flash-good");
 }
 function shakeBad() {
+  if (!quizEl) return;
   quizEl.classList.remove("shake");
   void quizEl.offsetWidth;
   quizEl.classList.add("shake");
 }
 function pulseNext() {
+  if (!nextBtn) return;
   nextBtn.classList.remove("pulse-next");
   void nextBtn.offsetWidth;
   nextBtn.classList.add("pulse-next");
@@ -429,8 +431,10 @@ async function unlockAudioOnce() {
 
 async function setBgm(on) {
   bgmOn = on;
-  bgmToggleBtn.classList.toggle("on", bgmOn);
-  bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
+  if (bgmToggleBtn) {
+    bgmToggleBtn.classList.toggle("on", bgmOn);
+    bgmToggleBtn.textContent = bgmOn ? "BGM: ON" : "BGM: OFF";
+  }
 
   if (!bgmOn) {
     try { bgmAudio.pause(); } catch (_) {}
@@ -441,10 +445,12 @@ async function setBgm(on) {
     await bgmAudio.play();
   } catch (e) {
     console.warn(e);
-    statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
+    if (statusEl) statusEl.textContent = "BGMの再生がブロックされました。もう一度BGMボタンを押してください。";
     bgmOn = false;
-    bgmToggleBtn.classList.remove("on");
-    bgmToggleBtn.textContent = "BGM: OFF";
+    if (bgmToggleBtn) {
+      bgmToggleBtn.classList.remove("on");
+      bgmToggleBtn.textContent = "BGM: OFF";
+    }
   }
 }
 
@@ -497,14 +503,12 @@ function setTimerBarStyleByRemain(remainMs) {
   if (!timerInnerEl) return;
 
   const frac = Math.max(0, Math.min(1, remainMs / timerTotalMs)); // 1 -> 0
-  // 冷色(青) -> 白寄りへ
-  // 残りが少ないほど whiten を増やす
   const whiten = Math.round((1 - frac) * 85); // 0..85
   const alphaA = 0.75 + (1 - frac) * 0.15;
   const alphaB = 0.35 + (1 - frac) * 0.20;
 
   const cA = `rgba(${Math.min(120 + whiten, 235)}, ${Math.min(220 + whiten, 255)}, 255, ${alphaA.toFixed(2)})`;
-  const cB = `rgba(${Math.min(0 + whiten, 240)}, ${Math.min(180 + whiten, 255)}, ${Math.min(255, 255)}, ${alphaB.toFixed(2)})`;
+  const cB = `rgba(${Math.min(0 + whiten, 240)}, ${Math.min(180 + whiten, 255)}, 255, ${alphaB.toFixed(2)})`;
 
   timerInnerEl.style.background = `linear-gradient(90deg, ${cA}, ${cB})`;
   timerInnerEl.style.boxShadow = `0 0 ${Math.round(18 + (1 - frac) * 16)}px rgba(170, 230, 255, ${Math.min(0.36, 0.20 + (1 - frac) * 0.22).toFixed(2)})`;
@@ -517,48 +521,43 @@ function startTimerForQuestion() {
   timerTotalMs = QUESTION_TIME_SEC * 1000;
   timerEndAt = Date.now() + timerTotalMs;
 
-  // 初期表示
   if (timerTextEl) timerTextEl.textContent = `${QUESTION_TIME_SEC.toFixed(0)}.0s`;
   if (timerInnerEl) timerInnerEl.style.width = "100%";
   setTimerBarStyleByRemain(timerTotalMs);
 
-  // 100ms刻み（軽量）
   timerLoopId = setInterval(() => {
     const now = Date.now();
     const remain = timerEndAt - now;
-  
+
     if (remain <= 0) {
       stopTimer();
       onTimeUp();
       return;
     }
-  
+
     const sec = remain / 1000;
     if (timerTextEl) timerTextEl.textContent = `${sec.toFixed(1)}s`;
-  
+
     const pct = Math.max(0, Math.min(100, (remain / timerTotalMs) * 100));
     if (timerInnerEl) timerInnerEl.style.width = `${pct}%`;
-  
-    // warn（残り5秒）
+
     const isWarn = sec <= WARN_AT_SEC;
     if (timerOuterEl) {
       if (isWarn) timerOuterEl.classList.add("warn");
       else timerOuterEl.classList.remove("warn");
     }
-  
-    // ✅ バー色：通常は青→白、残り5秒は「赤」に強制
+
     if (isWarn && timerInnerEl) {
       timerInnerEl.style.background =
         "linear-gradient(90deg, rgba(255,70,70,0.95), rgba(255,180,80,0.65))";
       timerInnerEl.style.boxShadow =
         "0 0 28px rgba(255,70,70,0.35), 0 0 60px rgba(255,70,70,0.16)";
     } else {
-      setTimerBarStyleByRemain(remain); // 青→白
+      setTimerBarStyleByRemain(remain);
     }
   }, 100);
 }
 
-// TIME UP時のみ：淡いノイズ走査線（軽量）
 function triggerTimeUpScanlineOnce() {
   if (!quizEl) return;
   quizEl.classList.remove("timeup-scan");
@@ -576,13 +575,11 @@ function onTimeUp() {
   const q = order[index];
   const correctIdx = q.answer - 1;
 
-  // 正解だけ表示（不正解の赤は付けない）
   try {
     choiceBtns.forEach((btn) => btn.classList.remove("correct", "wrong"));
     if (choiceBtns[correctIdx]) choiceBtns[correctIdx].classList.add("correct");
   } catch (_) {}
 
-  // コンボは途切れる扱い
   combo = 0;
   updateMeterUI();
   updateScoreUI();
@@ -590,33 +587,31 @@ function onTimeUp() {
   triggerTimeUpScanlineOnce();
   updateStatusUI("TIME UP", { glitch: true });
 
-  // 「次へ」解禁
-  nextBtn.disabled = false;
+  if (nextBtn) nextBtn.disabled = false;
   pulseNext();
 }
 
 // ===== Rendering / Session =====
 function render() {
   const q = order[index];
-  progressEl.textContent = `第${index + 1}問 / ${order.length}`;
+  if (progressEl) progressEl.textContent = `第${index + 1}問 / ${order.length}`;
   updateScoreUI();
   updateModeUI();
   updateMeterUI();
 
   const text = q.source ? `${q.question}（${q.source}）` : q.question;
-  questionEl.innerHTML = highlightBrackets(text);
+  if (questionEl) questionEl.innerHTML = highlightBrackets(text);
 
-  sublineEl.textContent = "";
+  if (sublineEl) sublineEl.textContent = "";
   choiceBtns.forEach((btn, i) => {
     btn.innerHTML = highlightBrackets(q.choices[i] || "---");
     btn.classList.remove("correct", "wrong");
     btn.disabled = false;
   });
-  statusEl.textContent = "";
-  nextBtn.disabled = true;
+  if (statusEl) statusEl.textContent = "";
+  if (nextBtn) nextBtn.disabled = true;
   locked = false;
 
-  // ✅各問の開始タイマー
   startTimerForQuestion();
 }
 
@@ -652,7 +647,6 @@ function judge(selectedIdx) {
   if (locked) return;
   locked = true;
 
-  // ✅回答が入ったらタイマー停止
   stopTimer();
 
   disableChoices(true);
@@ -660,7 +654,6 @@ function judge(selectedIdx) {
   const correctIdx = q.answer - 1;
   const isCorrect = selectedIdx === correctIdx;
 
-  // 履歴
   history.push({ q, selectedIdx, correctIdx, isCorrect });
 
   if (isCorrect) {
@@ -684,7 +677,7 @@ function judge(selectedIdx) {
   updateScoreUI();
   updateMeterUI();
 
-  nextBtn.disabled = false;
+  if (nextBtn) nextBtn.disabled = false;
   pulseNext();
 }
 
@@ -823,6 +816,12 @@ function ensureResultOverlay() {
     });
   }
 
+  // ✅ 図鑑ボタン（Overlay内）: ここで安全に定義して使う
+  if (resultBtnCollectionEl) {
+    resultBtnCollectionEl.addEventListener("click", () => {
+      window.location.href = "https://naoki496.github.io/cards-hub/";
+    });
+  }
 
   resultOverlay._set = ({ stars, rankName, percent, summary, details, reviewHtml, canRetryWrong }) => {
     if (resultBtnRetryWrongEl) {
@@ -908,13 +907,13 @@ function showResultOverlay() {
 function finish() {
   stopTimer();
 
-  progressEl.textContent = "終了";
+  if (progressEl) progressEl.textContent = "終了";
   disableChoices(true);
-  nextBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
 
-  questionEl.textContent = `結果：${score} / ${order.length}`;
-  sublineEl.textContent = "";
-  statusEl.textContent = "おつかれさまでした。";
+  if (questionEl) questionEl.textContent = `結果：${score} / ${order.length}`;
+  if (sublineEl) sublineEl.textContent = "";
+  if (statusEl) statusEl.textContent = "おつかれさまでした。";
 
   showResultOverlay();
 }
@@ -922,40 +921,45 @@ function finish() {
 // ===== Events =====
 choiceBtns.forEach((btn) => {
   btn.addEventListener("click", async () => {
-    await unlockAudioOnce(); // ユーザー操作なのでOK
+    await unlockAudioOnce();
     const idx = Number(btn.dataset.idx);
     judge(idx);
   });
 });
 
-nextBtn.addEventListener("click", () => {
-  // 次へ押下でタイマーは次のrenderで再開
-  index++;
-  if (index >= order.length) finish();
-  else render();
-});
-
-restartBtn.addEventListener("click", async () => {
-  try {
-    await unlockAudioOnce();
-    startNewSession();
-  } catch (e) {
-    showError(e);
-  }
-});
-
-bgmToggleBtn.addEventListener("click", async () => {
-  await unlockAudioOnce();
-  await setBgm(!bgmOn);
-});
-
-// Start画面：図鑑を開く（保険）
-if (resultBtnCollectionEl) {
-  resultBtnCollectionEl.addEventListener("click", () => {
-    window.location.href = "https://naoki496.github.io/cards-hub/";
+if (nextBtn) {
+  nextBtn.addEventListener("click", () => {
+    index++;
+    if (index >= order.length) finish();
+    else render();
   });
 }
 
+if (restartBtn) {
+  restartBtn.addEventListener("click", async () => {
+    try {
+      await unlockAudioOnce();
+      startNewSession();
+    } catch (e) {
+      showError(e);
+    }
+  });
+}
+
+if (bgmToggleBtn) {
+  bgmToggleBtn.addEventListener("click", async () => {
+    await unlockAudioOnce();
+    await setBgm(!bgmOn);
+  });
+}
+
+// Start画面の「図鑑」(aタグ) は、hrefに任せるのが最も堅牢。
+// ただし JSで補助したいなら、openCollectionBtn にだけ安全に付ける。
+if (openCollectionBtn) {
+  openCollectionBtn.addEventListener("click", () => {
+    // aタグの標準遷移に任せる（余計な preventDefault はしない）
+  });
+}
 
 // Mode switch（開始画面）
 function setMode(nextMode) {
@@ -989,27 +993,44 @@ async function beginFromStartScreen({ auto = false } = {}) {
   } catch (_) {}
 }
 
+// ✅「開始できる」判定を強化：questions読込完了まで横取りしない
 function canBeginNow() {
-  return startBtnEl && !startBtnEl.disabled;
+  return !!(
+    startBtnEl &&
+    !startBtnEl.disabled &&
+    Array.isArray(questions) &&
+    questions.length > 0
+  );
 }
 
+// ✅通常/連続：横取りするなら「失敗時にhrefへフォールバック」
 if (modeNormalBtn) {
   modeNormalBtn.addEventListener("click", async (e) => {
     setMode("normal");
-    if (canBeginNow()) {
-      e.preventDefault();
-      try { await beginFromStartScreen({ auto: false }); } catch (err) { console.error(err); }
+    if (!canBeginNow()) return; // href遷移に任せる
+
+    e.preventDefault();
+    try {
+      await beginFromStartScreen({ auto: false });
+    } catch (err) {
+      console.error(err);
+      // フォールバック：リンク遷移
+      window.location.href = modeNormalBtn.href;
     }
-    // canBeginNow() が false の時は、aタグのhref遷移に任せる
   });
 }
 
 if (modeEndlessBtn) {
   modeEndlessBtn.addEventListener("click", async (e) => {
     setMode("endless");
-    if (canBeginNow()) {
-      e.preventDefault();
-      try { await beginFromStartScreen({ auto: false }); } catch (err) { console.error(err); }
+    if (!canBeginNow()) return;
+
+    e.preventDefault();
+    try {
+      await beginFromStartScreen({ auto: false });
+    } catch (err) {
+      console.error(err);
+      window.location.href = modeEndlessBtn.href;
     }
   });
 }
@@ -1032,13 +1053,13 @@ function showError(err) {
   console.error(err);
   stopTimer();
 
-  progressEl.textContent = "読み込み失敗";
-  scoreEl.textContent = "Score: 0";
-  questionEl.textContent = "CSVを読み込めませんでした。";
-  sublineEl.textContent = "";
-  statusEl.textContent = `詳細: ${err?.message ?? err}`;
+  if (progressEl) progressEl.textContent = "読み込み失敗";
+  if (scoreEl) scoreEl.textContent = "Score: 0";
+  if (questionEl) questionEl.textContent = "CSVを読み込めませんでした。";
+  if (sublineEl) sublineEl.textContent = "";
+  if (statusEl) statusEl.textContent = `詳細: ${err?.message ?? err}`;
   disableChoices(true);
-  nextBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
 
   if (startBtnEl) {
     startBtnEl.disabled = true;
@@ -1061,7 +1082,7 @@ function showError(err) {
     const baseUrl = new URL("./", location.href).toString();
     const csvUrl = new URL("questions.csv", baseUrl).toString();
 
-    progressEl.textContent = "読み込み中…";
+    if (progressEl) progressEl.textContent = "読み込み中…";
     if (startBtnEl) {
       startBtnEl.disabled = true;
       startBtnEl.textContent = "読み込み中…";
@@ -1097,19 +1118,19 @@ function showError(err) {
     }
 
     // UIだけ準備
-    progressEl.textContent = `準備完了（問題数 ${questions.length}）`;
+    if (progressEl) progressEl.textContent = `準備完了（問題数 ${questions.length}）`;
     updateScoreUI();
     updateModeUI();
-    meterLabel.textContent = `進捗 0/0`;
-    comboLabel.textContent = `最大COMBO x0`;
-    meterInner.style.width = `0%`;
+    if (meterLabel) meterLabel.textContent = `進捗 0/0`;
+    if (comboLabel) comboLabel.textContent = `最大COMBO x0`;
+    if (meterInner) meterInner.style.width = `0%`;
 
-    questionEl.textContent = "始めたいメニューを選んでください。";
-    sublineEl.textContent = "";
-    statusEl.textContent = "";
+    if (questionEl) questionEl.textContent = "始めたいメニューを選んでください。";
+    if (sublineEl) sublineEl.textContent = "";
+    if (statusEl) statusEl.textContent = "";
 
     disableChoices(true);
-    nextBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
 
     // timer UI だけ先に出しておく
     ensureTimerUI();
@@ -1129,7 +1150,7 @@ function showError(err) {
 
     ensureResultOverlay();
 
-    // ✅ start=1 が付いていたら「自動開始」するが、BGMは自動ONしない（NotAllowedError回避）
+    // ✅ start=1 が付いていたら「自動開始」するが、BGMは自動ONしない
     if (URL_AUTOSTART) {
       try {
         await beginFromStartScreen({ auto: true });
