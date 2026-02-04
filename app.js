@@ -183,7 +183,7 @@ const seCorrectPool = makeSEPool(AUDIO_FILES.correct, 0.9);
 const seWrongPool = makeSEPool(AUDIO_FILES.wrong, 0.9);
 
 // ===== Storage (localStorage 可用性チェック + フォールバック) =====
-const STORAGE_KEY_CARD_COUNTS = "kobunQuiz.v1.cardCounts";
+const STORAGE_KEY_CARD_COUNTS = "hklobby.v1.cardCounts";
 
 function storageAvailable() {
   try {
@@ -230,6 +230,28 @@ function loadCardCounts() {
 function saveCardCounts(counts) {
   StorageAdapter.set(STORAGE_KEY_CARD_COUNTS, JSON.stringify(counts));
 }
+
+function migrateCardCountsOnce() {
+  try {
+    const NEW_KEY = "hklobby.v1.cardCounts";
+    const OLD_KEY = "kobunQuiz.v1.cardCounts";
+
+    const hasNew = !!window.localStorage.getItem(NEW_KEY);
+    if (hasNew) return;
+
+    const oldVal = window.localStorage.getItem(OLD_KEY);
+    if (oldVal && oldVal.trim()) {
+      window.localStorage.setItem(NEW_KEY, oldVal);
+      console.log(`[migrate] ${OLD_KEY} -> ${NEW_KEY}`);
+    }
+  } catch (e) {
+    console.warn("[migrate] failed", e);
+  }
+}
+
+// boot時に1回呼ぶ（cards.csv読み込み前後どちらでもOK）
+migrateCardCountsOnce();
+
 
 // ===== Utils =====
 function disableChoices(disabled) {
