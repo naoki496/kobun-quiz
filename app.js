@@ -304,9 +304,15 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+// ✅【】が正。互換として〖〗もハイライト（表示括弧は維持）
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
-  return safe.replace(/【(.*?)】/g, '【<span class="hl">$1</span>】');
+
+  // 正式：【...】
+  const a = safe.replace(/【(.*?)】/g, '【<span class="hl">$1</span>】');
+
+  // 互換：〖...〗（古いデータ混在保険）
+  return a.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
 }
 
 function pickRandom(arr) {
