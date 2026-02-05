@@ -342,14 +342,51 @@ function pickWeighted(arr, getWeight) {
 // ===== Card reward helpers =====
 function rollCardByStars(stars) {
   if (stars < 3) return null;
-  const tier = Math.min(5, Math.max(3, stars));
-  const csvPool = cardPoolByRarity?.[tier] || [];
-  if (!csvPool.length) return null;
 
-  const picked = pickWeighted(csvPool, (c) => c.weight ?? 1);
+  // 評価★ごとの排出確率テーブル
+  // ※ 合計は 1.0
+  const DROP_TABLE = {
+    3: [
+      { tier: 3, p: 0.85 },
+      { tier: 4, p: 0.15 },
+    ],
+    4: [
+      { tier: 3, p: 0.60 },
+      { tier: 4, p: 0.30 },
+      { tier: 5, p: 0.10 },
+    ],
+    5: [
+      { tier: 3, p: 0.45 },
+      { tier: 4, p: 0.35 },
+      { tier: 5, p: 0.20 },
+    ],
+  };
+
+  const table = DROP_TABLE[Math.min(5, stars)];
+  if (!table) return null;
+
+  // tier抽選
+  let r = Math.random();
+  let tier = null;
+  for (const row of table) {
+    r -= row.p;
+    if (r <= 0) {
+      tier = row.tier;
+      break;
+    }
+  }
+  if (!tier) tier = table[table.length - 1].tier;
+
+  // CSVプールから抽選
+  const pool = cardPoolByRarity?.[tier] || [];
+  if (!pool.length) return null;
+
+  const picked = pickWeighted(pool, (c) => c.weight ?? 1);
   if (!picked) return null;
+
   return { ...picked, rarity: tier };
 }
+
 
 function recordCard(card) {
   const counts = loadCardCounts();
