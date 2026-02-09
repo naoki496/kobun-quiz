@@ -568,35 +568,7 @@ let timerTextEl = null;
 let timerLoopId = null;
 let timerEndAt = 0;
 let timerTotalMs = QUESTION_TIME_SEC * 1000;
-
-function ensureTimerUI() {
-  if (timerOuterEl && timerInnerEl && timerTextEl) return;
-
-  const meterArea = document.getElementById("meterArea");
-  if (!meterArea) return;
-
-  const wrap = document.createElement("div");
-  wrap.className = "timer-wrap";
-  wrap.innerHTML = `
-    <div class="timer-outer" id="timerOuter">
-      <div class="timer-inner" id="timerInner"></div>
-    </div>
-    <div class="timer-text" id="timerText">TIME<br>--</div>
-  `;
-  meterArea.appendChild(wrap);
-
-  timerOuterEl = wrap.querySelector("#timerOuter");
-  timerInnerEl = wrap.querySelector("#timerInner");
-  timerTextEl = wrap.querySelector("#timerText");
-}
-
-function stopTimer() {
-  if (timerLoopId) {
-    cancelAnimationFrame(timerLoopId);
-    timerLoopId = null;
-  }
-  if (timerOuterEl) timerOuterEl.classList.remove("warn");
-}
+let lastShownSec = null;
 
 function startTimer(onTimeUp) {
   ensureTimerUI();
@@ -605,19 +577,28 @@ function startTimer(onTimeUp) {
   const now = performance.now();
   timerTotalMs = QUESTION_TIME_SEC * 1000;
   timerEndAt = now + timerTotalMs;
+  lastShownSec = null;
 
   function tick() {
     const t = performance.now();
     const leftMs = Math.max(0, timerEndAt - t);
-    const leftSec = Math.ceil(leftMs / 1000);
 
+    // ✅バーは滑らか（毎フレーム）
     const ratio = Math.max(0, Math.min(1, leftMs / timerTotalMs));
     if (timerInnerEl) timerInnerEl.style.width = `${Math.round(ratio * 100)}%`;
-    if (timerTextEl) timerTextEl.innerHTML = `TIME<br>${leftSec}`;
 
-    if (timerOuterEl) {
-      const warn = leftSec <= WARN_AT_SEC;
-      timerOuterEl.classList.toggle("warn", warn);
+    // ✅秒表示は「1秒ごと」にだけ更新（以前の体感に戻る）
+    const sec = Math.max(0, Math.floor((leftMs + 999) / 1000)); // 20→19→…→0
+    if (sec !== lastShownSec) {
+      lastShownSec = sec;
+
+      // 表示を以前寄りに：秒だけ（必要なら文言を付けてもOK）
+      if (timerTextEl) timerTextEl.textContent = String(sec);
+
+      if (timerOuterEl) {
+        const warn = sec <= WARN_AT_SEC;
+        timerOuterEl.classList.toggle("warn", warn);
+      }
     }
 
     if (leftMs <= 0) {
@@ -630,6 +611,7 @@ function startTimer(onTimeUp) {
 
   timerLoopId = requestAnimationFrame(tick);
 }
+
 
 // =====================================================
 // ✅ Mode selection
