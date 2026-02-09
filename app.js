@@ -252,6 +252,17 @@ migrateCardCountsOnce();
 
 // ===== Utils =====
 
+// ===== CSV loader wrapper =====
+// csv.js (CSVUtil.load) を app.js から csvFetch として使うための互換関数
+async function csvFetch(path) {
+  if (window.CSVUtil && typeof window.CSVUtil.load === "function") {
+    return await window.CSVUtil.load(path);
+  }
+  throw new Error(
+    "CSVUtil.load が見つかりません。index.html で csv.js が app.js より先に読み込まれているか確認してください。"
+  );
+}
+
 // ===== Countdown Overlay =====
 let countdownOverlayEl = null;
 
