@@ -10,6 +10,7 @@ const AUDIO_FILES = {
   bgm: "./assets/bgm.mp3",
   correct: "./assets/correct.mp3",
   wrong: "./assets/wrong.mp3",
+  go: "./assets/go.mp3", // ★追加：GO SE
 };
 
 // ▼▼▼ A: cards.csv 受け皿（UI非変更） ▼▼▼
@@ -137,7 +138,7 @@ const openCollectionBtn = document.getElementById("openCollectionBtn");
 
 // ===== URL Params (mode/start) =====
 const URLP = new URLSearchParams(location.search);
-const URL_MODE = URLP.get("mode");          // "normal" | "endless" | null
+const URL_MODE = URLP.get("mode");               // "normal" | "endless" | null
 const URL_AUTOSTART = URLP.get("start") === "1"; // true/false
 
 // ===== Audio objects =====
@@ -153,6 +154,10 @@ seCorrect.volume = 0.9;
 const seWrong = new Audio(AUDIO_FILES.wrong);
 seWrong.preload = "auto";
 seWrong.volume = 0.9;
+
+const seGo = new Audio(AUDIO_FILES.go);
+seGo.preload = "auto";
+seGo.volume = 0.95;
 
 // ===== SE Pool（同一結果が連続しても鳴らすため）=====
 const SE_POOL_SIZE = 4;
@@ -178,8 +183,8 @@ function makeSEPool(src, volume) {
   };
 }
 const seCorrectPool = makeSEPool(AUDIO_FILES.correct, 0.9);
-const seGoPool = makeSEPool(AUDIO_FILES.go, 0.95);
-const seWrongPool = makeSEPool(AUDIO_FILES.wrong, 0.9);
+const seWrongPool   = makeSEPool(AUDIO_FILES.wrong,   0.9);
+const seGoPool      = makeSEPool(AUDIO_FILES.go,      0.95);
 
 // ===== Storage (localStorage 可用性チェック + フォールバック) =====
 const STORAGE_KEY_CARD_COUNTS = "hklobby.v1.cardCounts";
@@ -247,60 +252,19 @@ function migrateCardCountsOnce() {
     console.warn("[migrate] failed", e);
   }
 }
-
-// boot時に1回呼ぶ（cards.csv読み込み前後どちらでもOK）
 migrateCardCountsOnce();
 
 // ===== Utils =====
+function disableChoices(disabled) {
+  choiceBtns.forEach((b) => (b.disabled = disabled));
+}
 
-// ===== CSV loader wrapper =====
-// csv.js (CSVUtil.load) を app.js から csvFetch として使うための互換関数
+// ★重要：csv.js の CSVUtil.load を app.js 側から使うための互換ラッパ
 async function csvFetch(path) {
   if (window.CSVUtil && typeof window.CSVUtil.load === "function") {
     return await window.CSVUtil.load(path);
   }
-  throw new Error(
-    "CSVUtil.load が見つかりません。index.html で csv.js が app.js より先に読み込まれているか確認してください。"
-  );
-}
-
-// ===== Countdown Overlay =====
-let countdownOverlayEl = null;
-
-function ensureCountdownOverlay() {
-  if (countdownOverlayEl) return countdownOverlayEl;
-
-  const el = document.createElement("div");
-  el.id = "countdownOverlay";
-  el.innerHTML = `<div class="countdown-num" id="countdownNum">3</div>`;
-  el.style.display = "none";
-  document.body.appendChild(el);
-  countdownOverlayEl = el;
-  return el;
-}
-
-async function runCountdown() {
-  const overlay = ensureCountdownOverlay();
-  const numEl = overlay.querySelector("#countdownNum");
-
-  overlay.style.display = "flex";
-
-  const seq = ["3", "2", "1", "GO"];
-  for (let i = 0; i < seq.length; i++) {
-    numEl.textContent = seq[i];
-        if (seq[i] === "GO") seGoPool.play();
-    numEl.classList.remove("pop");
-    // reflowでアニメを確実に再実行
-    void numEl.offsetWidth;
-    numEl.classList.add("pop");
-    await new Promise((r) => setTimeout(r, 850)); // 体感良いテンポ
-  }
-
-  overlay.style.display = "none";
-}
-
-function disableChoices(disabled) {
-  choiceBtns.forEach((b) => (b.disabled = disabled));
+  throw new Error("CSVUtil.load が見つかりません（index.html の script 順を確認: csv.js → app.js）");
 }
 
 function shuffle(arr) {
@@ -353,11 +317,7 @@ function escapeHtml(str) {
 // ✅〖〗が正。互換として【】もハイライト（表示括弧は維持）
 function highlightBrackets(str) {
   const safe = escapeHtml(str);
-
-  // 正式：〖...〗
   const a = safe.replace(/〖(.*?)〗/g, '〖<span class="hl">$1</span>〗');
-
-  // 互換：【...】（古いデータ混在保険）
   return a.replace(/【(.*?)】/g, '【<span class="hl">$1</span>】');
 }
 
@@ -385,12 +345,48 @@ function pickWeighted(arr, getWeight) {
   return arr[arr.length - 1];
 }
 
+// ===== Countdown Overlay =====
+let countdownOverlayEl = null;
+
+function ensureCountdownOverlay() {
+  if (countdownOverlayEl) return countdownOverlayEl;
+
+  const el = document.createElement("div");
+  el.id = "countdownOverlay";
+  el.innerHTML = `<div class="countdown-num" id="countdownNum">3</div>`;
+  el.style.display = "none";
+  document.body.appendChild(el);
+  countdownOverlayEl = el;
+  return el;
+}
+
+async function runCountdown() {
+  const overlay = ensureCountdownOverlay();
+  const numEl = overlay.querySelector("#countdownNum");
+
+  overlay.style.display = "flex";
+
+  const seq = ["3", "2", "1", "GO"];
+  for (let i = 0; i < seq.length; i++) {
+    numEl.textContent = seq[i];
+
+    // ★GO の瞬間に SE
+    if (seq[i] === "GO") seGoPool.play();
+
+    numEl.classList.remove("pop");
+    void numEl.offsetWidth; // reflowでアニメを確実に再実行
+    numEl.classList.add("pop");
+    await new Promise((r) => setTimeout(r, 850));
+  }
+
+  overlay.style.display = "none";
+}
+
 // ===== Card reward helpers =====
 function rollCardByStars(stars) {
   if (stars < 3) return null;
 
-  // 評価★ごとの排出確率テーブル
-  // ※ 合計は 1.0
+  // 評価★ごとの排出確率テーブル（合計=1.0）
   const DROP_TABLE = {
     3: [
       { tier: 3, p: 0.85 },
@@ -454,22 +450,12 @@ function playCardEffect(rarity) {
 }
 
 function updateScoreUI() {
-  scoreEl.textContent = `Score: ${score}`;
+  if (scoreEl) scoreEl.textContent = `Score: ${score}`;
 }
 
 function updateModeUI() {
   const label = mode === "endless" ? "連続学習" : "通常（10問）";
   if (modePillEl) modePillEl.textContent = label;
-}
-
-function updateMeterUI() {
-  const total = order.length || 1;
-  const cur = Math.min(index + 1, total);
-  const percent = Math.round((cur / total) * 100);
-
-  if (meterLabel) meterLabel.textContent = `進捗 ${cur}/${total} (${percent}%)`;
-  if (comboLabel) comboLabel.textContent = `最大COMBO x${maxCombo}`;
-  if (meterInner) meterInner.style.width = `${percent}%`;
 }
 
 function setStatusGlitchOnce() {
@@ -484,6 +470,24 @@ function updateStatusUI(message, { glitch = false } = {}) {
   const comboText = combo >= 2 ? ` / COMBO x${combo}` : "";
   if (statusEl) statusEl.textContent = `${message}${comboText}`;
   if (glitch) setStatusGlitchOnce();
+}
+
+// ★修正：endless では 10問サイクルで進捗バーが動くようにする
+function updateMeterUI() {
+  const total = (mode === "endless") ? TOTAL_QUESTIONS : (order.length || 1);
+  const cur = (mode === "endless")
+    ? ((index % TOTAL_QUESTIONS) + 1)
+    : Math.min(index + 1, total);
+
+  const percent = Math.round((cur / total) * 100);
+
+  if (meterLabel) {
+    meterLabel.textContent = (mode === "endless")
+      ? `連続 Q.${index + 1} / サイクル ${cur}/${total} (${percent}%)`
+      : `進捗 ${cur}/${total} (${percent}%)`;
+  }
+  if (comboLabel) comboLabel.textContent = `最大COMBO x${maxCombo}`;
+  if (meterInner) meterInner.style.width = `${percent}%`;
 }
 
 // ===== Effects =====
@@ -609,7 +613,6 @@ function startTimer(onTimeUp) {
 
     const ratio = Math.max(0, Math.min(1, leftMs / timerTotalMs));
     if (timerInnerEl) timerInnerEl.style.width = `${Math.round(ratio * 100)}%`;
-
     if (timerTextEl) timerTextEl.innerHTML = `TIME<br>${leftSec}`;
 
     if (timerOuterEl) {
@@ -645,27 +648,29 @@ function setMode(next) {
 // ✅ Start screen / begin
 // =====================================================
 function canBeginNow() {
-  // 問題CSVがまだなら開始不可
   return Array.isArray(questions) && questions.length > 0;
 }
 
 async function beginFromStartScreen({ auto = false } = {}) {
+  // ★カウントダウン中は操作不可（選択不可・NEXT不可）
+  disableChoices(true);
+  if (nextBtn) nextBtn.disabled = true;
+
   // auto start は「ユーザー操作」ではないので BGM自動ONしない
   if (!auto) {
     await unlockAudioOnce();
     await setBgm(true);
   }
 
-  // “隠す” ではなく “消す”
+  // startScreen を消す（存在しない場合もある）
   try {
     if (startScreenEl) startScreenEl.remove();
   } catch (_) {
     if (startScreenEl) startScreenEl.style.display = "none";
   }
 
-   // ★カウントダウン中は操作不可
-  disableChoices(true);
-  if (nextBtn) nextBtn.disabled = true;
+  // ★ここでカウントダウン
+  await runCountdown();
 
   // ★カウント後に開始
   startNewSession();
@@ -689,13 +694,14 @@ function setQuestion(i) {
   const q = questions[order[index]];
   if (!q) return;
 
-  progressEl.textContent = mode === "endless"
-    ? `Q.${index + 1}`
-    : `Q.${index + 1}/${order.length}`;
+  if (progressEl) {
+    progressEl.textContent = (mode === "endless")
+      ? `Q.${index + 1}`
+      : `Q.${index + 1}/${order.length}`;
+  }
 
-  questionEl.innerHTML = highlightBrackets(q.question);
-
-  sublineEl.textContent = q.source ? `出典：${q.source}` : "";
+  if (questionEl) questionEl.innerHTML = highlightBrackets(q.question);
+  if (sublineEl) sublineEl.textContent = q.source ? `出典：${q.source}` : "";
 
   choiceBtns.forEach((btn, idx) => {
     btn.disabled = false;
@@ -703,7 +709,7 @@ function setQuestion(i) {
     btn.innerHTML = escapeHtml(q.choices[idx] ?? "");
   });
 
-  nextBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
   updateMeterUI();
   updateStatusUI("選択してください");
 
@@ -724,7 +730,7 @@ function setQuestion(i) {
       reason: "timeup",
     });
 
-    nextBtn.disabled = false;
+    if (nextBtn) nextBtn.disabled = false;
     pulseNext();
   });
 }
@@ -772,7 +778,7 @@ function judge(pick) {
     reason: "answer",
   });
 
-  // card reward (★ by performance)
+  // card reward（★ by performance）
   try {
     const stars = correct ? (combo >= 8 ? 5 : combo >= 4 ? 4 : 3) : 0;
     const card = rollCardByStars(stars);
@@ -783,20 +789,18 @@ function judge(pick) {
     }
   } catch (_) {}
 
-  nextBtn.disabled = false;
+  if (nextBtn) nextBtn.disabled = false;
   pulseNext();
 }
 
 function next() {
   if (mode === "endless") {
-    // endless: 次の1問を追加抽選
     if (questions.length === 0) return;
     order.push(Math.floor(Math.random() * questions.length));
     setQuestion(index + 1);
     return;
   }
 
-  // normal
   if (index + 1 >= order.length) {
     showResult();
   } else {
@@ -827,17 +831,17 @@ function startNewSession() {
 function showResult() {
   stopTimer();
   disableChoices(true);
-  nextBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
 
   const total = order.length || 1;
   const max = total * 10;
 
-  questionEl.innerHTML = `RESULT`;
-  sublineEl.textContent = "";
-  progressEl.textContent = "";
+  if (questionEl) questionEl.innerHTML = `RESULT`;
+  if (sublineEl) sublineEl.textContent = "";
+  if (progressEl) progressEl.textContent = "";
 
   const rate = Math.round((score / max) * 100);
-  statusEl.textContent = `Score ${score}/${max} (${rate}%) / MAX COMBO x${maxCombo}`;
+  if (statusEl) statusEl.textContent = `Score ${score}/${max} (${rate}%) / MAX COMBO x${maxCombo}`;
 
   // choices are used as result buttons
   const labels = [
@@ -855,31 +859,26 @@ function showResult() {
   });
 
   choiceBtns[0].onclick = () => openReview();
-  choiceBtns[1].onclick = () => {
-    startNewSession();
-  };
+  choiceBtns[1].onclick = () => startNewSession();
   choiceBtns[2].onclick = () => openCollection();
-  choiceBtns[3].onclick = () => location.href = "./index.html";
+  choiceBtns[3].onclick = () => (location.href = "./index.html");
 }
 
 function openReview() {
   stopTimer();
-  questionEl.innerHTML = "復習";
-  sublineEl.textContent = "誤答・時間切れを中心に表示します";
-  progressEl.textContent = "";
+  if (questionEl) questionEl.innerHTML = "復習";
+  if (sublineEl) sublineEl.textContent = "誤答・時間切れを中心に表示します";
+  if (progressEl) progressEl.textContent = "";
 
   const wrongs = history.filter((h) => !h.correct);
-  if (!wrongs.length) {
-    statusEl.textContent = "全問正解（または誤答なし）です。";
-  } else {
-    statusEl.textContent = `誤答/時間切れ: ${wrongs.length}件`;
-  }
+  if (statusEl) statusEl.textContent = wrongs.length ? `誤答/時間切れ: ${wrongs.length}件` : "全問正解（または誤答なし）です。";
 
   const list = wrongs.length ? wrongs : history.slice(-Math.min(10, history.length));
-
   const q = list[0];
-  questionEl.innerHTML = highlightBrackets(q.question);
-  sublineEl.textContent = q.source ? `出典：${q.source}` : "";
+  if (!q) return;
+
+  if (questionEl) questionEl.innerHTML = highlightBrackets(q.question);
+  if (sublineEl) sublineEl.textContent = q.source ? `出典：${q.source}` : "";
 
   choiceBtns.forEach((btn, idx) => {
     const n = idx + 1;
@@ -891,7 +890,7 @@ function openReview() {
     if (n === q.picked && !q.correct) btn.classList.add("wrong");
   });
 
-  nextBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
 }
 
 function openCollection() {
@@ -926,11 +925,9 @@ choiceBtns.forEach((btn, i) => {
   btn.addEventListener("click", () => judge(i + 1));
 });
 
-nextBtn.addEventListener("click", next);
+if (nextBtn) nextBtn.addEventListener("click", next);
 
-if (restartBtn) {
-  restartBtn.addEventListener("click", () => location.reload());
-}
+if (restartBtn) restartBtn.addEventListener("click", () => location.reload());
 
 if (bgmToggleBtn) {
   bgmToggleBtn.addEventListener("click", async () => {
@@ -984,7 +981,6 @@ if (openCollectionBtn) {
       return;
     }
 
-    // URL自動開始
     if (URL_AUTOSTART) {
       await beginFromStartScreen({ auto: true });
     } else {
