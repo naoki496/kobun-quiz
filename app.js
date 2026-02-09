@@ -178,6 +178,7 @@ function makeSEPool(src, volume) {
   };
 }
 const seCorrectPool = makeSEPool(AUDIO_FILES.correct, 0.9);
+const seGoPool = makeSEPool(AUDIO_FILES.go, 0.95);
 const seWrongPool = makeSEPool(AUDIO_FILES.wrong, 0.9);
 
 // ===== Storage (localStorage 可用性チェック + フォールバック) =====
@@ -287,6 +288,7 @@ async function runCountdown() {
   const seq = ["3", "2", "1", "GO"];
   for (let i = 0; i < seq.length; i++) {
     numEl.textContent = seq[i];
+        if (seq[i] === "GO") seGoPool.play();
     numEl.classList.remove("pop");
     // reflowでアニメを確実に再実行
     void numEl.offsetWidth;
@@ -661,8 +663,9 @@ async function beginFromStartScreen({ auto = false } = {}) {
     if (startScreenEl) startScreenEl.style.display = "none";
   }
 
-  // ★ここでカウントダウン
-  await runCountdown();
+   // ★カウントダウン中は操作不可
+  disableChoices(true);
+  if (nextBtn) nextBtn.disabled = true;
 
   // ★カウント後に開始
   startNewSession();
