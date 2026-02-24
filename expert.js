@@ -23,7 +23,7 @@
 
   // Reuse same assets path style as the main app (adjust if your repo differs).
   const AUDIO = {
-    bgm: new Audio("./assets/bgm/bgm.mp3"),
+    bgm: new Audio("./assets/bgm/bgmex.mp3"),
     correct: new Audio("./assets/sfx/correct.mp3"),
     wrong: new Audio("./assets/sfx/wrong.mp3"),
     go: new Audio("./assets/sfx/go.mp3"),
