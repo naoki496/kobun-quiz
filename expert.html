@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>古文単語330EXPERT</title>
+  <link rel="stylesheet" href="expert.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <main class="wrap" id="app">
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="mode">EXPERT</div>
+        <div class="subtitle">30問 / 10秒 / ★4-★5 ONLY</div>
+      </div>
+      <div class="hud">
+        <div class="hudItem">
+          <div class="hudLabel">Q</div>
+          <div class="hudValue" id="hudQ">--/30</div>
+        </div>
+        <div class="hudItem">
+          <div class="hudLabel">正解</div>
+          <div class="hudValue" id="hudCorrect">0</div>
+        </div>
+        <div class="hudItem">
+          <div class="hudLabel">COMBO</div>
+          <div class="hudValue combo" id="hudCombo">0</div>
+        </div>
+        <div class="hudItem">
+          <div class="hudLabel">MAX</div>
+          <div class="hudValue" id="hudMaxCombo">0</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="meterArea" id="meterArea">
+        <!-- JS injects timer meter -->
+      </div>
+
+      <div class="questionBox">
+        <div class="source" id="source"></div>
+        <div class="question" id="question">読み込み中…</div>
+      </div>
+
+      <div class="choices" id="choices">
+        <!-- JS injects buttons -->
+      </div>
+
+      <div class="actions">
+        <button class="btn ghost" id="btnRetry" type="button">リトライ</button>
+        <a class="btn ghost" href="./index.html">戻る</a>
+        <div class="note" id="note">クリック/タップで音を有効化できます</div>
+      </div>
+    </section>
+
+    <section class="overlay hidden" id="overlay">
+      <div class="overlayCard">
+        <div class="resultTitle" id="resultTitle">RESULT</div>
+        <div class="resultGrid">
+          <div class="resultStat">
+            <div class="k">正解</div><div class="v" id="rCorrect">0</div>
+          </div>
+          <div class="resultStat">
+            <div class="k">MAX COMBO</div><div class="v" id="rMaxCombo">0</div>
+          </div>
+          <div class="resultStat">
+            <div class="k">報酬</div><div class="v" id="rReward">-</div>
+          </div>
+        </div>
+
+        <div class="cardArea hidden" id="cardArea">
+          <div class="cardFrame" id="cardFrame">
+            <img id="cardImg" alt="card" />
+          </div>
+          <div class="cardMeta">
+            <div class="cardName" id="cardName"></div>
+            <a class="cardWiki" id="cardWiki" target="_blank" rel="noopener">Wiki</a>
+          </div>
+        </div>
+
+        <div class="resultActions">
+          <button class="btn" id="btnAgain" type="button">もう一度（EXPERT）</button>
+          <a class="btn ghost" href="./index.html">TOPへ</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="countdown hidden" id="countdown"></section>
+
+  </main>
+
+  <script src="csv.js"></script>
+  <script src="expert.js"></script>
+</body>
+</html>
