@@ -1,9 +1,9 @@
 /* expert.js (kobun-quiz EXPERT)
- * - START modal gating (prevents accidental autoplay + unlocks audio)
- * - BGM toggle (UI default ON; real playback starts after START gesture)
- * - 30 questions, 10 sec each, timeout=wrong
+ * - START modal gating (audio unlock)
+ * - BGM toggle (UI default ON; playback starts after START)
+ * - 30 questions, 10 sec each, timeout=wrong, combo breaks
  * - Reward: ★5 (>=25 & maxCombo>=5), ★4 (20..24), else none
- * - localStorage key: hklobby.v1.cardCounts
+ * - localStorage: hklobby.v1.cardCounts
  */
 (() => {
   "use strict";
@@ -79,7 +79,7 @@
   meterArea.appendChild(meterOuter);
   meterArea.appendChild(meterText);
 
-  // ===== Canvas FX (behind content; dimmer) =====
+  // ===== Canvas FX (behind content; slightly dimmer already in draw) =====
   const panel = document.querySelector(".panel");
   const fxCanvas = document.createElement("canvas");
   fxCanvas.style.position = "absolute";
@@ -87,7 +87,7 @@
   fxCanvas.style.width = "100%";
   fxCanvas.style.height = "100%";
   fxCanvas.style.pointerEvents = "none";
-  fxCanvas.style.zIndex = "0";
+  fxCanvas.style.zIndex = "0"; // behind UI
   panel.appendChild(fxCanvas);
 
   const ctx = fxCanvas.getContext("2d", { alpha: true });
@@ -103,6 +103,46 @@
   resizeCanvas();
 
   let fxT = 0;
+
+  function drawAlarmScan(mode = "warn") {
+    const w = fxCanvas.width;
+    const h = fxCanvas.height;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+
+    // scan lines (kept; slightly lower alpha to avoid readability loss)
+    const step = mode === "exit" ? 7 : 11;
+    ctx.fillStyle = mode === "exit" ? "rgba(255,45,85,0.06)" : "rgba(255,45,85,0.04)";
+    for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, 2);
+
+    // sweep band
+    const bandH = mode === "exit" ? 170 : 135;
+    const speed = mode === "exit" ? 11 : 8;
+    const bandY = (fxT * speed) % (h + bandH) - bandH;
+
+    const grad = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
+    grad.addColorStop(0, "rgba(255,45,85,0)");
+    grad.addColorStop(0.45, mode === "exit" ? "rgba(255,45,85,0.18)" : "rgba(255,45,85,0.12)");
+    grad.addColorStop(0.55, mode === "exit" ? "rgba(255,45,85,0.18)" : "rgba(255,45,85,0.12)");
+    grad.addColorStop(1, "rgba(255,45,85,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, bandY, w, bandH);
+
+    // noise blocks
+    const n = mode === "exit" ? 90 : 45;
+    for (let i = 0; i < n; i++) {
+      const x = Math.random() * w;
+      const y = Math.random() * h;
+      const rw = 10 + Math.random() * (mode === "exit" ? 40 : 22);
+      const rh = 1 + Math.random() * (mode === "exit" ? 5 : 3);
+      ctx.fillStyle = `rgba(255,45,85,${mode === "exit" ? 0.04 : 0.028})`;
+      ctx.fillRect(x, y, rw, rh);
+    }
+
+    ctx.restore();
+  }
+
   function fxTick() {
     fxT += 1;
 
@@ -119,42 +159,6 @@
     requestAnimationFrame(fxTick);
   }
   requestAnimationFrame(fxTick);
-
-  function drawAlarmScan(mode = "warn") {
-    const w = fxCanvas.width;
-    const h = fxCanvas.height;
-
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-
-    const step = mode === "exit" ? 7 : 11;
-    ctx.fillStyle = mode === "exit" ? "rgba(255,45,85,0.06)" : "rgba(255,45,85,0.045)";
-    for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, 2);
-
-    const bandH = mode === "exit" ? 170 : 135;
-    const speed = mode === "exit" ? 11 : 8;
-    const bandY = (fxT * speed) % (h + bandH) - bandH;
-
-    const grad = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
-    grad.addColorStop(0, "rgba(255,45,85,0)");
-    grad.addColorStop(0.45, mode === "exit" ? "rgba(255,45,85,0.18)" : "rgba(255,45,85,0.14)");
-    grad.addColorStop(0.55, mode === "exit" ? "rgba(255,45,85,0.18)" : "rgba(255,45,85,0.14)");
-    grad.addColorStop(1, "rgba(255,45,85,0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, bandY, w, bandH);
-
-    const n = mode === "exit" ? 90 : 45;
-    for (let i = 0; i < n; i++) {
-      const x = Math.random() * w;
-      const y = Math.random() * h;
-      const rw = 10 + Math.random() * (mode === "exit" ? 40 : 22);
-      const rh = 1 + Math.random() * (mode === "exit" ? 5 : 3);
-      ctx.fillStyle = `rgba(255,45,85,${mode === "exit" ? 0.04 : 0.03})`;
-      ctx.fillRect(x, y, rw, rh);
-    }
-
-    ctx.restore();
-  }
 
   // ===== State =====
   const state = {
@@ -173,8 +177,8 @@
     timerId: null,
     lastWholeSec: QUESTION_TIME_SEC,
 
-    bgmOn: true,       // UI default ON
-    bgmArmed: false,   // user gesture occurred
+    bgmOn: true,      // UI default ON
+    bgmArmed: false,  // becomes true after START gesture
     warnOn: false,
 
     cards: [],
@@ -224,6 +228,7 @@
     el.classList.add("punch");
   }
 
+  // ===== localStorage =====
   function loadCounts() {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -256,7 +261,8 @@
     state.bgmOn = !!on;
     updateBgmUI();
 
-    if (!state.bgmArmed) return; // START前は鳴らさない
+    // START前は鳴らさない（自動再生制限回避）
+    if (!state.bgmArmed) return;
 
     if (state.bgmOn) playOne(AUDIO.bgm, { restart: false });
     else { try { AUDIO.bgm.pause(); } catch {} }
@@ -264,18 +270,25 @@
 
   btnBgm.addEventListener("click", () => setBgm(!state.bgmOn));
 
-  // ===== START overlay =====
+  // ===== Countdown (slower + stronger; background handled in CSS) =====
   async function runCountdown() {
     countdownEl.classList.remove("hidden");
     const seq = ["3", "2", "1", "GO"];
+
+    const STEP_MS = 700; // ✅ 少し遅く
+    const GO_MS = 820;   // ✅ GOを気持ち長め
+
     for (const s of seq) {
       countdownEl.textContent = s;
       countdownEl.classList.remove("pop");
       void countdownEl.offsetWidth;
       countdownEl.classList.add("pop");
+
       if (s === "GO") playOne(AUDIO.go, { volume: 0.9 });
-      await new Promise((r) => setTimeout(r, 520));
+
+      await new Promise((r) => setTimeout(r, s === "GO" ? GO_MS : STEP_MS));
     }
+
     countdownEl.classList.add("hidden");
     countdownEl.textContent = "";
   }
@@ -304,7 +317,7 @@
   // ===== Data load =====
   async function loadAll() {
     if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
-      throw new Error("CSVUtil.load が見つかりません（expert.html の script 順序を確認）");
+      throw new Error("CSVUtil.load が見つかりません（expert.html の script 順序：csv.js → expert.js）");
     }
 
     const qRows = await window.CSVUtil.load("./questions.csv");
@@ -366,6 +379,8 @@
   function updateMeter() {
     const ratio = Math.max(0, Math.min(1, state.tLeft / QUESTION_TIME_SEC));
     meterInner.style.transform = `scaleX(${ratio})`;
+
+    // ✅ 2桁→1桁でバーが揺れないのは CSS(min-width) で吸収
     const whole = Math.max(0, Math.ceil(state.tLeft));
     meterText.textContent = `${whole}s`;
 
@@ -566,7 +581,6 @@
     updateBgmUI();
     try { AUDIO.bgm.pause(); } catch {}
 
-    // preload (non-blocking)
     Object.values(AUDIO).forEach((a) => {
       if (!a) return;
       try { a.load(); } catch {}
@@ -582,7 +596,5 @@
       sourceEl.textContent = String(e?.message ?? e);
       console.error(e);
     }
-
-    // ✅ 自動開始しない（START押下のみ）
   })();
 })();
