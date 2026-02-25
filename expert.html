@@ -51,8 +51,25 @@
 
       <div class="actions">
         <button class="btn ghost" id="btnRetry" type="button">リトライ</button>
+        <button class="btn ghost" id="btnBgm" type="button" aria-pressed="false">BGM: OFF</button>
         <a class="btn ghost" href="./index.html">戻る</a>
-        <div class="note" id="note">クリック/タップで音を有効化できます</div>
+        <div class="note" id="note">音：OFF（BGMボタンでON）</div>
+      </div>
+    </section>
+
+    <!-- START modal (pre-run) -->
+    <section class="overlay" id="startOverlay" aria-modal="true" role="dialog">
+      <div class="overlayCard startCard" id="startCard">
+        <div class="startTitle">EXPERT MODE</div>
+        <div class="startBody">
+          <p>正解数<strong>25問以上</strong><br/>
+          連続正解<strong>COMBO 5問以上</strong>で<br/>
+          <strong>★5カード</strong>を確定入手します。</p>
+          <p class="startQ">準備はできましたか？</p>
+        </div>
+        <div class="startActions">
+          <button class="btn" id="btnStart" type="button">START</button>
+        </div>
       </div>
     </section>
 
