@@ -120,6 +120,15 @@ body{
   opacity:.8;
   pointer-events:none;
 }
+/* overlay layer (used by big FX) */
+.panel::after{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  pointer-events:none;
+  opacity:0;
+  transition: opacity .12s ease;
+}
 
 .meterArea{
   display:flex;
@@ -170,6 +179,7 @@ body{
   text-shadow: 0 0 24px rgba(0,0,0,.35);
 }
 
+/* Highlight */
 .hl{
   color: #fff6a3;
   text-shadow: 0 0 18px rgba(255,204,0,.35), 0 0 38px rgba(255,204,0,.18);
@@ -387,7 +397,55 @@ body{
   100%{ transform: scale(1); opacity: 1; }
 }
 
-/* --- FX states (aggressive) */
+/* =========================
+   EXPERT: BIG FX
+   ========================= */
+
+/* Correct: flash + bloom + particles-ish overlay */
+.wrap.fx-correct .panel{
+  animation: exCorrectFlash .35s ease-out;
+}
+.wrap.fx-correct .panel::after{
+  opacity:1;
+  background:
+    radial-gradient(420px 220px at 30% 20%, rgba(0,229,255,.38), transparent 60%),
+    radial-gradient(420px 220px at 70% 20%, rgba(255,45,85,.32), transparent 62%),
+    radial-gradient(220px 220px at 55% 70%, rgba(255,204,0,.22), transparent 65%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 2px, transparent 2px 8px);
+  mix-blend-mode: screen;
+  filter: blur(.2px);
+}
+@keyframes exCorrectFlash{
+  0%{ transform: translateZ(0) scale(1); filter: brightness(1); }
+  35%{ transform: translateZ(0) scale(1.01); filter: brightness(1.35) saturate(1.25); }
+  100%{ transform: translateZ(0) scale(1); filter: brightness(1) saturate(1); }
+}
+
+/* Wrong/Timeup: glitch + heavy shake + red scan */
+.wrap.fx-wrong .panel,
+.wrap.fx-timeup .panel{
+  animation: exShake .12s linear 4;
+}
+.wrap.fx-wrong .panel::after,
+.wrap.fx-timeup .panel::after{
+  opacity:1;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,45,85,.22) 0 2px, transparent 2px 7px),
+    radial-gradient(420px 220px at 50% 30%, rgba(255,45,85,.28), transparent 65%),
+    linear-gradient(90deg, rgba(255,45,85,.10), rgba(0,0,0,0) 55%);
+  mix-blend-mode: screen;
+  filter: contrast(1.15);
+}
+@keyframes exShake{
+  0%{ transform: translateX(0) }
+  20%{ transform: translateX(-10px) }
+  40%{ transform: translateX(10px) }
+  60%{ transform: translateX(-7px) }
+  80%{ transform: translateX(7px) }
+  100%{ transform: translateX(0) }
+}
+
+/* Warning: timer pressure */
 .wrap.fx-warn .meterInner{
   filter: drop-shadow(0 0 18px rgba(255,204,0,.35));
 }
@@ -399,34 +457,66 @@ body{
   to{ box-shadow: 0 0 26px rgba(255,204,0,.14), var(--shadow); }
 }
 
-.wrap.fx-correct .panel{
-  animation: correctFlash .28s ease-out;
+/* Question text blast */
+.wrap.fx-correct .question{
+  text-shadow:
+    0 0 16px rgba(0,229,255,.22),
+    0 0 30px rgba(255,45,85,.18),
+    0 0 55px rgba(255,204,0,.10);
 }
-@keyframes correctFlash{
-  0%{ filter: brightness(1); transform: translateZ(0); }
-  45%{ filter: brightness(1.18); }
-  100%{ filter: brightness(1); }
-}
-
-.wrap.fx-wrong .panel,
-.wrap.fx-timeup .panel{
-  animation: shake .20s linear 2;
-}
-@keyframes shake{
-  0%{ transform: translateX(0) }
-  25%{ transform: translateX(-6px) }
-  50%{ transform: translateX(6px) }
-  75%{ transform: translateX(-4px) }
-  100%{ transform: translateX(0) }
-}
-
 .wrap.fx-wrong .question,
 .wrap.fx-timeup .question{
-  text-shadow: 0 0 18px rgba(255,45,85,.32);
+  text-shadow:
+    0 0 18px rgba(255,45,85,.35),
+    0 0 44px rgba(255,45,85,.18);
 }
 
-.wrap.fatal .panel{
-  border-color: rgba(255,45,85,.35);
+/* Choice buttons react harder */
+.wrap.fx-correct .choiceBtn{ filter: brightness(1.08) saturate(1.1); }
+.wrap.fx-wrong .choiceBtn,
+.wrap.fx-timeup .choiceBtn{ filter: brightness(.92) saturate(.95); }
+
+/* =========================
+   COMBO x5: OVERDRIVE
+   ========================= */
+.wrap.fx-combo5 .hudItem{
+  box-shadow: 0 0 0 1px rgba(0,229,255,.22), 0 26px 70px rgba(0,229,255,.10), var(--shadow);
+  border-color: rgba(0,229,255,.40);
+}
+.wrap.fx-combo5 .hudValue.combo{
+  text-shadow: 0 0 22px rgba(0,229,255,.55), 0 0 48px rgba(255,45,85,.18);
+  animation: comboGlow 1.1s ease-out;
+}
+@keyframes comboGlow{
+  0%{ transform: scale(1); filter: brightness(1); }
+  35%{ transform: scale(1.08); filter: brightness(1.25); }
+  100%{ transform: scale(1); filter: brightness(1); }
+}
+
+/* Combo toast (injected by JS) */
+.comboToast{
+  position: fixed;
+  left: 50%;
+  top: 14%;
+  transform: translateX(-50%);
+  z-index: 45; /* above canvas, below overlay */
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 950;
+  letter-spacing: .10em;
+  background: linear-gradient(90deg, rgba(0,229,255,.92), rgba(255,45,85,.92));
+  color: #07060a;
+  box-shadow: 0 22px 60px rgba(0,0,0,.55);
+  opacity: 0;
+  pointer-events: none;
+}
+.comboToast.hidden{ display:none; }
+.comboToast.show{ animation: toastPop 1.2s ease-out; }
+@keyframes toastPop{
+  0%{ opacity:0; transform: translateX(-50%) translateY(-10px) scale(.92); filter: blur(1px); }
+  18%{ opacity:1; transform: translateX(-50%) translateY(0) scale(1); filter: blur(0); }
+  78%{ opacity:1; transform: translateX(-50%) translateY(0) scale(1); }
+  100%{ opacity:0; transform: translateX(-50%) translateY(-8px) scale(.98); }
 }
 
 /* responsive */
