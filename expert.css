@@ -224,8 +224,8 @@ body{
   transform-origin:left center;
   transform:scaleX(1);
 
-  /* ✅ 10秒=青 → 0秒=赤 */
-  background: linear-gradient(90deg, rgba(0,229,255,.95), rgba(255,45,85,.95));
+  /* ✅ 左=赤 / 右=青（ご要望どおり反転） */
+  background: linear-gradient(90deg, rgba(255,45,85,.95), rgba(0,229,255,.95));
   filter: drop-shadow(0 0 10px rgba(0,229,255,.18));
 }
 
@@ -234,7 +234,7 @@ body{
   letter-spacing:.08em;
   color: var(--muted);
 
-  /* ✅ 桁変化でバー長が揺れない */
+  /* ✅ 桁変化（10→9）でバー長が揺れない */
   min-width: 3.2em;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -413,26 +413,27 @@ body{
   z-index: 60;
   pointer-events:none;
 
-  /* ✅ 背後UIを完全に隠す */
+  /* ✅ 背景暗幕は固定（動かさない） */
   background: rgba(0,0,0,.78);
   backdrop-filter: blur(8px);
+}
+.countdown.hidden{ display:none; }
 
+.countdown .cdText{
   font-weight: 1000;
   font-size: 96px;
   letter-spacing:.14em;
   color: #fff;
-
-  /* ✅ グロー強化 */
   text-shadow:
     0 0 14px rgba(255,255,255,.35),
     0 0 28px rgba(0,229,255,.26),
     0 0 44px rgba(255,45,85,.22),
     0 10px 40px rgba(0,0,0,.55);
 }
-.countdown.hidden{ display:none; }
-.countdown.pop{ animation: pop .72s ease-out; }
 
-@keyframes pop{
+.countdown .cdText.pop{ animation: popText .72s ease-out; }
+
+@keyframes popText{
   0%{ transform: scale(.70); filter: blur(2px) brightness(.9); opacity: .25; }
   45%{ transform: scale(1.12); filter: blur(0) brightness(1.35); opacity: 1; }
   100%{ transform: scale(1); filter: brightness(1.05); opacity: 1; }
@@ -455,6 +456,43 @@ body{
   60%{ transform: translateX(-7px) }
   80%{ transform: translateX(7px) }
   100%{ transform: translateX(0) }
+}
+
+/* ===== Answer flash overlay (wrong/timeup/correct) ===== */
+.wrap::after{
+  content:"";
+  position: fixed;
+  inset: 0;
+  pointer-events:none;
+  opacity:0;
+  z-index: 40;
+}
+
+.wrap.fx-wrong::after,
+.wrap.fx-timeup::after{
+  background:
+    radial-gradient(900px 600px at 50% 35%, rgba(255,45,85,.20), transparent 60%),
+    linear-gradient(180deg, rgba(255,45,85,.12), rgba(0,0,0,0));
+  animation: flashBad .38s ease-out;
+}
+
+@keyframes flashBad{
+  0%{ opacity:0; filter: blur(3px); }
+  25%{ opacity:1; filter: blur(0); }
+  100%{ opacity:0; }
+}
+
+.wrap.fx-correct::after{
+  background:
+    radial-gradient(900px 600px at 50% 35%, rgba(0,229,255,.18), transparent 60%),
+    linear-gradient(180deg, rgba(0,229,255,.10), rgba(0,0,0,0));
+  animation: flashGood .30s ease-out;
+}
+
+@keyframes flashGood{
+  0%{ opacity:0; filter: blur(3px); }
+  25%{ opacity:1; filter: blur(0); }
+  100%{ opacity:0; }
 }
 
 /* ===== Responsive ===== */
