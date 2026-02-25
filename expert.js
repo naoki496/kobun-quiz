@@ -41,11 +41,11 @@
 
   // Use existing assets from kobun-quiz/app.js
   const AUDIO = {
-    bgm: new Audio("./assets/bgm.mp3"),
+    bgm: new Audio("./assets/bgmex.mp3"),
     correct: new Audio("./assets/correct.mp3"),
-    wrong: new Audio("./assets/wrong.mp3"),
-    go: new Audio("./assets/go.mp3"),
-    tick: null,
+    wrong: new Audio("./assets/wrongex.mp3"),
+    go: new Audio("./assets/goex.mp3"),
+    tick: new Audio("./assets/tick.mp3"),
     timeup: null,
   };
 
