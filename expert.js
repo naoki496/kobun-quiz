@@ -47,7 +47,7 @@
     wrong: new Audio("./assets/wrongex.mp3"),
     go: new Audio("./assets/goex.mp3"),
     tick: new Audio("./assets/tick.mp3"),
-    timeup: null,
+    timeup: new Audio("./assets/wrongex.mp3"),
   };
 
   // =========================
