@@ -175,3 +175,414 @@
 
     bgmOn: true,       // UI default ON
     bgmArmed: false,   // user gesture occurred
+    warnOn: false,
+
+    cards: [],
+  };
+
+  // ===== Utils =====
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function esc(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function renderHighlighted(text) {
+    const s = String(text ?? "");
+    return esc(s).replace(/【(.*?)】/g, (_m, p1) => `<span class="hl">【${esc(p1)}】</span>`);
+  }
+
+  function playOne(audio, { volume, restart = true } = {}) {
+    if (!audio) return;
+    try {
+      if (typeof volume === "number") audio.volume = volume;
+      if (restart) audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } catch {}
+  }
+
+  function setWrapFx(cls, dur = 360) {
+    wrap.classList.add(cls);
+    window.setTimeout(() => wrap.classList.remove(cls), dur);
+  }
+
+  function punch(el) {
+    el.classList.remove("punch");
+    void el.offsetWidth;
+    el.classList.add("punch");
+  }
+
+  function loadCounts() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+  function saveCounts(counts) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(counts)); } catch {}
+  }
+  function addCardToCounts(cardId) {
+    const counts = loadCounts();
+    const key = String(cardId);
+    counts[key] = (counts[key] ?? 0) + 1;
+    saveCounts(counts);
+  }
+
+  // ===== BGM =====
+  function updateBgmUI() {
+    btnBgm.setAttribute("aria-pressed", state.bgmOn ? "true" : "false");
+    const label = state.bgmOn ? "BGM: ON" : "BGM: OFF";
+    const span = btnBgm.querySelector(".bgmText");
+    if (span) span.textContent = label;
+    else btnBgm.textContent = label;
+    noteEl.textContent = state.bgmOn ? "音：ON（STARTで再生開始）" : "音：OFF";
+  }
+
+  function setBgm(on) {
+    state.bgmOn = !!on;
+    updateBgmUI();
+
+    if (!state.bgmArmed) return; // START前は鳴らさない
+
+    if (state.bgmOn) playOne(AUDIO.bgm, { restart: false });
+    else { try { AUDIO.bgm.pause(); } catch {} }
+  }
+
+  btnBgm.addEventListener("click", () => setBgm(!state.bgmOn));
+
+  // ===== START overlay =====
+  async function runCountdown() {
+    countdownEl.classList.remove("hidden");
+    const seq = ["3", "2", "1", "GO"];
+    for (const s of seq) {
+      countdownEl.textContent = s;
+      countdownEl.classList.remove("pop");
+      void countdownEl.offsetWidth;
+      countdownEl.classList.add("pop");
+      if (s === "GO") playOne(AUDIO.go, { volume: 0.9 });
+      await new Promise((r) => setTimeout(r, 520));
+    }
+    countdownEl.classList.add("hidden");
+    countdownEl.textContent = "";
+  }
+
+  function hideStartOverlayWithFX() {
+    startOverlay.classList.add("leaving");
+    startCard.classList.add("leaving");
+    drawAlarmScan("exit");
+    window.setTimeout(() => startOverlay.classList.add("hidden"), 420);
+  }
+
+  async function startGameFromOverlay() {
+    if (state.started) return;
+
+    state.bgmArmed = true; // unlock audio by gesture
+    hideStartOverlayWithFX();
+
+    if (state.bgmOn) playOne(AUDIO.bgm, { restart: false });
+
+    await runCountdown();
+    bootRun();
+  }
+
+  btnStart.addEventListener("click", startGameFromOverlay);
+
+  // ===== Data load =====
+  async function loadAll() {
+    if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
+      throw new Error("CSVUtil.load が見つかりません（expert.html の script 順序を確認）");
+    }
+
+    const qRows = await window.CSVUtil.load("./questions.csv");
+    const cRows = await window.CSVUtil.load("./cards.csv");
+
+    const questions = qRows
+      .map(normalizeQuestionRow)
+      .filter((q) => q && q.id && q.question && q.answer >= 1 && q.answer <= 4);
+
+    const cards = cRows
+      .map(normalizeCardRow)
+      .filter((c) => c && c.id && (c.rarity === 4 || c.rarity === 5));
+
+    state.questions = questions;
+    state.cards = cards;
+
+    state.picks = shuffle(questions).slice(0, TOTAL_QUESTIONS);
+  }
+
+  function normalizeQuestionRow(r) {
+    const id = String(r.id ?? "").trim();
+    const question = String(r.question ?? "").trim();
+    const source = String(r.source ?? "").trim();
+
+    const c1 = String(r.choice1 ?? "").trim();
+    const c2 = String(r.choice2 ?? "").trim();
+    const c3 = String(r.choice3 ?? "").trim();
+    const c4 = String(r.choice4 ?? "").trim();
+
+    const ans = Number(String(r.answer ?? "").trim());
+    return { id, question, source, choices: [c1, c2, c3, c4], answer: ans };
+  }
+
+  function normalizeCardRow(r) {
+    const id = String(r.id ?? "").trim();
+    const rarity = Number(r.rarity) || 0;
+    const name = String(r.name ?? "").trim();
+    const img = String(r.img ?? "").trim();
+    const wiki = String(r.wiki ?? "").trim();
+    return { id, rarity, name, img, wiki };
+  }
+
+  // ===== HUD / timer =====
+  function renderHUD() {
+    hudQ.textContent = `${Math.min(state.idx + 1, TOTAL_QUESTIONS)}/${TOTAL_QUESTIONS}`;
+    hudCorrect.textContent = String(state.correct);
+    hudCombo.textContent = String(state.combo);
+    hudMaxCombo.textContent = String(state.maxCombo);
+  }
+
+  function setWarn(on) {
+    const yes = !!on;
+    if (state.warnOn === yes) return;
+    state.warnOn = yes;
+    if (yes) wrap.classList.add("fx-warn");
+    else wrap.classList.remove("fx-warn");
+  }
+
+  function updateMeter() {
+    const ratio = Math.max(0, Math.min(1, state.tLeft / QUESTION_TIME_SEC));
+    meterInner.style.transform = `scaleX(${ratio})`;
+    const whole = Math.max(0, Math.ceil(state.tLeft));
+    meterText.textContent = `${whole}s`;
+
+    setWarn(whole <= WARN_AT_SEC && !state.finished);
+
+    if (whole !== state.lastWholeSec) {
+      state.lastWholeSec = whole;
+      if (whole <= WARN_AT_SEC && whole >= 1) playOne(AUDIO.tick, { volume: 0.55 });
+    }
+  }
+
+  function stopTimer() {
+    if (state.timerId) {
+      clearInterval(state.timerId);
+      state.timerId = null;
+    }
+  }
+
+  function startTimer() {
+    stopTimer();
+    state.tLeft = QUESTION_TIME_SEC;
+    state.lastWholeSec = QUESTION_TIME_SEC;
+    updateMeter();
+
+    const startedAt = performance.now();
+    state.timerId = setInterval(() => {
+      const dt = (performance.now() - startedAt) / 1000;
+      state.tLeft = Math.max(0, QUESTION_TIME_SEC - dt);
+      updateMeter();
+
+      if (state.tLeft <= 0.0001) {
+        stopTimer();
+        onTimeout();
+      }
+    }, 50);
+  }
+
+  function lockChoices(lock) {
+    choicesEl.querySelectorAll("button.choiceBtn").forEach((b) => (b.disabled = !!lock));
+  }
+
+  // ===== game flow =====
+  function renderQuestion() {
+    renderHUD();
+    const q = state.picks[state.idx];
+    sourceEl.textContent = q.source ? `出典：${q.source}` : "";
+    questionEl.innerHTML = renderHighlighted(q.question);
+
+    choicesEl.innerHTML = "";
+    q.choices.forEach((t, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "choiceBtn";
+      b.innerHTML = renderHighlighted(t);
+      b.addEventListener("click", () => onAnswer(i + 1, b));
+      choicesEl.appendChild(b);
+    });
+
+    startTimer();
+  }
+
+  function onAnswer(choice, btn) {
+    if (state.finished) return;
+    stopTimer();
+    lockChoices(true);
+
+    const q = state.picks[state.idx];
+    const correct = choice === q.answer;
+
+    if (correct) {
+      state.correct += 1;
+      state.combo += 1;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
+      btn.classList.add("isCorrect");
+      setWrapFx("fx-correct", 360);
+      playOne(AUDIO.correct, { volume: 0.85 });
+      punch(hudCorrect);
+      punch(hudCombo);
+    } else {
+      state.combo = 0;
+      hudCombo.classList.add("comboReset");
+      window.setTimeout(() => hudCombo.classList.remove("comboReset"), 240);
+      setWrapFx("fx-wrong", 420);
+      playOne(AUDIO.wrong, { volume: 0.9 });
+      choicesEl.querySelectorAll("button.choiceBtn").forEach((b) => {
+        if (b !== btn) b.classList.add("isDim");
+      });
+    }
+
+    renderHUD();
+    window.setTimeout(nextStep, 420);
+  }
+
+  function onTimeout() {
+    if (state.finished) return;
+
+    state.combo = 0;
+    hudCombo.classList.add("comboReset");
+    window.setTimeout(() => hudCombo.classList.remove("comboReset"), 240);
+
+    lockChoices(true);
+
+    // ✅ timeupもwrong同等の揺れ
+    setWrapFx("fx-timeup", 420);
+    playOne(AUDIO.timeup, { volume: 0.9 });
+
+    renderHUD();
+    window.setTimeout(nextStep, 420);
+  }
+
+  function nextStep() {
+    setWarn(false);
+    state.idx += 1;
+    if (state.idx >= TOTAL_QUESTIONS) finishGame();
+    else renderQuestion();
+  }
+
+  function chooseRewardRarity() {
+    if (state.correct >= 25 && state.maxCombo >= 5) return 5;
+    if (state.correct >= 20 && state.correct <= 24) return 4;
+    return 0;
+  }
+
+  function pickRandomCard(rarity) {
+    const pool = state.cards.filter((c) => c.rarity === rarity);
+    if (!pool.length) return null;
+    return pool[(Math.random() * pool.length) | 0];
+  }
+
+  function finishGame() {
+    state.finished = true;
+    stopTimer();
+    setWarn(false);
+    try { AUDIO.bgm.pause(); } catch {}
+
+    const rewardRarity = chooseRewardRarity();
+
+    rCorrect.textContent = String(state.correct);
+    rMaxCombo.textContent = String(state.maxCombo);
+
+    if (rewardRarity === 5) {
+      rReward.textContent = "★5 確定";
+      resultTitle.textContent = "RESULT";
+      resultTitle.classList.remove("failed");
+    } else if (rewardRarity === 4) {
+      rReward.textContent = "★4 確定";
+      resultTitle.textContent = "RESULT";
+      resultTitle.classList.remove("failed");
+    } else {
+      rReward.textContent = "なし";
+      resultTitle.textContent = "FAILED";
+      resultTitle.classList.add("failed");
+    }
+
+    if (rewardRarity === 4 || rewardRarity === 5) {
+      const card = pickRandomCard(rewardRarity);
+      if (card) {
+        addCardToCounts(card.id);
+        cardImg.src = card.img || "";
+        cardName.textContent = card.name || "";
+        if (card.wiki) {
+          cardWiki.href = card.wiki;
+          cardWiki.style.display = "";
+        } else {
+          cardWiki.href = "#";
+          cardWiki.style.display = "none";
+        }
+        cardArea.classList.remove("hidden");
+      } else {
+        cardArea.classList.add("hidden");
+      }
+    } else {
+      cardArea.classList.add("hidden");
+    }
+
+    overlay.classList.remove("hidden");
+  }
+
+  function bootRun() {
+    state.started = true;
+    state.finished = false;
+
+    state.idx = 0;
+    state.correct = 0;
+    state.combo = 0;
+    state.maxCombo = 0;
+
+    overlay.classList.add("hidden");
+    renderQuestion();
+  }
+
+  // ===== Controls =====
+  btnRetry.addEventListener("click", () => location.reload());
+  btnAgain.addEventListener("click", () => location.reload());
+
+  // ===== Init =====
+  (async () => {
+    updateBgmUI();
+    try { AUDIO.bgm.pause(); } catch {}
+
+    // preload (non-blocking)
+    Object.values(AUDIO).forEach((a) => {
+      if (!a) return;
+      try { a.load(); } catch {}
+    });
+
+    try {
+      await loadAll();
+      questionEl.textContent = "準備完了。STARTで開始できます。";
+      sourceEl.textContent = "";
+      renderHUD();
+    } catch (e) {
+      questionEl.textContent = "読み込みに失敗しました。csv.js / CSV / パスを確認してください。";
+      sourceEl.textContent = String(e?.message ?? e);
+      console.error(e);
+    }
+
+    // ✅ 自動開始しない（START押下のみ）
+  })();
+})();
