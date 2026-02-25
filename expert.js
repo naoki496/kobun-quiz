@@ -1,18 +1,13 @@
 /* expert.js (kobun-quiz EXPERT)
- * - Independent from app.js
- * - Uses csv.js: window.CSVUtil.load(url)
- * - Pre-start modal + START button (alarm FX + fade out)
- * - BGM button (default ON in UI; actual playback starts on START gesture)
- * - 30 questions, 10 sec per question, timeout=wrong, combo breaks
- * - Reward: ★5 if correct>=25 AND maxCombo>=5, ★4 if correct 20-24, else none
- * - localStorage: hklobby.v1.cardCounts
+ * - START modal gating (prevents accidental autoplay + unlocks audio)
+ * - BGM toggle (UI default ON; real playback starts after START gesture)
+ * - 30 questions, 10 sec each, timeout=wrong
+ * - Reward: ★5 (>=25 & maxCombo>=5), ★4 (20..24), else none
+ * - localStorage key: hklobby.v1.cardCounts
  */
 (() => {
   "use strict";
 
-  // =========================
-  // Config
-  // =========================
   const TOTAL_QUESTIONS = 30;
   const QUESTION_TIME_SEC = 10;
   const WARN_AT_SEC = 3;
@@ -25,15 +20,11 @@
     wrong: new Audio("./assets/wrongex.mp3"),
     go: new Audio("./assets/goex.mp3"),
     tick: new Audio("./assets/tick.mp3"),
-    timeup: new Audio("./assets/wrongex.mp3"), // 指定どおり
+    timeup: new Audio("./assets/wrongex.mp3"),
   };
-
   AUDIO.bgm.loop = true;
   AUDIO.bgm.volume = 0.65;
 
-  // =========================
-  // DOM helpers
-  // =========================
   const $id = (id) => document.getElementById(id);
   const requireEl = (id) => {
     const el = $id(id);
@@ -74,9 +65,7 @@
   const startCard = requireEl("startCard");
   const btnStart = requireEl("btnStart");
 
-  // =========================
-  // Meter DOM
-  // =========================
+  // ===== Meter DOM =====
   const meterOuter = document.createElement("div");
   meterOuter.className = "meterOuter";
   const meterInner = document.createElement("div");
@@ -90,19 +79,15 @@
   meterArea.appendChild(meterOuter);
   meterArea.appendChild(meterText);
 
-  // =========================
-  // Canvas FX (behind content)
-  // =========================
+  // ===== Canvas FX (behind content; dimmer) =====
   const panel = document.querySelector(".panel");
   const fxCanvas = document.createElement("canvas");
-  fxCanvas.width = 10;
-  fxCanvas.height = 10;
   fxCanvas.style.position = "absolute";
   fxCanvas.style.inset = "0";
   fxCanvas.style.width = "100%";
   fxCanvas.style.height = "100%";
   fxCanvas.style.pointerEvents = "none";
-  fxCanvas.style.zIndex = "0"; // behind content
+  fxCanvas.style.zIndex = "0";
   panel.appendChild(fxCanvas);
 
   const ctx = fxCanvas.getContext("2d", { alpha: true });
@@ -118,22 +103,19 @@
   resizeCanvas();
 
   let fxT = 0;
-
   function fxTick() {
     fxT += 1;
 
-    // fade out previous frame (destination-out)
+    // destination-out fade (prevents dark accumulation)
     ctx.save();
     ctx.globalCompositeOperation = "destination-out";
     ctx.fillStyle = "rgba(0,0,0,0.12)";
     ctx.fillRect(0, 0, fxCanvas.width, fxCanvas.height);
     ctx.restore();
 
-    // warning scanlines (calmer / less bright)
     if (state.started && state.tLeft <= WARN_AT_SEC && !state.finished) {
       drawAlarmScan("warn");
     }
-
     requestAnimationFrame(fxTick);
   }
   requestAnimationFrame(fxTick);
@@ -145,14 +127,10 @@
     ctx.save();
     ctx.globalCompositeOperation = "source-over";
 
-    // ===== scan lines: lower brightness
     const step = mode === "exit" ? 7 : 11;
     ctx.fillStyle = mode === "exit" ? "rgba(255,45,85,0.06)" : "rgba(255,45,85,0.045)";
-    for (let y = 0; y < h; y += step) {
-      ctx.fillRect(0, y, w, 2);
-    }
+    for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, 2);
 
-    // ===== sweep band: lower alpha
     const bandH = mode === "exit" ? 170 : 135;
     const speed = mode === "exit" ? 11 : 8;
     const bandY = (fxT * speed) % (h + bandH) - bandH;
@@ -165,10 +143,35 @@
     ctx.fillStyle = grad;
     ctx.fillRect(0, bandY, w, bandH);
 
-    // ===== noise blocks: fewer + dimmer
     const n = mode === "exit" ? 90 : 45;
     for (let i = 0; i < n; i++) {
       const x = Math.random() * w;
       const y = Math.random() * h;
       const rw = 10 + Math.random() * (mode === "exit" ? 40 : 22);
-      const rh = 1 + Math.random
+      const rh = 1 + Math.random() * (mode === "exit" ? 5 : 3);
+      ctx.fillStyle = `rgba(255,45,85,${mode === "exit" ? 0.04 : 0.03})`;
+      ctx.fillRect(x, y, rw, rh);
+    }
+
+    ctx.restore();
+  }
+
+  // ===== State =====
+  const state = {
+    started: false,
+    finished: false,
+
+    questions: [],
+    picks: [],
+    idx: 0,
+
+    correct: 0,
+    combo: 0,
+    maxCombo: 0,
+
+    tLeft: QUESTION_TIME_SEC,
+    timerId: null,
+    lastWholeSec: QUESTION_TIME_SEC,
+
+    bgmOn: true,       // UI default ON
+    bgmArmed: false,   // user gesture occurred
