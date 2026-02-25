@@ -1,626 +1,258 @@
-/* EXPERT mode (isolated)
- * - 30 questions
- * - 10 sec each
- * - timeout = wrong (combo breaks)
- * - Reward rules:
- *   ★5 guaranteed: correct >= 25 AND maxCombo >= 5
- *   ★4 guaranteed: correct 20..24
- *   else: no reward (★3 never appears)
- * - Card counts saved to localStorage key: hklobby.v1.cardCounts
- *
- * Add-ons:
- * - Canvas particle FX (screen overlay, lightweight)  ✅ no dark accumulation
- * - Combo-5 achievement FX (once per run)
- * - Highlight supports 【】 and 〖〗
- * - CRISIS mode at last seconds: siren sweep + strobe + HUD shake + tick rhythm
+/* expert.js (kobun-quiz EXPERT)
+ * - Independent from app.js
+ * - Uses csv.js: window.CSVUtil.load(url)
+ * - Pre-start modal + START button (with FX + fade out)
+ * - BGM ON/OFF button
+ * - 30 questions, 10 sec per question, timeout=wrong, combo breaks
+ * - Reward: ★5 if correct>=25 AND maxCombo>=5, ★4 if correct 20-24, else none
+ * - localStorage: hklobby.v1.cardCounts
  */
 (() => {
   "use strict";
 
   // =========================
-  // DOM helpers (MUST be first)
-  // =========================
-  const $id = (id) => document.getElementById(id);
-
-  function requireEl(id) {
-    const n = $id(id);
-    if (!n) throw new Error(`DOM not found: #${id}`);
-    return n;
-  }
-
-  // =========================
   // Config
   // =========================
-  const QUESTIONS_URL = "./questions.csv";
-  const CARDS_URL = "./cards.csv";
-
   const TOTAL_QUESTIONS = 30;
   const QUESTION_TIME_SEC = 10;
-  const WARN_AT_SEC = 3; // enter crisis at 3
+  const WARN_AT_SEC = 3;
 
   const LS_KEY = "hklobby.v1.cardCounts";
 
-  // ✅ AUDIO: user-specified replacement
   const AUDIO = {
     bgm: new Audio("./assets/bgmex.mp3"),
     correct: new Audio("./assets/correct.mp3"),
     wrong: new Audio("./assets/wrongex.mp3"),
     go: new Audio("./assets/goex.mp3"),
     tick: new Audio("./assets/tick.mp3"),
-    timeup: new Audio("./assets/wrongex.mp3"),
+    timeup: new Audio("./assets/wrongex.mp3"), // ←ご指定どおり wrongex.mp3
   };
 
+  // BGM defaults OFF (button turns it ON)
+  AUDIO.bgm.loop = true;
+  AUDIO.bgm.volume = 0.65;
+
   // =========================
-  // DOM
+  // DOM helpers
   // =========================
-  const el = {
-    meterArea: requireEl("meterArea"),
-    source: requireEl("source"),
-    question: requireEl("question"),
-    choices: requireEl("choices"),
-
-    hudQ: requireEl("hudQ"),
-    hudCorrect: requireEl("hudCorrect"),
-    hudCombo: requireEl("hudCombo"),
-    hudMaxCombo: requireEl("hudMaxCombo"),
-
-    note: requireEl("note"),
-    btnRetry: requireEl("btnRetry"),
-
-    overlay: requireEl("overlay"),
-    resultTitle: requireEl("resultTitle"),
-    rCorrect: requireEl("rCorrect"),
-    rMaxCombo: requireEl("rMaxCombo"),
-    rReward: requireEl("rReward"),
-
-    cardArea: requireEl("cardArea"),
-    cardImg: requireEl("cardImg"),
-    cardName: requireEl("cardName"),
-    cardWiki: requireEl("cardWiki"),
-
-    btnAgain: requireEl("btnAgain"),
-    countdown: requireEl("countdown"),
-    app: requireEl("app"),
+  const $id = (id) => document.getElementById(id);
+  const requireEl = (id) => {
+    const el = $id(id);
+    if (!el) throw new Error(`Element not found: #${id}`);
+    return el;
   };
+
+  const wrap = requireEl("app");
+  const hudQ = requireEl("hudQ");
+  const hudCorrect = requireEl("hudCorrect");
+  const hudCombo = requireEl("hudCombo");
+  const hudMaxCombo = requireEl("hudMaxCombo");
+
+  const meterArea = requireEl("meterArea");
+  const sourceEl = requireEl("source");
+  const questionEl = requireEl("question");
+  const choicesEl = requireEl("choices");
+
+  const btnRetry = requireEl("btnRetry");
+  const btnBgm = requireEl("btnBgm");
+  const noteEl = requireEl("note");
+
+  const overlay = requireEl("overlay");
+  const rCorrect = requireEl("rCorrect");
+  const rMaxCombo = requireEl("rMaxCombo");
+  const rReward = requireEl("rReward");
+  const resultTitle = requireEl("resultTitle");
+  const btnAgain = requireEl("btnAgain");
+
+  const cardArea = requireEl("cardArea");
+  const cardImg = requireEl("cardImg");
+  const cardName = requireEl("cardName");
+  const cardWiki = requireEl("cardWiki");
+
+  const countdownEl = requireEl("countdown");
+
+  const startOverlay = requireEl("startOverlay");
+  const startCard = requireEl("startCard");
+  const btnStart = requireEl("btnStart");
+
+  // =========================
+  // Meter DOM
+  // =========================
+  const meterOuter = document.createElement("div");
+  meterOuter.className = "meterOuter";
+  const meterInner = document.createElement("div");
+  meterInner.className = "meterInner";
+  meterOuter.appendChild(meterInner);
+
+  const meterText = document.createElement("div");
+  meterText.className = "meterText";
+  meterText.textContent = `${QUESTION_TIME_SEC}s`;
+
+  meterArea.appendChild(meterOuter);
+  meterArea.appendChild(meterText);
+
+  // =========================
+  // Canvas FX (destination-out fade; avoids "dark accumulation")
+  // =========================
+  const panel = document.querySelector(".panel");
+  const fxCanvas = document.createElement("canvas");
+  fxCanvas.width = 10;
+  fxCanvas.height = 10;
+  fxCanvas.style.position = "absolute";
+  fxCanvas.style.inset = "0";
+  fxCanvas.style.width = "100%";
+  fxCanvas.style.height = "100%";
+  fxCanvas.style.pointerEvents = "none";
+  fxCanvas.style.zIndex = "0"; // behind content (panel children have z-index:1)
+  panel.appendChild(fxCanvas);
+
+  const ctx = fxCanvas.getContext("2d", { alpha: true });
+
+  function resizeCanvas() {
+    const r = panel.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    fxCanvas.width = Math.max(1, Math.floor(r.width * dpr));
+    fxCanvas.height = Math.max(1, Math.floor(r.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resizeCanvas, { passive: true });
+  resizeCanvas();
+
+  let fxRunning = true;
+  let fxT = 0;
+
+  function fxTick() {
+    if (!fxRunning) return;
+    fxT += 1;
+
+    // fade out previous frame (destination-out)
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "rgba(0,0,0,0.12)";
+    ctx.fillRect(0, 0, fxCanvas.width, fxCanvas.height);
+    ctx.restore();
+
+    // crisis scanlines when warning active
+    if (state.started && state.tLeft <= WARN_AT_SEC && !state.finished) {
+      const w = fxCanvas.width;
+      const h = fxCanvas.height;
+
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+
+      // moving red sweep band
+      const bandY = (fxT * 8) % (h + 140) - 140;
+      const grad = ctx.createLinearGradient(0, bandY, 0, bandY + 140);
+      grad.addColorStop(0, "rgba(255,45,85,0)");
+      grad.addColorStop(0.45, "rgba(255,45,85,0.22)");
+      grad.addColorStop(0.55, "rgba(255,45,85,0.22)");
+      grad.addColorStop(1, "rgba(255,45,85,0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, bandY, w, 140);
+
+      // scan lines
+      ctx.fillStyle = "rgba(255,45,85,0.06)";
+      for (let y = 0; y < h; y += 10) {
+        ctx.fillRect(0, y, w, 2);
+      }
+
+      ctx.restore();
+    }
+
+    requestAnimationFrame(fxTick);
+  }
+  requestAnimationFrame(fxTick);
 
   // =========================
   // State
   // =========================
   const state = {
+    started: false,
+    finished: false,
+
     questions: [],
-    cards4: [],
-    cards5: [],
-    selected: [],
-    qIndex: 0,
+    picks: [],
+    idx: 0,
+
     correct: 0,
     combo: 0,
     maxCombo: 0,
-    locked: false,
 
-    timer: {
-      t0: 0,
-      remainingMs: 0,
-      rafId: 0,
-      running: false,
-      warned: false,
-      lastSec: null,
-      crisisStage: 0, // 0 none, 1..3 for 3/2/1
-      crisisBeat: 0,  // used to pulse CSS
-    },
+    tLeft: QUESTION_TIME_SEC,
+    timerId: null,
+    lastWholeSec: QUESTION_TIME_SEC,
 
-    audioUnlocked: false,
+    bgmOn: false,
+    warnOn: false,
+
+    cards: [],
     autostart: false,
-
-    combo5Triggered: false,
-
-    fx: {
-      canvas: null,
-      ctx: null,
-      dpr: Math.min(2, window.devicePixelRatio || 1),
-      w: 0,
-      h: 0,
-      particles: [],
-      raf: 0,
-      lastTs: 0,
-    },
   };
 
   // =========================
-  // Boot
+  // Utilities
   // =========================
-  boot().catch((err) => {
-    console.error(err);
-    const msg = err?.message ? String(err.message) : String(err);
-    hardFail("起動エラー: " + msg + "\n（Console/Network を確認）");
-  });
-
-  async function boot() {
-    injectMeter();
-    injectFXLayer();
-
-    const params = new URLSearchParams(location.search);
-    state.autostart = params.get("start") === "1";
-
-    document.addEventListener("pointerdown", () => {
-      if (!state.audioUnlocked) unlockAudio();
-    });
-
-    el.btnRetry.addEventListener("click", () => startNewRun(true));
-    el.btnAgain.addEventListener("click", () => startNewRun(true));
-
-    if (!window.CSVUtil?.load) {
-      throw new Error("CSVUtil.load が見つかりません（csv.js の読み込み順/配置を確認）");
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [a[i], a[j]] = [a[j], a[i]];
     }
-
-    const [qRows, cRows] = await Promise.all([
-      window.CSVUtil.load(QUESTIONS_URL),
-      window.CSVUtil.load(CARDS_URL),
-    ]);
-
-    state.questions = qRows.map(normalizeQuestionRow).filter(Boolean);
-    const allCards = cRows.map(normalizeCardRow).filter(Boolean);
-
-    state.cards4 = allCards.filter((c) => c.rarity === 4);
-    state.cards5 = allCards.filter((c) => c.rarity === 5);
-
-    if (state.questions.length < TOTAL_QUESTIONS) {
-      throw new Error(`questions.csv の問題数不足（必要 ${TOTAL_QUESTIONS} / 現在 ${state.questions.length}）`);
-    }
-    if (state.cards4.length === 0) throw new Error("cards.csv に★4がありません");
-    if (state.cards5.length === 0) throw new Error("cards.csv に★5がありません");
-
-    el.source.textContent = "";
-    el.question.textContent = "EXPERT準備完了。リトライで開始。";
-    renderHUD();
-
-    if (state.autostart) startNewRun(true);
+    return a;
   }
 
-  // =========================
-  // HUD
-  // =========================
-  function renderHUD() {
-    el.hudQ.textContent = `${Math.min(state.qIndex + 1, TOTAL_QUESTIONS)}/${TOTAL_QUESTIONS}`;
-    el.hudCorrect.textContent = String(state.correct);
-    el.hudCombo.textContent = String(state.combo);
-    el.hudMaxCombo.textContent = String(state.maxCombo);
-  }
-
-  // =========================
-  // Run control
-  // =========================
-  function startNewRun(withCountdown) {
-    hideOverlay();
-    resetRun();
-
-    state.selected = pickRandomQuestions(state.questions, TOTAL_QUESTIONS);
-    renderHUD();
-
-    if (withCountdown) {
-      showCountdown(() => {
-        maybePlay(AUDIO.go);
-        startQuestion();
-      });
-    } else {
-      startQuestion();
-    }
-  }
-
-  function resetRun() {
-    state.qIndex = 0;
-    state.correct = 0;
-    state.combo = 0;
-    state.maxCombo = 0;
-    state.locked = false;
-    state.combo5Triggered = false;
-
-    state.timer.warned = false;
-    state.timer.lastSec = null;
-    state.timer.crisisStage = 0;
-    state.timer.crisisBeat = 0;
-
-    stopTimer();
-    clearFX();
-    clearCrisisFX();
-    fxClearAll();
-  }
-
-  // =========================
-  // Question flow
-  // =========================
-  function startQuestion() {
-    clearFX();
-    clearCrisisFX();
-    state.locked = false;
-
-    const q = state.selected[state.qIndex];
-    el.source.textContent = q.source ? `出典：${q.source}` : "";
-    el.question.innerHTML = renderHighlighted(q.question);
-
-    el.choices.innerHTML = "";
-    q.choices.forEach((text, i) => {
-      const btn = document.createElement("button");
-      btn.className = "choiceBtn";
-      btn.type = "button";
-      btn.innerHTML = renderHighlighted(text);
-      btn.addEventListener("click", () => onAnswer(i + 1));
-      el.choices.appendChild(btn);
-    });
-
-    renderHUD();
-    startTimer();
-  }
-
-  function onAnswer(choiceNum) {
-    if (state.locked) return;
-    state.locked = true;
-
-    stopTimer();
-    clearCrisisFX();
-
-    const q = state.selected[state.qIndex];
-    const ok = choiceNum === q.answer;
-
-    if (ok) {
-      state.correct += 1;
-      state.combo += 1;
-      state.maxCombo = Math.max(state.maxCombo, state.combo);
-
-      if (!state.combo5Triggered && state.maxCombo >= 5) {
-        state.combo5Triggered = true;
-        playCombo5FX();
-      }
-
-      playCorrectFX();
-    } else {
-      state.combo = 0;
-      playWrongFX();
-      markCorrectAnswer(q.answer);
-    }
-
-    renderHUD();
-    setTimeout(advanceOrFinish, 650);
-  }
-
-  function onTimeout() {
-    if (state.locked) return;
-    state.locked = true;
-
-    stopTimer();
-    clearCrisisFX();
-
-    state.combo = 0;
-    playTimeoutFX();
-
-    const q = state.selected[state.qIndex];
-    markCorrectAnswer(q.answer);
-
-    renderHUD();
-    setTimeout(advanceOrFinish, 850);
-  }
-
-  function advanceOrFinish() {
-    state.qIndex += 1;
-    if (state.qIndex >= TOTAL_QUESTIONS) finishRun();
-    else startQuestion();
-  }
-
-  // =========================
-  // Finish & reward
-  // =========================
-  function finishRun() {
-    stopTimer();
-    clearFX();
-    clearCrisisFX();
-
-    const rarity = decideRewardRarity(state.correct, state.maxCombo);
-
-    el.rCorrect.textContent = String(state.correct);
-    el.rMaxCombo.textContent = String(state.maxCombo);
-
-    if (rarity === 5) {
-      el.rReward.textContent = "★5 確定（25+ & MAX COMBO ≥ 5）";
-      const card = rollCardByRarity(5);
-      grantCard(card);
-      showOverlay(card, 5);
-      fxBurstAtCenter(120, 16, 1.0);
-      return;
-    }
-    if (rarity === 4) {
-      el.rReward.textContent = "★4 確定（20〜24）";
-      const card = rollCardByRarity(4);
-      grantCard(card);
-      showOverlay(card, 4);
-      fxBurstAtCenter(80, 14, 0.75);
-      return;
-    }
-
-    el.rReward.textContent = "報酬なし（★3は出ません）";
-    showOverlay(null, null);
-    fxCrisisSweep(0.9);
-  }
-
-  function decideRewardRarity(correctCount, maxCombo) {
-    if (correctCount >= 25 && maxCombo >= 5) return 5;
-    if (correctCount >= 20 && correctCount <= 24) return 4;
-    return null;
-  }
-
-  function rollCardByRarity(r) {
-    const pool = r === 5 ? state.cards5 : state.cards4;
-    return weightedPick(pool);
-  }
-
-  function grantCard(card) {
-    if (!card) return;
-    const counts = readCounts();
-    counts[card.id] = (counts[card.id] || 0) + 1;
-    writeCounts(counts);
-  }
-
-  // =========================
-  // FX
-  // =========================
-  function playCorrectFX() {
-    maybePlay(AUDIO.correct);
-    el.app.classList.add("fx-correct");
-    bumpCombo(false);
-    fxBurstAtEl(el.question, 38, 10, 0.55);
-  }
-
-  function playWrongFX() {
-    maybePlay(AUDIO.wrong);
-    el.app.classList.add("fx-wrong");
-    bumpCombo(true);
-    fxErrorBurst(el.question, 34, 0.7);
-  }
-
-  function playTimeoutFX() {
-    // timeup audio is null per spec
-    el.app.classList.add("fx-timeup");
-    bumpCombo(true);
-    fxErrorBurst(el.question, 22, 0.6);
-    fxCrisisSweep(0.8);
-  }
-
-  function playCombo5FX() {
-    el.app.classList.add("fx-combo5");
-    showComboToast("COMBO x5 — OVERDRIVE");
-    fxBurstAtEl(el.hudCombo, 95, 14, 0.95);
-    setTimeout(() => el.app.classList.remove("fx-combo5"), 1200);
-  }
-
-  function clearFX() {
-    el.app.classList.remove("fx-correct", "fx-wrong", "fx-timeup");
-  }
-
-  function applyCrisisFX(stage) {
-    // stage: 1..3 (3sec->1sec)
-    el.app.classList.add("fx-crisis");
-    el.app.classList.toggle("fx-crisis3", stage === 1); // sec==3
-    el.app.classList.toggle("fx-crisis2", stage === 2); // sec==2
-    el.app.classList.toggle("fx-crisis1", stage === 3); // sec==1
-
-    // pulse beat to retrigger CSS keyframes (optional)
-    state.timer.crisisBeat = (state.timer.crisisBeat + 1) % 10000;
-    el.app.style.setProperty("--crisisBeat", String(state.timer.crisisBeat));
-
-    // Canvas "siren sweep": thin red scanline particles across screen
-    fxCrisisSweep(0.35 + 0.18 * stage);
-
-    // Extra: small burst at meter to draw attention
-    fxErrorBurst(el.meterArea, 10 + stage * 6, 0.25 + stage * 0.12);
-  }
-
-  function clearCrisisFX() {
-    el.app.classList.remove("fx-crisis", "fx-crisis3", "fx-crisis2", "fx-crisis1", "fx-warn");
-    el.app.style.removeProperty("--crisisBeat");
-  }
-
-  function bumpCombo(reset) {
-    el.hudCombo.classList.remove("punch");
-    void el.hudCombo.offsetWidth;
-    el.hudCombo.classList.add("punch");
-    if (reset) {
-      el.hudCombo.classList.add("comboReset");
-      setTimeout(() => el.hudCombo.classList.remove("comboReset"), 350);
-    }
-  }
-
-  function markCorrectAnswer(answerNum) {
-    const btns = Array.from(el.choices.querySelectorAll(".choiceBtn"));
-    btns.forEach((b, idx) => {
-      if (idx + 1 === answerNum) b.classList.add("isCorrect");
-      else b.classList.add("isDim");
-    });
-  }
-
-  // =========================
-  // Timer
-  // =========================
-  function injectMeter() {
-    el.meterArea.innerHTML = `
-      <div class="meterOuter">
-        <div class="meterInner" id="meterInner"></div>
-      </div>
-      <div class="meterText"><span id="meterSec">${QUESTION_TIME_SEC}</span>s</div>
-    `;
-  }
-
-  function startTimer() {
-    stopTimer();
-    state.timer.running = true;
-    state.timer.warned = false;
-    state.timer.lastSec = null;
-    state.timer.crisisStage = 0;
-    state.timer.t0 = performance.now();
-    state.timer.remainingMs = QUESTION_TIME_SEC * 1000;
-    tickTimer();
-  }
-
-  function stopTimer() {
-    state.timer.running = false;
-    if (state.timer.rafId) cancelAnimationFrame(state.timer.rafId);
-    state.timer.rafId = 0;
-  }
-
-  function tickTimer() {
-    if (!state.timer.running) return;
-
-    const now = performance.now();
-    const elapsed = now - state.timer.t0;
-    const total = QUESTION_TIME_SEC * 1000;
-    const remaining = Math.max(0, total - elapsed);
-    state.timer.remainingMs = remaining;
-
-    const sec = Math.ceil(remaining / 1000);
-    const ratio = remaining / total;
-
-    const meterInner = $id("meterInner");
-    const meterSec = $id("meterSec");
-    if (meterInner) meterInner.style.transform = `scaleX(${ratio})`;
-    if (meterSec) meterSec.textContent = String(sec);
-
-    // Enter warn at threshold
-    if (!state.timer.warned && sec <= WARN_AT_SEC) {
-      state.timer.warned = true;
-      el.app.classList.add("fx-warn");
-    }
-
-    // CRISIS: trigger per-second stage + tick sound rhythm
-    // stage mapping: sec==3 -> stage1, sec==2 -> stage2, sec==1 -> stage3
-    if (sec !== state.timer.lastSec) {
-      state.timer.lastSec = sec;
-
-      if (sec <= 3 && sec >= 1) {
-        const stage = 4 - sec;
-        state.timer.crisisStage = stage;
-
-        // tick sound each second in last 3 seconds
-        maybePlay(AUDIO.tick);
-
-        // apply crisis visual at this stage
-        applyCrisisFX(stage);
-      }
-    }
-
-    if (remaining <= 0) {
-      stopTimer();
-      onTimeout();
-      return;
-    }
-
-    state.timer.rafId = requestAnimationFrame(tickTimer);
-  }
-
-  // =========================
-  // Overlay + Countdown
-  // =========================
-  function showOverlay(card, rarity) {
-    el.overlay.classList.remove("hidden");
-
-    if (!card) {
-      el.cardArea.classList.add("hidden");
-      el.resultTitle.textContent = "FAILED";
-      el.resultTitle.classList.add("failed");
-      return;
-    }
-
-    el.resultTitle.textContent = rarity === 5 ? "PERFECT REWARD" : "CLEAR REWARD";
-    el.resultTitle.classList.remove("failed");
-
-    el.cardArea.classList.remove("hidden");
-    el.cardImg.src = card.img;
-    el.cardName.textContent = `★${card.rarity} ${card.name}`;
-
-    if (card.wiki) {
-      el.cardWiki.href = card.wiki;
-      el.cardWiki.style.display = "inline-block";
-    } else {
-      el.cardWiki.style.display = "none";
-    }
-  }
-
-  function hideOverlay() {
-    el.overlay.classList.add("hidden");
-  }
-
-  function showCountdown(onDone) {
-    const seq = ["3", "2", "1", "GO"];
-    el.countdown.classList.remove("hidden");
-
-    let i = 0;
-    const step = () => {
-      if (i >= seq.length) {
-        el.countdown.classList.add("hidden");
-        onDone?.();
-        return;
-      }
-      el.countdown.textContent = seq[i];
-      el.countdown.classList.remove("pop");
-      void el.countdown.offsetWidth;
-      el.countdown.classList.add("pop");
-      i += 1;
-      setTimeout(step, 520);
-    };
-    step();
-  }
-
-  // =========================
-  // Highlight
-  // =========================
-  function renderHighlighted(s) {
-    const escaped = escapeHtml(s);
-    return escaped
-      .replace(/【(.*?)】/g, `<span class="hl">【$1】</span>`)
-      .replace(/〖(.*?)〗/g, `<span class="hl">〖$1〗</span>`);
-  }
-
-  function escapeHtml(s) {
-    return String(s)
+  function esc(s) {
+    return String(s ?? "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+      .replace(/'/g, "&#39;");
   }
 
-  // =========================
-  // CSV normalize
-  // =========================
-  function normalizeQuestionRow(row) {
-    const id = clean(row.id);
-    const question = clean(row.question);
-    if (!id || !question) return null;
-
-    const source = clean(row.source);
-    const choices = [row.choice1, row.choice2, row.choice3, row.choice4].map(clean);
-    if (choices.some((c) => !c)) return null;
-
-    const ans = parseInt(clean(row.answer), 10);
-    if (![1, 2, 3, 4].includes(ans)) return null;
-
-    return { id, question, source, choices, answer: ans };
+  // Highlight 【...】
+  function renderHighlighted(text) {
+    const s = String(text ?? "");
+    // replace all occurrences of 【...】 non-greedy
+    return esc(s).replace(/【(.*?)】/g, (_m, p1) => `<span class="hl">【${esc(p1)}】</span>`);
   }
 
-  function normalizeCardRow(row) {
-    const id = clean(row.id);
-    const rarity = parseInt(clean(row.rarity), 10);
-    const name = clean(row.name);
-    const img = clean(row.img);
-    const wiki = clean(row.wiki);
-    const weight = parseFloat(clean(row.weight)) || 1;
-
-    if (!id || !name || !img) return null;
-    if (![3, 4, 5].includes(rarity)) return null;
-
-    return { id, rarity, name, img, wiki, weight: Math.max(0.0001, weight) };
+  function playOne(audio, { volume, restart = true } = {}) {
+    if (!audio) return;
+    try {
+      if (typeof volume === "number") audio.volume = volume;
+      if (restart) audio.currentTime = 0;
+      // For mobile, play requires a user gesture; START button provides that.
+      audio.play().catch(() => {});
+    } catch {
+      // ignore
+    }
   }
 
-  // =========================
-  // Storage
-  // =========================
-  function readCounts() {
+  function setWrapFx(cls, dur = 360) {
+    wrap.classList.add(cls);
+    window.setTimeout(() => wrap.classList.remove(cls), dur);
+  }
+
+  function punch(el) {
+    if (!el) return;
+    el.classList.remove("punch");
+    // force reflow
+    void el.offsetWidth;
+    el.classList.add("punch");
+  }
+
+  function showCombo5Toast() {
+    const toast = document.createElement("div");
+    toast.className = "comboToast";
+    toast.textContent = "COMBO 5: OVERDRIVE";
+    document.body.appendChild(toast);
+    // trigger anim
+    requestAnimationFrame(() => toast.classList.add("show"));
+    window.setTimeout(() => toast.remove(), 1300);
+  }
+
+  function loadCounts() {
     try {
       const raw = localStorage.getItem(LS_KEY);
       return raw ? JSON.parse(raw) : {};
@@ -629,308 +261,435 @@
     }
   }
 
-  function writeCounts(obj) {
+  function saveCounts(counts) {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(obj));
-    } catch {}
-  }
-
-  // =========================
-  // Utils
-  // =========================
-  function clean(v) {
-    return String(v ?? "").trim();
-  }
-
-  function shuffleInPlace(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = (Math.random() * (i + 1)) | 0;
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
-  function pickRandomQuestions(all, n) {
-    const copy = all.slice();
-    shuffleInPlace(copy);
-    return copy.slice(0, n);
-  }
-
-  function weightedPick(items) {
-    let sum = 0;
-    for (const it of items) sum += it.weight;
-
-    let r = Math.random() * sum;
-    for (const it of items) {
-      r -= it.weight;
-      if (r <= 0) return it;
-    }
-    return items[items.length - 1];
-  }
-
-  function hardFail(msg) {
-    el.question.textContent = msg;
-    el.source.textContent = "";
-    el.choices.innerHTML = "";
-    el.note.textContent = "配置/CSVヘッダ/パスを確認してください";
-    el.app.classList.add("fatal");
-    stopTimer();
-  }
-
-  function unlockAudio() {
-    state.audioUnlocked = true;
-    el.note.textContent = "音：ON";
-
-    try {
-      AUDIO.bgm.loop = true;
-      AUDIO.bgm.volume = 0.35;
-
-      AUDIO.bgm.play()
-        .then(() => {
-          AUDIO.bgm.pause();
-          AUDIO.bgm.currentTime = 0;
-          AUDIO.bgm.play().catch(() => {});
-        })
-        .catch(() => {
-          el.note.textContent = "音：ブラウザ制限で自動再生不可（タップ後に開始します）";
-        });
+      localStorage.setItem(LS_KEY, JSON.stringify(counts));
     } catch {
-      el.note.textContent = "音：初期化失敗";
+      // ignore
     }
   }
 
-  function maybePlay(audio) {
-    if (!audio) return;
-    try {
-      audio.currentTime = 0;
-      audio.play().catch(() => {});
-    } catch {}
+  function addCardToCounts(cardId) {
+    const counts = loadCounts();
+    const key = String(cardId);
+    counts[key] = (counts[key] ?? 0) + 1;
+    saveCounts(counts);
   }
 
   // =========================
-  // Canvas Particle FX (no dark accumulation)
+  // BGM button
   // =========================
-  function injectFXLayer() {
-    const canvas = document.createElement("canvas");
-    canvas.id = "fxCanvas";
-    canvas.style.position = "fixed";
-    canvas.style.inset = "0";
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    canvas.style.pointerEvents = "none";
-    canvas.style.zIndex = "40";
-    document.body.appendChild(canvas);
-
-    const ctx = canvas.getContext("2d", { alpha: true });
-    state.fx.canvas = canvas;
-    state.fx.ctx = ctx;
-
-    const toast = document.createElement("div");
-    toast.id = "comboToast";
-    toast.className = "comboToast hidden";
-    toast.textContent = "COMBO x5 — OVERDRIVE";
-    document.body.appendChild(toast);
-
-    window.addEventListener("resize", () => resizeFX(), { passive: true });
-    resizeFX();
-    fxStartLoop();
+  function updateBgmUI() {
+    btnBgm.setAttribute("aria-pressed", state.bgmOn ? "true" : "false");
+    btnBgm.textContent = state.bgmOn ? "BGM: ON" : "BGM: OFF";
+    noteEl.textContent = state.bgmOn ? "音：ON" : "音：OFF（BGMボタンでON）";
   }
 
-  function resizeFX() {
-    const c = state.fx.canvas;
-    const dpr = (state.fx.dpr = Math.min(2, window.devicePixelRatio || 1));
-    const w = (state.fx.w = Math.floor(window.innerWidth));
-    const h = (state.fx.h = Math.floor(window.innerHeight));
-    c.width = Math.floor(w * dpr);
-    c.height = Math.floor(h * dpr);
-    c.style.width = w + "px";
-    c.style.height = h + "px";
-    state.fx.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    fxClearAll();
+  function setBgm(on) {
+    state.bgmOn = !!on;
+    updateBgmUI();
+    if (state.bgmOn) {
+      playOne(AUDIO.bgm, { restart: false });
+    } else {
+      try { AUDIO.bgm.pause(); } catch {}
+    }
   }
 
-  function fxStartLoop() {
-    if (state.fx.raf) cancelAnimationFrame(state.fx.raf);
-    state.fx.lastTs = performance.now();
-    const loop = (ts) => {
-      const dt = Math.min(0.033, (ts - state.fx.lastTs) / 1000);
-      state.fx.lastTs = ts;
-      fxTick(dt);
-      state.fx.raf = requestAnimationFrame(loop);
-    };
-    state.fx.raf = requestAnimationFrame(loop);
-  }
+  btnBgm.addEventListener("click", () => {
+    setBgm(!state.bgmOn);
+  });
 
-  function fxTick(dt) {
-    const ctx = state.fx.ctx;
-    if (!ctx) return;
+  // =========================
+  // Start overlay flow
+  // =========================
+  function hideStartOverlayWithFX() {
+    // Add leaving classes (CSS anim)
+    startOverlay.classList.add("leaving");
+    startCard.classList.add("leaving");
 
-    const w = state.fx.w;
-    const h = state.fx.h;
-
-    // Fade without black overlay
+    // Add a short canvas burst (non-black accumulating)
+    const w = fxCanvas.width;
+    const h = fxCanvas.height;
     ctx.save();
-    ctx.globalCompositeOperation = "destination-out";
-    const fade = Math.min(0.35, 0.12 + dt * 6.0);
-    ctx.fillStyle = `rgba(0,0,0,${fade})`;
-    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = "source-over";
+    // quick bright ring
+    ctx.strokeStyle = "rgba(0,229,255,0.35)";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(w * 0.5, h * 0.35, 120, 0, Math.PI * 2);
+    ctx.stroke();
+    // red fragments
+    for (let i = 0; i < 28; i++) {
+      const x = w * 0.2 + Math.random() * w * 0.6;
+      const y = h * 0.2 + Math.random() * h * 0.5;
+      ctx.fillStyle = `rgba(255,45,85,${0.08 + Math.random() * 0.18})`;
+      ctx.fillRect(x, y, 8 + Math.random() * 24, 1.5 + Math.random() * 3);
+    }
     ctx.restore();
 
-    const ps = state.fx.particles;
-    for (let i = ps.length - 1; i >= 0; i--) {
-      const p = ps[i];
-      p.life -= dt;
-      if (p.life <= 0) {
-        ps.splice(i, 1);
-        continue;
+    window.setTimeout(() => {
+      startOverlay.classList.add("hidden");
+    }, 420);
+  }
+
+  async function runCountdown() {
+    countdownEl.classList.remove("hidden");
+    const seq = ["3", "2", "1", "GO"];
+    for (const s of seq) {
+      countdownEl.textContent = s;
+      countdownEl.classList.remove("pop");
+      void countdownEl.offsetWidth;
+      countdownEl.classList.add("pop");
+      if (s === "GO") {
+        playOne(AUDIO.go, { volume: 0.9 });
       }
-      p.vx += p.ax * dt;
-      p.vy += p.ay * dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
+      await new Promise((r) => setTimeout(r, 520));
+    }
+    countdownEl.classList.add("hidden");
+    countdownEl.textContent = "";
+  }
 
-      p.vx *= (1 - 0.8 * dt);
-      p.vy *= (1 - 0.8 * dt);
+  async function startGameFromOverlay() {
+    if (state.started) return;
+    // user gesture path -> safe to start audio later
+    hideStartOverlayWithFX();
+    await runCountdown();
+    bootRun();
+  }
 
-      const a = Math.max(0, Math.min(1, p.life / p.maxLife)) * p.alpha;
+  btnStart.addEventListener("click", () => {
+    startGameFromOverlay();
+  });
 
-      ctx.save();
-      ctx.globalCompositeOperation = p.mode;
-      ctx.globalAlpha = a;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+  // =========================
+  // Boot / Data Load
+  // =========================
+  async function loadAll() {
+    if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
+      throw new Error("CSVUtil.load が見つかりません。expert.html で csv.js を先に読み込んでください。");
     }
 
-    if (ps.length > 1400) ps.splice(0, ps.length - 1400);
+    const qRows = await window.CSVUtil.load("./questions.csv");
+    const cRows = await window.CSVUtil.load("./cards.csv");
+
+    const questions = qRows
+      .map(normalizeQuestionRow)
+      .filter((q) => q && q.id && q.question && q.answer >= 1 && q.answer <= 4);
+
+    const cards = cRows
+      .map(normalizeCardRow)
+      .filter((c) => c && c.id && (c.rarity === 4 || c.rarity === 5));
+
+    state.questions = questions;
+    state.cards = cards;
+
+    // pick random 30
+    const picks = shuffle(questions).slice(0, TOTAL_QUESTIONS);
+    state.picks = picks;
   }
 
-  function fxClearAll() {
-    state.fx.particles.length = 0;
-    const ctx = state.fx.ctx;
-    if (!ctx) return;
-    ctx.clearRect(0, 0, state.fx.w, state.fx.h);
+  function normalizeQuestionRow(r) {
+    const id = String(r.id ?? "").trim();
+    const question = String(r.question ?? "").trim();
+    const source = String(r.source ?? "").trim();
+
+    const c1 = String(r.choice1 ?? "").trim();
+    const c2 = String(r.choice2 ?? "").trim();
+    const c3 = String(r.choice3 ?? "").trim();
+    const c4 = String(r.choice4 ?? "").trim();
+
+    const ans = Number(String(r.answer ?? "").trim());
+    return { id, question, source, choices: [c1, c2, c3, c4], answer: ans };
   }
 
-  function centerOfEl(node) {
-    const r = node.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  function normalizeCardRow(r) {
+    const id = String(r.id ?? "").trim();
+    const rarity = Number(r.rarity) || 0;
+    const name = String(r.name ?? "").trim();
+    const img = String(r.img ?? "").trim();
+    const wiki = String(r.wiki ?? "").trim();
+    return { id, rarity, name, img, wiki };
   }
 
-  function fxBurstAtEl(node, count, speed, intensity) {
-    const { x, y } = centerOfEl(node);
-    fxBurst(x, y, count, speed, intensity);
+  // =========================
+  // Game loop
+  // =========================
+  function renderHUD() {
+    hudQ.textContent = `${Math.min(state.idx + 1, TOTAL_QUESTIONS)}/${TOTAL_QUESTIONS}`;
+    hudCorrect.textContent = String(state.correct);
+    hudCombo.textContent = String(state.combo);
+    hudMaxCombo.textContent = String(state.maxCombo);
   }
 
-  function fxBurstAtCenter(count, speed, intensity) {
-    fxBurst(state.fx.w / 2, state.fx.h / 2, count, speed, intensity);
+  function setWarn(on) {
+    const yes = !!on;
+    if (state.warnOn === yes) return;
+    state.warnOn = yes;
+    if (yes) wrap.classList.add("fx-warn");
+    else wrap.classList.remove("fx-warn");
   }
 
-  // ERROR burst: red/amber only, sharper = "危機"系
-  function fxErrorBurst(node, count, intensity) {
-    const { x, y } = centerOfEl(node);
-    const n = Math.floor(count);
-    for (let i = 0; i < n; i++) {
-      const a = (Math.random() - 0.5) * 1.3;
-      const sp = (220 + Math.random() * 320) * (0.55 + intensity);
-      const vx = Math.cos(a) * sp;
-      const vy = (Math.random() - 0.5) * 120;
-      const pick = Math.random();
-      const color = pick < 0.75 ? "rgba(255,45,85,1)" : "rgba(255,204,0,1)";
-      spawnParticle({
-        x: x + (Math.random() - 0.5) * 18,
-        y: y + (Math.random() - 0.5) * 18,
-        vx, vy,
-        ax: 0,
-        ay: 0,
-        r: 1.3 + Math.random() * 2.2,
-        life: 0.22 + Math.random() * 0.25,
-        alpha: 0.75,
-        color,
-        mode: "screen",
-      });
-    }
-  }
+  function updateMeter() {
+    const ratio = Math.max(0, Math.min(1, state.tLeft / QUESTION_TIME_SEC));
+    meterInner.style.transform = `scaleX(${ratio})`;
+    const whole = Math.max(0, Math.ceil(state.tLeft));
+    meterText.textContent = `${whole}s`;
 
-  // Siren sweep across screen: thin red scanline particles
-  function fxCrisisSweep(intensity) {
-    const y = (Math.random() * 0.55 + 0.20) * state.fx.h;
-    const n = Math.floor(120 * (0.6 + intensity));
-    for (let i = 0; i < n; i++) {
-      const x = Math.random() * state.fx.w;
-      spawnParticle({
-        x,
-        y: y + (Math.random() - 0.5) * 90,
-        vx: (Math.random() - 0.5) * 180,
-        vy: (Math.random() - 0.5) * 60,
-        ax: 0,
-        ay: 0,
-        r: 1.0 + Math.random() * 1.8,
-        life: 0.16 + Math.random() * 0.20,
-        alpha: 0.60 + 0.25 * intensity,
-        color: "rgba(255,45,85,1)",
-        mode: "screen",
-      });
-    }
-  }
+    setWarn(whole <= WARN_AT_SEC && !state.finished);
 
-  function fxBurst(x, y, count, speed, intensity) {
-    const n = Math.floor(count);
-    for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const sp = (60 + Math.random() * 180) * (speed / 10) * (0.6 + intensity);
-      const vx = Math.cos(a) * sp;
-      const vy = Math.sin(a) * sp;
-      const pick = Math.random();
-      const color =
-        pick < 0.55 ? "rgba(0,229,255,1)" :
-        pick < 0.85 ? "rgba(255,45,85,1)" :
-        "rgba(255,204,0,1)";
-      spawnParticle({
-        x: x + (Math.random() - 0.5) * 10,
-        y: y + (Math.random() - 0.5) * 10,
-        vx, vy,
-        ax: 0,
-        ay: 240,
-        r: 1.6 + Math.random() * 3.0,
-        life: 0.38 + Math.random() * 0.45,
-        alpha: 0.72,
-        color,
-        mode: "screen",
-      });
+    // tick only when seconds change and only in warning zone
+    if (whole !== state.lastWholeSec) {
+      state.lastWholeSec = whole;
+      if (whole <= WARN_AT_SEC && whole >= 1) {
+        playOne(AUDIO.tick, { volume: 0.55 });
+      }
     }
   }
 
-  function spawnParticle(p) {
-    state.fx.particles.push({
-      x: p.x, y: p.y,
-      vx: p.vx, vy: p.vy,
-      ax: p.ax, ay: p.ay,
-      r: p.r,
-      life: p.life,
-      maxLife: p.life,
-      alpha: p.alpha,
-      color: p.color,
-      mode: p.mode || "lighter",
+  function stopTimer() {
+    if (state.timerId) {
+      clearInterval(state.timerId);
+      state.timerId = null;
+    }
+  }
+
+  function startTimer() {
+    stopTimer();
+    state.tLeft = QUESTION_TIME_SEC;
+    state.lastWholeSec = QUESTION_TIME_SEC;
+    updateMeter();
+
+    const startedAt = performance.now();
+    state.timerId = setInterval(() => {
+      const dt = (performance.now() - startedAt) / 1000;
+      state.tLeft = Math.max(0, QUESTION_TIME_SEC - dt);
+      updateMeter();
+
+      if (state.tLeft <= 0.0001) {
+        stopTimer();
+        onTimeout();
+      }
+    }, 50);
+  }
+
+  function lockChoices(lock) {
+    const btns = choicesEl.querySelectorAll("button.choiceBtn");
+    btns.forEach((b) => (b.disabled = !!lock));
+  }
+
+  function renderQuestion() {
+    renderHUD();
+    const q = state.picks[state.idx];
+    sourceEl.textContent = q.source ? `出典：${q.source}` : "";
+    questionEl.innerHTML = renderHighlighted(q.question);
+
+    choicesEl.innerHTML = "";
+    q.choices.forEach((t, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "choiceBtn";
+      b.innerHTML = renderHighlighted(t);
+      b.addEventListener("click", () => onAnswer(i + 1, b));
+      choicesEl.appendChild(b);
+    });
+
+    startTimer();
+  }
+
+  function onAnswer(choice, btn) {
+    if (state.finished) return;
+    stopTimer();
+    lockChoices(true);
+
+    const q = state.picks[state.idx];
+    const correct = choice === q.answer;
+
+    if (correct) {
+      state.correct += 1;
+      state.combo += 1;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
+
+      btn.classList.add("isCorrect");
+      setWrapFx("fx-correct", 360);
+      playOne(AUDIO.correct, { volume: 0.85 });
+
+      punch(hudCorrect);
+      punch(hudCombo);
+
+      if (state.combo === 5) {
+        wrap.classList.add("fx-combo5");
+        window.setTimeout(() => wrap.classList.remove("fx-combo5"), 900);
+        showCombo5Toast();
+      }
+    } else {
+      state.combo = 0;
+      hudCombo.classList.add("comboReset");
+      window.setTimeout(() => hudCombo.classList.remove("comboReset"), 240);
+
+      setWrapFx("fx-wrong", 420);
+      playOne(AUDIO.wrong, { volume: 0.9 });
+      dimOtherChoices(btn);
+    }
+
+    renderHUD();
+    window.setTimeout(nextStep, 420);
+  }
+
+  function dimOtherChoices(clickedBtn) {
+    const btns = choicesEl.querySelectorAll("button.choiceBtn");
+    btns.forEach((b) => {
+      if (b !== clickedBtn) b.classList.add("isDim");
     });
   }
 
-  // =========================
-  // Combo toast
-  // =========================
-  function showComboToast(text) {
-    const t = $id("comboToast");
-    if (!t) return;
-    t.textContent = text;
-    t.classList.remove("hidden");
-    t.classList.remove("show");
-    void t.offsetWidth;
-    t.classList.add("show");
-    setTimeout(() => {
-      t.classList.remove("show");
-      setTimeout(() => t.classList.add("hidden"), 420);
-    }, 900);
+  function onTimeout() {
+    if (state.finished) return;
+
+    state.combo = 0;
+    hudCombo.classList.add("comboReset");
+    window.setTimeout(() => hudCombo.classList.remove("comboReset"), 240);
+
+    lockChoices(true);
+    setWrapFx("fx-timeup", 520);
+    playOne(AUDIO.timeup, { volume: 0.9 });
+
+    renderHUD();
+    window.setTimeout(nextStep, 520);
   }
+
+  function nextStep() {
+    setWarn(false);
+
+    state.idx += 1;
+    if (state.idx >= TOTAL_QUESTIONS) {
+      finishGame();
+      return;
+    }
+    renderQuestion();
+  }
+
+  function chooseRewardRarity() {
+    if (state.correct >= 25 && state.maxCombo >= 5) return 5;
+    if (state.correct >= 20 && state.correct <= 24) return 4;
+    return 0;
+  }
+
+  function pickRandomCard(rarity) {
+    const pool = state.cards.filter((c) => c.rarity === rarity);
+    if (!pool.length) return null;
+    return pool[(Math.random() * pool.length) | 0];
+  }
+
+  function finishGame() {
+    state.finished = true;
+    stopTimer();
+    setWarn(false);
+    try { AUDIO.bgm.pause(); } catch {}
+
+    const rewardRarity = chooseRewardRarity();
+
+    rCorrect.textContent = String(state.correct);
+    rMaxCombo.textContent = String(state.maxCombo);
+
+    if (rewardRarity === 5) {
+      rReward.textContent = "★5 確定";
+      resultTitle.textContent = "RESULT";
+      resultTitle.classList.remove("failed");
+    } else if (rewardRarity === 4) {
+      rReward.textContent = "★4 確定";
+      resultTitle.textContent = "RESULT";
+      resultTitle.classList.remove("failed");
+    } else {
+      rReward.textContent = "なし";
+      resultTitle.textContent = "FAILED";
+      resultTitle.classList.add("failed");
+    }
+
+    // Show reward card if any
+    if (rewardRarity === 4 || rewardRarity === 5) {
+      const card = pickRandomCard(rewardRarity);
+      if (card) {
+        addCardToCounts(card.id);
+
+        cardImg.src = card.img || "";
+        cardName.textContent = card.name || "";
+        if (card.wiki) {
+          cardWiki.href = card.wiki;
+          cardWiki.style.display = "";
+        } else {
+          cardWiki.href = "#";
+          cardWiki.style.display = "none";
+        }
+        cardArea.classList.remove("hidden");
+      } else {
+        // if no cards found, still no crash
+        cardArea.classList.add("hidden");
+      }
+    } else {
+      cardArea.classList.add("hidden");
+    }
+
+    overlay.classList.remove("hidden");
+  }
+
+  // =========================
+  // Controls
+  // =========================
+  btnRetry.addEventListener("click", () => location.reload());
+  btnAgain.addEventListener("click", () => location.reload());
+
+  // =========================
+  // Boot run (after start overlay)
+  // =========================
+  function bootRun() {
+    state.started = true;
+    state.finished = false;
+
+    state.idx = 0;
+    state.correct = 0;
+    state.combo = 0;
+    state.maxCombo = 0;
+
+    overlay.classList.add("hidden");
+    renderQuestion();
+  }
+
+  // =========================
+  // Init
+  // =========================
+  (async () => {
+    // Parse URL params
+    const params = new URLSearchParams(location.search);
+    state.autostart = params.get("start") === "1";
+
+    // default BGM OFF
+    setBgm(false);
+
+    // preload minimal (non-blocking)
+    Object.values(AUDIO).forEach((a) => {
+      if (!a) return;
+      try { a.load(); } catch {}
+    });
+
+    // load data
+    try {
+      await loadAll();
+      questionEl.textContent = "準備完了。STARTで開始できます。";
+      sourceEl.textContent = "";
+      renderHUD();
+    } catch (e) {
+      questionEl.textContent = "読み込みに失敗しました。csv.js / CSV / パスを確認してください。";
+      sourceEl.textContent = String(e?.message ?? e);
+      console.error(e);
+      return;
+    }
+
+    // autostart: still shows overlay briefly then starts (START UIを尊重しつつ自動実行)
+    if (state.autostart) {
+      // 小さく猶予（ロード/描画を落ち着かせる）
+      window.setTimeout(() => {
+        startGameFromOverlay();
+      }, 250);
+    }
+  })();
 })();
