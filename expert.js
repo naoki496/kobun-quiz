@@ -9,7 +9,7 @@
  * - Card counts saved to localStorage key: hklobby.v1.cardCounts
  *
  * Add-ons:
- * - Canvas particle FX (screen overlay, lightweight)
+ * - Canvas particle FX (screen overlay, lightweight)  ✅ fixed: no dark accumulation
  * - Combo-5 achievement FX (once per run)
  * - Highlight supports 【】 and 〖〗
  */
@@ -40,7 +40,6 @@
   const LS_KEY = "hklobby.v1.cardCounts";
 
   // Use existing assets from kobun-quiz/app.js
-  // (If some files don't exist, it will just fail silently.)
   const AUDIO = {
     bgm: new Audio("./assets/bgm.mp3"),
     correct: new Audio("./assets/correct.mp3"),
@@ -108,10 +107,8 @@
     audioUnlocked: false,
     autostart: false,
 
-    // Achievements
     combo5Triggered: false,
 
-    // FX
     fx: {
       canvas: null,
       ctx: null,
@@ -135,12 +132,11 @@
 
   async function boot() {
     injectMeter();
-    injectFXLayer(); // Canvas + Combo toast
+    injectFXLayer();
 
     const params = new URLSearchParams(location.search);
     state.autostart = params.get("start") === "1";
 
-    // Unlock audio (mobile autoplay restriction)
     document.addEventListener("pointerdown", () => {
       if (!state.audioUnlocked) unlockAudio();
     });
@@ -148,7 +144,6 @@
     el.btnRetry.addEventListener("click", () => startNewRun(true));
     el.btnAgain.addEventListener("click", () => startNewRun(true));
 
-    // Load CSV
     if (!window.CSVUtil?.load) {
       throw new Error("CSVUtil.load が見つかりません（csv.js の読み込み順/配置を確認）");
     }
@@ -164,7 +159,6 @@
     state.cards4 = allCards.filter((c) => c.rarity === 4);
     state.cards5 = allCards.filter((c) => c.rarity === 5);
 
-    // Validate
     if (state.questions.length < TOTAL_QUESTIONS) {
       throw new Error(`questions.csv の問題数不足（必要 ${TOTAL_QUESTIONS} / 現在 ${state.questions.length}）`);
     }
@@ -217,7 +211,7 @@
     state.combo5Triggered = false;
     stopTimer();
     clearFX();
-    fxClearAll(); // clear particles
+    fxClearAll();
   }
 
   // =========================
@@ -259,7 +253,6 @@
       state.combo += 1;
       state.maxCombo = Math.max(state.maxCombo, state.combo);
 
-      // ✅ Combo-5 achievement (once per run, on the moment it becomes possible)
       if (!state.combo5Triggered && state.maxCombo >= 5) {
         state.combo5Triggered = true;
         playCombo5FX();
@@ -292,11 +285,8 @@
 
   function advanceOrFinish() {
     state.qIndex += 1;
-    if (state.qIndex >= TOTAL_QUESTIONS) {
-      finishRun();
-    } else {
-      startQuestion();
-    }
+    if (state.qIndex >= TOTAL_QUESTIONS) finishRun();
+    else startQuestion();
   }
 
   // =========================
@@ -316,7 +306,6 @@
       const card = rollCardByRarity(5);
       grantCard(card);
       showOverlay(card, 5);
-      // big burst
       fxBurstAtCenter(120, 16, 1.0);
       fxRingAtCenter(1.0);
       return;
@@ -361,8 +350,6 @@
     maybePlay(AUDIO.correct);
     el.app.classList.add("fx-correct");
     bumpCombo(false);
-
-    // Canvas burst at question area center-ish
     fxBurstAtEl(el.question, 38, 10, 0.55);
     fxConfettiSpray(el.question, 22, 0.55);
   }
@@ -371,7 +358,6 @@
     maybePlay(AUDIO.wrong);
     el.app.classList.add("fx-wrong");
     bumpCombo(true);
-
     fxGlitchBurst(el.question, 34, 0.7);
     fxGlitchSweep(0.55);
   }
@@ -380,19 +366,16 @@
     maybePlay(AUDIO.timeup);
     el.app.classList.add("fx-timeup");
     bumpCombo(true);
-
     fxGlitchBurst(el.question, 22, 0.6);
     fxGlitchSweep(0.6);
   }
 
   function playCombo5FX() {
-    // Special: ring + big burst + toast + class
     el.app.classList.add("fx-combo5");
     showComboToast("COMBO x5 — OVERDRIVE");
     fxRingAtEl(el.hudCombo, 1.0);
     fxBurstAtEl(el.hudCombo, 95, 14, 0.95);
     fxConfettiSpray(el.hudCombo, 65, 0.9);
-
     setTimeout(() => el.app.classList.remove("fx-combo5"), 1200);
   }
 
@@ -466,8 +449,6 @@
       state.timer.warned = true;
       el.app.classList.add("fx-warn");
       maybePlay(AUDIO.tick);
-
-      // small warning sparks at timer
       fxBurstAtEl(el.meterArea, 18, 9, 0.35);
     }
 
@@ -538,7 +519,6 @@
   // =========================
   function renderHighlighted(s) {
     const escaped = escapeHtml(s);
-    // Support both 【】 and 〖〗
     return escaped
       .replace(/【(.*?)】/g, `<span class="hl">【$1】</span>`)
       .replace(/〖(.*?)〗/g, `<span class="hl">〖$1〗</span>`);
@@ -600,9 +580,7 @@
   function writeCounts(obj) {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(obj));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   // =========================
@@ -674,16 +652,13 @@
     try {
       audio.currentTime = 0;
       audio.play().catch(() => {});
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   // =========================
-  // Canvas Particle FX
+  // Canvas Particle FX  ✅ fixed: no dark overlay accumulation
   // =========================
   function injectFXLayer() {
-    // Canvas
     const canvas = document.createElement("canvas");
     canvas.id = "fxCanvas";
     canvas.style.position = "fixed";
@@ -691,22 +666,20 @@
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     canvas.style.pointerEvents = "none";
-    canvas.style.zIndex = "40"; // under overlay(50), over main
+    canvas.style.zIndex = "40";
     document.body.appendChild(canvas);
 
     const ctx = canvas.getContext("2d", { alpha: true });
     state.fx.canvas = canvas;
     state.fx.ctx = ctx;
 
-    // Combo toast
     const toast = document.createElement("div");
     toast.id = "comboToast";
     toast.className = "comboToast hidden";
     toast.textContent = "COMBO x5 — OVERDRIVE";
     document.body.appendChild(toast);
 
-    const onResize = () => resizeFX();
-    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("resize", () => resizeFX(), { passive: true });
     resizeFX();
     fxStartLoop();
   }
@@ -721,6 +694,7 @@
     c.style.width = w + "px";
     c.style.height = h + "px";
     state.fx.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fxClearAll();
   }
 
   function fxStartLoop() {
@@ -742,14 +716,17 @@
     const w = state.fx.w;
     const h = state.fx.h;
 
-    // Fade frame
+    // ✅ IMPORTANT:
+    // Fade previous particles without painting black over the page.
+    // destination-out reduces alpha, keeping background visible.
     ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.globalCompositeOperation = "destination-out";
+    // dt normalized; ~60fps => dt≈0.016. this makes a stable fade.
+    const fade = Math.min(0.35, 0.12 + dt * 6.0);
+    ctx.fillStyle = `rgba(0,0,0,${fade})`;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
-    // Update & draw particles
     const ps = state.fx.particles;
     for (let i = ps.length - 1; i >= 0; i--) {
       const p = ps[i];
@@ -763,12 +740,11 @@
       p.x += p.vx * dt;
       p.y += p.vy * dt;
 
-      // drag
       p.vx *= (1 - 0.8 * dt);
       p.vy *= (1 - 0.8 * dt);
 
-      // draw
       const a = Math.max(0, Math.min(1, p.life / p.maxLife)) * p.alpha;
+
       ctx.save();
       ctx.globalCompositeOperation = p.mode;
       ctx.globalAlpha = a;
@@ -779,19 +755,16 @@
       ctx.restore();
     }
 
-    // Keep array bounded
     if (ps.length > 1400) ps.splice(0, ps.length - 1400);
   }
 
   function fxClearAll() {
     state.fx.particles.length = 0;
-    // Clear immediate
     const ctx = state.fx.ctx;
     if (!ctx) return;
     ctx.clearRect(0, 0, state.fx.w, state.fx.h);
   }
 
-  // Helpers to spawn at elements/center
   function centerOfEl(node) {
     const r = node.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -801,27 +774,22 @@
     const { x, y } = centerOfEl(node);
     fxBurst(x, y, count, speed, intensity);
   }
-
   function fxRingAtEl(node, intensity) {
     const { x, y } = centerOfEl(node);
     fxRing(x, y, intensity);
   }
-
   function fxBurstAtCenter(count, speed, intensity) {
     fxBurst(state.fx.w / 2, state.fx.h / 2, count, speed, intensity);
   }
-
   function fxRingAtCenter(intensity) {
     fxRing(state.fx.w / 2, state.fx.h / 2, intensity);
   }
-
   function fxGlitchBurst(node, count, intensity) {
     const { x, y } = centerOfEl(node);
     fxGlitch(x, y, count, intensity);
   }
 
   function fxGlitchSweep(intensity) {
-    // Create a horizontal sweep line burst across screen
     const y = (Math.random() * 0.5 + 0.25) * state.fx.h;
     const n = Math.floor(80 * (0.6 + intensity));
     for (let i = 0; i < n; i++) {
@@ -846,7 +814,7 @@
     const { x, y } = centerOfEl(node);
     const n = Math.floor(count);
     for (let i = 0; i < n; i++) {
-      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * 1.1; // upward spray
+      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * 1.1;
       const sp = (180 + Math.random() * 220) * (0.6 + intensity);
       const vx = Math.cos(ang) * sp;
       const vy = Math.sin(ang) * sp;
@@ -858,8 +826,7 @@
       spawnParticle({
         x: x + (Math.random() - 0.5) * 30,
         y: y + (Math.random() - 0.2) * 18,
-        vx,
-        vy,
+        vx, vy,
         ax: 0,
         ay: 520,
         r: 1.6 + Math.random() * 2.6,
@@ -886,8 +853,7 @@
       spawnParticle({
         x: x + (Math.random() - 0.5) * 10,
         y: y + (Math.random() - 0.5) * 10,
-        vx,
-        vy,
+        vx, vy,
         ax: 0,
         ay: 240,
         r: 1.8 + Math.random() * 3.2,
@@ -900,15 +866,13 @@
   }
 
   function fxRing(x, y, intensity) {
-    // Ring is just many small particles expanding outward
     const n = Math.floor(90 * (0.6 + intensity));
     const base = 220 * (0.6 + intensity);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
       const sp = base * (0.8 + Math.random() * 0.35);
       spawnParticle({
-        x,
-        y,
+        x, y,
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp,
         ax: 0,
@@ -932,8 +896,7 @@
       spawnParticle({
         x: x + (Math.random() - 0.5) * 18,
         y: y + (Math.random() - 0.5) * 18,
-        vx,
-        vy,
+        vx, vy,
         ax: 0,
         ay: 0,
         r: 1.4 + Math.random() * 2.4,
@@ -947,12 +910,9 @@
 
   function spawnParticle(p) {
     state.fx.particles.push({
-      x: p.x,
-      y: p.y,
-      vx: p.vx,
-      vy: p.vy,
-      ax: p.ax,
-      ay: p.ay,
+      x: p.x, y: p.y,
+      vx: p.vx, vy: p.vy,
+      ax: p.ax, ay: p.ay,
       r: p.r,
       life: p.life,
       maxLife: p.life,
@@ -971,12 +931,10 @@
     t.textContent = text;
     t.classList.remove("hidden");
     t.classList.remove("show");
-    // reflow
     void t.offsetWidth;
     t.classList.add("show");
     setTimeout(() => {
       t.classList.remove("show");
-      // keep hidden after anim end
       setTimeout(() => t.classList.add("hidden"), 420);
     }, 900);
   }
