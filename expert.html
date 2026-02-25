@@ -17,22 +17,29 @@
         <div class="subtitle">30問 / 10秒 / ★4-★5 ONLY</div>
       </div>
 
-      <div class="hud">
-        <div class="hudItem">
-          <div class="hudLabel">Q</div>
-          <div class="hudValue" id="hudQ">--/30</div>
-        </div>
-        <div class="hudItem">
-          <div class="hudLabel">正解</div>
-          <div class="hudValue" id="hudCorrect">0</div>
-        </div>
-        <div class="hudItem">
-          <div class="hudLabel">COMBO</div>
-          <div class="hudValue combo" id="hudCombo">0</div>
-        </div>
-        <div class="hudItem">
-          <div class="hudLabel">MAX</div>
-          <div class="hudValue" id="hudMaxCombo">0</div>
+      <div class="topActions">
+        <button class="bgmBtn" id="btnBgm" type="button" aria-pressed="true" title="BGM切替">
+          <span class="bgmDot" aria-hidden="true"></span>
+          <span class="bgmText">BGM: ON</span>
+        </button>
+
+        <div class="hud">
+          <div class="hudItem">
+            <div class="hudLabel">Q</div>
+            <div class="hudValue" id="hudQ">--/30</div>
+          </div>
+          <div class="hudItem">
+            <div class="hudLabel">正解</div>
+            <div class="hudValue" id="hudCorrect">0</div>
+          </div>
+          <div class="hudItem">
+            <div class="hudLabel">COMBO</div>
+            <div class="hudValue combo" id="hudCombo">0</div>
+          </div>
+          <div class="hudItem">
+            <div class="hudLabel">MAX</div>
+            <div class="hudValue" id="hudMaxCombo">0</div>
+          </div>
         </div>
       </div>
     </header>
@@ -49,7 +56,6 @@
 
       <div class="actions">
         <button class="btn ghost" id="btnRetry" type="button">リトライ</button>
-        <button class="btn ghost" id="btnBgm" type="button" aria-pressed="true">BGM: ON</button>
         <a class="btn ghost" href="./index.html">戻る</a>
         <div class="note" id="note">音：ON（STARTで再生開始）</div>
       </div>
