@@ -18,6 +18,7 @@
       </div>
 
       <div class="topActions">
+        <!-- ✅ BGM button: prominent -->
         <button class="bgmBtn" id="btnBgm" type="button" aria-pressed="true" title="BGM切替">
           <span class="bgmDot" aria-hidden="true"></span>
           <span class="bgmText">BGM: ON</span>
@@ -61,7 +62,7 @@
       </div>
     </section>
 
-    <!-- START modal -->
+    <!-- ✅ START modal -->
     <section class="overlay" id="startOverlay" aria-modal="true" role="dialog">
       <div class="overlayCard startCard" id="startCard">
         <div class="startTitle">EXPERT MODE</div>
@@ -119,7 +120,7 @@
     <section class="countdown hidden" id="countdown"></section>
   </main>
 
-  <!-- ✅順番固定：csv.js → expert.js -->
+  <!-- ✅ 重要：順番は必ず csv.js → expert.js -->
   <script src="./csv.js"></script>
   <script src="./expert.js"></script>
 </body>
