@@ -2,22 +2,24 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>古文単語330EXPERT</title>
-  <link rel="stylesheet" href="expert.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>古文単語330 | EXPERT</title>
+  <link rel="stylesheet" href="./expert.css" />
 </head>
+
 <body>
   <div class="bg"></div>
-  <main class="wrap" id="app">
 
+  <main class="wrap" id="app">
     <header class="topbar">
       <div class="brand">
-        <div class="mode">E古文単語330EXPERT</div>
+        <div class="mode">EXPERT</div>
         <div class="subtitle">30問 / 10秒 / ★4-★5 ONLY</div>
       </div>
+
       <div class="hud">
         <div class="hudItem">
-          <div class="hudLabel">問題数</div>
+          <div class="hudLabel">Q</div>
           <div class="hudValue" id="hudQ">--/30</div>
         </div>
         <div class="hudItem">
@@ -36,50 +38,49 @@
     </header>
 
     <section class="panel">
-      <div class="meterArea" id="meterArea">
-        <!-- JS injects timer meter -->
-      </div>
+      <div class="meterArea" id="meterArea"></div>
 
       <div class="questionBox">
         <div class="source" id="source"></div>
         <div class="question" id="question">読み込み中…</div>
       </div>
 
-      <div class="choices" id="choices">
-        <!-- JS injects buttons -->
-      </div>
+      <div class="choices" id="choices"></div>
 
       <div class="actions">
         <button class="btn ghost" id="btnRetry" type="button">リトライ</button>
-        <button class="btn ghost" id="btnBgm" type="button" aria-pressed="false">BGM: OFF</button>
+        <button class="btn ghost" id="btnBgm" type="button" aria-pressed="true">BGM: ON</button>
         <a class="btn ghost" href="./index.html">戻る</a>
-        <div class="note" id="note">音：OFF（BGMボタンでON）</div>
+        <div class="note" id="note">音：ON（STARTで再生開始）</div>
       </div>
     </section>
 
-    <!-- START modal (pre-run) -->
+    <!-- START modal -->
     <section class="overlay" id="startOverlay" aria-modal="true" role="dialog">
       <div class="overlayCard startCard" id="startCard">
         <div class="startTitle">EXPERT MODE</div>
-          <div class="startBody">
-            <p>
-              正解数<strong>25問以上</strong><br/>
-              連続正解<strong>COMBO 5問以上</strong>で<br/>
-              <strong>★5カード</strong>を確定入手します。<br/>
-              <span class="startWarn">（BGMが鳴ります、注意してください）</span>
-            </p>
-            <p class="startQ">準備はできましたか？</p>
-          </div>
+
+        <div class="startBody">
+          <p>
+            正解数<strong>25問以上</strong><br/>
+            連続正解<strong>COMBO 5問以上</strong>で<br/>
+            <strong>★5カード</strong>を確定入手します。<br/>
+            <span class="startWarn">（BGMが鳴ります、注意してください）</span>
+          </p>
+          <p class="startQ">準備はできましたか？</p>
         </div>
+
         <div class="startActions">
           <button class="btn" id="btnStart" type="button">START</button>
         </div>
       </div>
     </section>
 
+    <!-- RESULT overlay -->
     <section class="overlay hidden" id="overlay">
       <div class="overlayCard">
         <div class="resultTitle" id="resultTitle">RESULT</div>
+
         <div class="resultGrid">
           <div class="resultStat">
             <div class="k">正解</div><div class="v" id="rCorrect">0</div>
@@ -110,10 +111,10 @@
     </section>
 
     <section class="countdown hidden" id="countdown"></section>
-
   </main>
 
-  <script src="csv.js"></script>
-  <script src="expert.js"></script>
+  <!-- ✅順番固定：csv.js → expert.js -->
+  <script src="./csv.js"></script>
+  <script src="./expert.js"></script>
 </body>
 </html>
