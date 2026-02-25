@@ -33,6 +33,7 @@
   };
 
   const wrap = requireEl("app");
+
   const hudQ = requireEl("hudQ");
   const hudCorrect = requireEl("hudCorrect");
   const hudCombo = requireEl("hudCombo");
@@ -79,7 +80,7 @@
   meterArea.appendChild(meterOuter);
   meterArea.appendChild(meterText);
 
-  // ===== Canvas FX (behind content; slightly dimmer already in draw) =====
+  // ===== Canvas FX (behind content) =====
   const panel = document.querySelector(".panel");
   const fxCanvas = document.createElement("canvas");
   fxCanvas.style.position = "absolute";
@@ -111,12 +112,15 @@
     ctx.save();
     ctx.globalCompositeOperation = "source-over";
 
-    // scan lines (kept; slightly lower alpha to avoid readability loss)
-    const step = mode === "exit" ? 7 : 11;
-    ctx.fillStyle = mode === "exit" ? "rgba(255,45,85,0.06)" : "rgba(255,45,85,0.04)";
-    for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, 2);
+    // ✅ 常時走査線は出さない（warn時はスイープのみ）
+    // exit時だけ走査線を足して「警報感」を強くする
+    if (mode === "exit") {
+      const step = 7;
+      ctx.fillStyle = "rgba(255,45,85,0.06)";
+      for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, 2);
+    }
 
-    // sweep band
+    // sweep band（上→下）
     const bandH = mode === "exit" ? 170 : 135;
     const speed = mode === "exit" ? 11 : 8;
     const bandY = (fxT * speed) % (h + bandH) - bandH;
@@ -270,27 +274,34 @@
 
   btnBgm.addEventListener("click", () => setBgm(!state.bgmOn));
 
-  // ===== Countdown (slower + stronger; background handled in CSS) =====
+  // ===== Countdown (mask fixed; animate only text) =====
   async function runCountdown() {
     countdownEl.classList.remove("hidden");
-    const seq = ["3", "2", "1", "GO"];
 
-    const STEP_MS = 700; // ✅ 少し遅く
-    const GO_MS = 820;   // ✅ GOを気持ち長め
+    let cdText = countdownEl.querySelector(".cdText");
+    if (!cdText) {
+      cdText = document.createElement("div");
+      cdText.className = "cdText";
+      countdownEl.textContent = "";
+      countdownEl.appendChild(cdText);
+    }
+
+    const seq = ["3", "2", "1", "GO"];
+    const STEP_MS = 700;
+    const GO_MS = 820;
 
     for (const s of seq) {
-      countdownEl.textContent = s;
-      countdownEl.classList.remove("pop");
-      void countdownEl.offsetWidth;
-      countdownEl.classList.add("pop");
+      cdText.textContent = s;
+      cdText.classList.remove("pop");
+      void cdText.offsetWidth;
+      cdText.classList.add("pop");
 
       if (s === "GO") playOne(AUDIO.go, { volume: 0.9 });
-
       await new Promise((r) => setTimeout(r, s === "GO" ? GO_MS : STEP_MS));
     }
 
     countdownEl.classList.add("hidden");
-    countdownEl.textContent = "";
+    cdText.textContent = "";
   }
 
   function hideStartOverlayWithFX() {
@@ -333,7 +344,6 @@
 
     state.questions = questions;
     state.cards = cards;
-
     state.picks = shuffle(questions).slice(0, TOTAL_QUESTIONS);
   }
 
@@ -380,7 +390,6 @@
     const ratio = Math.max(0, Math.min(1, state.tLeft / QUESTION_TIME_SEC));
     meterInner.style.transform = `scaleX(${ratio})`;
 
-    // ✅ 2桁→1桁でバーが揺れないのは CSS(min-width) で吸収
     const whole = Math.max(0, Math.ceil(state.tLeft));
     meterText.textContent = `${whole}s`;
 
@@ -444,6 +453,7 @@
 
   function onAnswer(choice, btn) {
     if (state.finished) return;
+
     stopTimer();
     lockChoices(true);
 
@@ -454,17 +464,21 @@
       state.correct += 1;
       state.combo += 1;
       state.maxCombo = Math.max(state.maxCombo, state.combo);
+
       btn.classList.add("isCorrect");
-      setWrapFx("fx-correct", 360);
+      setWrapFx("fx-correct", 360); // ✅ CSSの青フラッシュが出る
       playOne(AUDIO.correct, { volume: 0.85 });
+
       punch(hudCorrect);
       punch(hudCombo);
     } else {
       state.combo = 0;
       hudCombo.classList.add("comboReset");
       window.setTimeout(() => hudCombo.classList.remove("comboReset"), 240);
-      setWrapFx("fx-wrong", 420);
+
+      setWrapFx("fx-wrong", 420);  // ✅ CSSの赤フラッシュが出る
       playOne(AUDIO.wrong, { volume: 0.9 });
+
       choicesEl.querySelectorAll("button.choiceBtn").forEach((b) => {
         if (b !== btn) b.classList.add("isDim");
       });
@@ -483,8 +497,7 @@
 
     lockChoices(true);
 
-    // ✅ timeupもwrong同等の揺れ
-    setWrapFx("fx-timeup", 420);
+    setWrapFx("fx-timeup", 420); // ✅ timeupも赤フラッシュ＋揺れ
     playOne(AUDIO.timeup, { volume: 0.9 });
 
     renderHUD();
