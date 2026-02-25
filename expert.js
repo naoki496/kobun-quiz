@@ -9,9 +9,10 @@
  * - Card counts saved to localStorage key: hklobby.v1.cardCounts
  *
  * Add-ons:
- * - Canvas particle FX (screen overlay, lightweight)  ✅ fixed: no dark accumulation
+ * - Canvas particle FX (screen overlay, lightweight)  ✅ no dark accumulation
  * - Combo-5 achievement FX (once per run)
  * - Highlight supports 【】 and 〖〗
+ * - CRISIS mode at last seconds: siren sweep + strobe + HUD shake + tick rhythm
  */
 (() => {
   "use strict";
@@ -35,11 +36,11 @@
 
   const TOTAL_QUESTIONS = 30;
   const QUESTION_TIME_SEC = 10;
-  const WARN_AT_SEC = 3;
+  const WARN_AT_SEC = 3; // enter crisis at 3
 
   const LS_KEY = "hklobby.v1.cardCounts";
 
-  // Use existing assets from kobun-quiz/app.js
+  // ✅ AUDIO: user-specified replacement
   const AUDIO = {
     bgm: new Audio("./assets/bgmex.mp3"),
     correct: new Audio("./assets/correct.mp3"),
@@ -102,6 +103,9 @@
       rafId: 0,
       running: false,
       warned: false,
+      lastSec: null,
+      crisisStage: 0, // 0 none, 1..3 for 3/2/1
+      crisisBeat: 0,  // used to pulse CSS
     },
 
     audioUnlocked: false,
@@ -193,7 +197,7 @@
     renderHUD();
 
     if (withCountdown) {
-      showCountdown(async () => {
+      showCountdown(() => {
         maybePlay(AUDIO.go);
         startQuestion();
       });
@@ -209,8 +213,15 @@
     state.maxCombo = 0;
     state.locked = false;
     state.combo5Triggered = false;
+
+    state.timer.warned = false;
+    state.timer.lastSec = null;
+    state.timer.crisisStage = 0;
+    state.timer.crisisBeat = 0;
+
     stopTimer();
     clearFX();
+    clearCrisisFX();
     fxClearAll();
   }
 
@@ -219,6 +230,7 @@
   // =========================
   function startQuestion() {
     clearFX();
+    clearCrisisFX();
     state.locked = false;
 
     const q = state.selected[state.qIndex];
@@ -244,6 +256,7 @@
     state.locked = true;
 
     stopTimer();
+    clearCrisisFX();
 
     const q = state.selected[state.qIndex];
     const ok = choiceNum === q.answer;
@@ -273,6 +286,9 @@
     if (state.locked) return;
     state.locked = true;
 
+    stopTimer();
+    clearCrisisFX();
+
     state.combo = 0;
     playTimeoutFX();
 
@@ -295,6 +311,7 @@
   function finishRun() {
     stopTimer();
     clearFX();
+    clearCrisisFX();
 
     const rarity = decideRewardRarity(state.correct, state.maxCombo);
 
@@ -307,7 +324,6 @@
       grantCard(card);
       showOverlay(card, 5);
       fxBurstAtCenter(120, 16, 1.0);
-      fxRingAtCenter(1.0);
       return;
     }
     if (rarity === 4) {
@@ -316,13 +332,12 @@
       grantCard(card);
       showOverlay(card, 4);
       fxBurstAtCenter(80, 14, 0.75);
-      fxRingAtCenter(0.8);
       return;
     }
 
     el.rReward.textContent = "報酬なし（★3は出ません）";
     showOverlay(null, null);
-    fxGlitchSweep(0.9);
+    fxCrisisSweep(0.9);
   }
 
   function decideRewardRarity(correctCount, maxCombo) {
@@ -344,43 +359,62 @@
   }
 
   // =========================
-  // FX (CSS classes + Canvas)
+  // FX
   // =========================
   function playCorrectFX() {
     maybePlay(AUDIO.correct);
     el.app.classList.add("fx-correct");
     bumpCombo(false);
     fxBurstAtEl(el.question, 38, 10, 0.55);
-    fxConfettiSpray(el.question, 22, 0.55);
   }
 
   function playWrongFX() {
     maybePlay(AUDIO.wrong);
     el.app.classList.add("fx-wrong");
     bumpCombo(true);
-    fxGlitchBurst(el.question, 34, 0.7);
-    fxGlitchSweep(0.55);
+    fxErrorBurst(el.question, 34, 0.7);
   }
 
   function playTimeoutFX() {
-    maybePlay(AUDIO.timeup);
+    // timeup audio is null per spec
     el.app.classList.add("fx-timeup");
     bumpCombo(true);
-    fxGlitchBurst(el.question, 22, 0.6);
-    fxGlitchSweep(0.6);
+    fxErrorBurst(el.question, 22, 0.6);
+    fxCrisisSweep(0.8);
   }
 
   function playCombo5FX() {
     el.app.classList.add("fx-combo5");
     showComboToast("COMBO x5 — OVERDRIVE");
-    fxRingAtEl(el.hudCombo, 1.0);
     fxBurstAtEl(el.hudCombo, 95, 14, 0.95);
-    fxConfettiSpray(el.hudCombo, 65, 0.9);
     setTimeout(() => el.app.classList.remove("fx-combo5"), 1200);
   }
 
   function clearFX() {
-    el.app.classList.remove("fx-correct", "fx-wrong", "fx-timeup", "fx-warn");
+    el.app.classList.remove("fx-correct", "fx-wrong", "fx-timeup");
+  }
+
+  function applyCrisisFX(stage) {
+    // stage: 1..3 (3sec->1sec)
+    el.app.classList.add("fx-crisis");
+    el.app.classList.toggle("fx-crisis3", stage === 1); // sec==3
+    el.app.classList.toggle("fx-crisis2", stage === 2); // sec==2
+    el.app.classList.toggle("fx-crisis1", stage === 3); // sec==1
+
+    // pulse beat to retrigger CSS keyframes (optional)
+    state.timer.crisisBeat = (state.timer.crisisBeat + 1) % 10000;
+    el.app.style.setProperty("--crisisBeat", String(state.timer.crisisBeat));
+
+    // Canvas "siren sweep": thin red scanline particles across screen
+    fxCrisisSweep(0.35 + 0.18 * stage);
+
+    // Extra: small burst at meter to draw attention
+    fxErrorBurst(el.meterArea, 10 + stage * 6, 0.25 + stage * 0.12);
+  }
+
+  function clearCrisisFX() {
+    el.app.classList.remove("fx-crisis", "fx-crisis3", "fx-crisis2", "fx-crisis1", "fx-warn");
+    el.app.style.removeProperty("--crisisBeat");
   }
 
   function bumpCombo(reset) {
@@ -417,6 +451,8 @@
     stopTimer();
     state.timer.running = true;
     state.timer.warned = false;
+    state.timer.lastSec = null;
+    state.timer.crisisStage = 0;
     state.timer.t0 = performance.now();
     state.timer.remainingMs = QUESTION_TIME_SEC * 1000;
     tickTimer();
@@ -445,11 +481,27 @@
     if (meterInner) meterInner.style.transform = `scaleX(${ratio})`;
     if (meterSec) meterSec.textContent = String(sec);
 
+    // Enter warn at threshold
     if (!state.timer.warned && sec <= WARN_AT_SEC) {
       state.timer.warned = true;
       el.app.classList.add("fx-warn");
-      maybePlay(AUDIO.tick);
-      fxBurstAtEl(el.meterArea, 18, 9, 0.35);
+    }
+
+    // CRISIS: trigger per-second stage + tick sound rhythm
+    // stage mapping: sec==3 -> stage1, sec==2 -> stage2, sec==1 -> stage3
+    if (sec !== state.timer.lastSec) {
+      state.timer.lastSec = sec;
+
+      if (sec <= 3 && sec >= 1) {
+        const stage = 4 - sec;
+        state.timer.crisisStage = stage;
+
+        // tick sound each second in last 3 seconds
+        maybePlay(AUDIO.tick);
+
+        // apply crisis visual at this stage
+        applyCrisisFX(stage);
+      }
     }
 
     if (remaining <= 0) {
@@ -656,7 +708,7 @@
   }
 
   // =========================
-  // Canvas Particle FX  ✅ fixed: no dark overlay accumulation
+  // Canvas Particle FX (no dark accumulation)
   // =========================
   function injectFXLayer() {
     const canvas = document.createElement("canvas");
@@ -716,12 +768,9 @@
     const w = state.fx.w;
     const h = state.fx.h;
 
-    // ✅ IMPORTANT:
-    // Fade previous particles without painting black over the page.
-    // destination-out reduces alpha, keeping background visible.
+    // Fade without black overlay
     ctx.save();
     ctx.globalCompositeOperation = "destination-out";
-    // dt normalized; ~60fps => dt≈0.016. this makes a stable fade.
     const fade = Math.min(0.35, 0.12 + dt * 6.0);
     ctx.fillStyle = `rgba(0,0,0,${fade})`;
     ctx.fillRect(0, 0, w, h);
@@ -774,65 +823,54 @@
     const { x, y } = centerOfEl(node);
     fxBurst(x, y, count, speed, intensity);
   }
-  function fxRingAtEl(node, intensity) {
-    const { x, y } = centerOfEl(node);
-    fxRing(x, y, intensity);
-  }
+
   function fxBurstAtCenter(count, speed, intensity) {
     fxBurst(state.fx.w / 2, state.fx.h / 2, count, speed, intensity);
   }
-  function fxRingAtCenter(intensity) {
-    fxRing(state.fx.w / 2, state.fx.h / 2, intensity);
-  }
-  function fxGlitchBurst(node, count, intensity) {
-    const { x, y } = centerOfEl(node);
-    fxGlitch(x, y, count, intensity);
-  }
 
-  function fxGlitchSweep(intensity) {
-    const y = (Math.random() * 0.5 + 0.25) * state.fx.h;
-    const n = Math.floor(80 * (0.6 + intensity));
+  // ERROR burst: red/amber only, sharper = "危機"系
+  function fxErrorBurst(node, count, intensity) {
+    const { x, y } = centerOfEl(node);
+    const n = Math.floor(count);
     for (let i = 0; i < n; i++) {
-      const x = Math.random() * state.fx.w;
+      const a = (Math.random() - 0.5) * 1.3;
+      const sp = (220 + Math.random() * 320) * (0.55 + intensity);
+      const vx = Math.cos(a) * sp;
+      const vy = (Math.random() - 0.5) * 120;
+      const pick = Math.random();
+      const color = pick < 0.75 ? "rgba(255,45,85,1)" : "rgba(255,204,0,1)";
       spawnParticle({
-        x,
-        y: y + (Math.random() - 0.5) * 60,
-        vx: (Math.random() - 0.5) * 120,
-        vy: (Math.random() - 0.5) * 40,
+        x: x + (Math.random() - 0.5) * 18,
+        y: y + (Math.random() - 0.5) * 18,
+        vx, vy,
         ax: 0,
         ay: 0,
-        r: 1.2 + Math.random() * 1.8,
-        life: 0.25 + Math.random() * 0.25,
-        alpha: 0.55 + 0.25 * intensity,
-        color: "rgba(255,45,85,1)",
+        r: 1.3 + Math.random() * 2.2,
+        life: 0.22 + Math.random() * 0.25,
+        alpha: 0.75,
+        color,
         mode: "screen",
       });
     }
   }
 
-  function fxConfettiSpray(node, count, intensity) {
-    const { x, y } = centerOfEl(node);
-    const n = Math.floor(count);
+  // Siren sweep across screen: thin red scanline particles
+  function fxCrisisSweep(intensity) {
+    const y = (Math.random() * 0.55 + 0.20) * state.fx.h;
+    const n = Math.floor(120 * (0.6 + intensity));
     for (let i = 0; i < n; i++) {
-      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * 1.1;
-      const sp = (180 + Math.random() * 220) * (0.6 + intensity);
-      const vx = Math.cos(ang) * sp;
-      const vy = Math.sin(ang) * sp;
-      const pick = Math.random();
-      const color =
-        pick < 0.45 ? "rgba(0,229,255,1)" :
-        pick < 0.80 ? "rgba(255,45,85,1)" :
-        "rgba(255,204,0,1)";
+      const x = Math.random() * state.fx.w;
       spawnParticle({
-        x: x + (Math.random() - 0.5) * 30,
-        y: y + (Math.random() - 0.2) * 18,
-        vx, vy,
+        x,
+        y: y + (Math.random() - 0.5) * 90,
+        vx: (Math.random() - 0.5) * 180,
+        vy: (Math.random() - 0.5) * 60,
         ax: 0,
-        ay: 520,
-        r: 1.6 + Math.random() * 2.6,
-        life: 0.55 + Math.random() * 0.35,
-        alpha: 0.65,
-        color,
+        ay: 0,
+        r: 1.0 + Math.random() * 1.8,
+        life: 0.16 + Math.random() * 0.20,
+        alpha: 0.60 + 0.25 * intensity,
+        color: "rgba(255,45,85,1)",
         mode: "screen",
       });
     }
@@ -847,7 +885,7 @@
       const vy = Math.sin(a) * sp;
       const pick = Math.random();
       const color =
-        pick < 0.50 ? "rgba(0,229,255,1)" :
+        pick < 0.55 ? "rgba(0,229,255,1)" :
         pick < 0.85 ? "rgba(255,45,85,1)" :
         "rgba(255,204,0,1)";
       spawnParticle({
@@ -856,53 +894,10 @@
         vx, vy,
         ax: 0,
         ay: 240,
-        r: 1.8 + Math.random() * 3.2,
-        life: 0.45 + Math.random() * 0.45,
-        alpha: 0.75,
+        r: 1.6 + Math.random() * 3.0,
+        life: 0.38 + Math.random() * 0.45,
+        alpha: 0.72,
         color,
-        mode: "screen",
-      });
-    }
-  }
-
-  function fxRing(x, y, intensity) {
-    const n = Math.floor(90 * (0.6 + intensity));
-    const base = 220 * (0.6 + intensity);
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      const sp = base * (0.8 + Math.random() * 0.35);
-      spawnParticle({
-        x, y,
-        vx: Math.cos(a) * sp,
-        vy: Math.sin(a) * sp,
-        ax: 0,
-        ay: 0,
-        r: 1.2 + Math.random() * 1.8,
-        life: 0.35 + Math.random() * 0.25,
-        alpha: 0.55 + 0.25 * intensity,
-        color: "rgba(0,229,255,1)",
-        mode: "screen",
-      });
-    }
-  }
-
-  function fxGlitch(x, y, count, intensity) {
-    const n = Math.floor(count);
-    for (let i = 0; i < n; i++) {
-      const a = (Math.random() - 0.5) * 0.8;
-      const sp = (140 + Math.random() * 260) * (0.55 + intensity);
-      const vx = Math.cos(a) * sp;
-      const vy = (Math.random() - 0.5) * 60;
-      spawnParticle({
-        x: x + (Math.random() - 0.5) * 18,
-        y: y + (Math.random() - 0.5) * 18,
-        vx, vy,
-        ax: 0,
-        ay: 0,
-        r: 1.4 + Math.random() * 2.4,
-        life: 0.25 + Math.random() * 0.25,
-        alpha: 0.65,
-        color: "rgba(255,45,85,1)",
         mode: "screen",
       });
     }
