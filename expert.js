@@ -1,8 +1,8 @@
 /* expert.js (kobun-quiz EXPERT)
  * - Independent from app.js
  * - Uses csv.js: window.CSVUtil.load(url)
- * - Pre-start modal + START button (with FX + fade out)
- * - BGM ON/OFF button
+ * - Pre-start modal + START button (with alarm FX + fade out)
+ * - BGM button (default ON in UI; actual playback starts on START gesture)
  * - 30 questions, 10 sec per question, timeout=wrong, combo breaks
  * - Reward: ★5 if correct>=25 AND maxCombo>=5, ★4 if correct 20-24, else none
  * - localStorage: hklobby.v1.cardCounts
@@ -25,10 +25,9 @@
     wrong: new Audio("./assets/wrongex.mp3"),
     go: new Audio("./assets/goex.mp3"),
     tick: new Audio("./assets/tick.mp3"),
-    timeup: new Audio("./assets/wrongex.mp3"), // ←ご指定どおり wrongex.mp3
+    timeup: new Audio("./assets/wrongex.mp3"), // ←ご指定どおり
   };
 
-  // BGM defaults OFF (button turns it ON)
   AUDIO.bgm.loop = true;
   AUDIO.bgm.volume = 0.65;
 
@@ -92,7 +91,7 @@
   meterArea.appendChild(meterText);
 
   // =========================
-  // Canvas FX (destination-out fade; avoids "dark accumulation")
+  // Canvas FX (destination-out fade; avoids dark accumulation)
   // =========================
   const panel = document.querySelector(".panel");
   const fxCanvas = document.createElement("canvas");
@@ -103,7 +102,7 @@
   fxCanvas.style.width = "100%";
   fxCanvas.style.height = "100%";
   fxCanvas.style.pointerEvents = "none";
-  fxCanvas.style.zIndex = "0"; // behind content (panel children have z-index:1)
+  fxCanvas.style.zIndex = "0";
   panel.appendChild(fxCanvas);
 
   const ctx = fxCanvas.getContext("2d", { alpha: true });
@@ -134,34 +133,52 @@
 
     // crisis scanlines when warning active
     if (state.started && state.tLeft <= WARN_AT_SEC && !state.finished) {
-      const w = fxCanvas.width;
-      const h = fxCanvas.height;
-
-      ctx.save();
-      ctx.globalCompositeOperation = "source-over";
-
-      // moving red sweep band
-      const bandY = (fxT * 8) % (h + 140) - 140;
-      const grad = ctx.createLinearGradient(0, bandY, 0, bandY + 140);
-      grad.addColorStop(0, "rgba(255,45,85,0)");
-      grad.addColorStop(0.45, "rgba(255,45,85,0.22)");
-      grad.addColorStop(0.55, "rgba(255,45,85,0.22)");
-      grad.addColorStop(1, "rgba(255,45,85,0)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, bandY, w, 140);
-
-      // scan lines
-      ctx.fillStyle = "rgba(255,45,85,0.06)";
-      for (let y = 0; y < h; y += 10) {
-        ctx.fillRect(0, y, w, 2);
-      }
-
-      ctx.restore();
+      drawAlarmScan("warn");
     }
 
     requestAnimationFrame(fxTick);
   }
   requestAnimationFrame(fxTick);
+
+  function drawAlarmScan(mode = "warn") {
+    const w = fxCanvas.width;
+    const h = fxCanvas.height;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+
+    // denser scan lines
+    ctx.fillStyle = "rgba(255,45,85,0.08)";
+    for (let y = 0; y < h; y += (mode === "exit" ? 6 : 10)) {
+      ctx.fillRect(0, y, w, 2);
+    }
+
+    // moving red sweep band (stronger on exit)
+    const bandH = mode === "exit" ? 180 : 140;
+    const speed = mode === "exit" ? 12 : 8;
+    const bandY = (fxT * speed) % (h + bandH) - bandH;
+
+    const grad = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
+    grad.addColorStop(0, "rgba(255,45,85,0)");
+    grad.addColorStop(0.42, mode === "exit" ? "rgba(255,45,85,0.30)" : "rgba(255,45,85,0.22)");
+    grad.addColorStop(0.58, mode === "exit" ? "rgba(255,45,85,0.30)" : "rgba(255,45,85,0.22)");
+    grad.addColorStop(1, "rgba(255,45,85,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, bandY, w, bandH);
+
+    // noise blocks (more dense on exit)
+    const n = mode === "exit" ? 160 : 70;
+    for (let i = 0; i < n; i++) {
+      const x = Math.random() * w;
+      const y = Math.random() * h;
+      const rw = 10 + Math.random() * (mode === "exit" ? 44 : 26);
+      const rh = 1 + Math.random() * (mode === "exit" ? 6 : 4);
+      ctx.fillStyle = `rgba(255,45,85,${mode === "exit" ? 0.05 : 0.035})`;
+      ctx.fillRect(x, y, rw, rh);
+    }
+
+    ctx.restore();
+  }
 
   // =========================
   // State
@@ -182,11 +199,12 @@
     timerId: null,
     lastWholeSec: QUESTION_TIME_SEC,
 
-    bgmOn: false,
+    // ✅ BGM: 初期ON（UI上）だが、実再生はSTART押下で開始
+    bgmOn: true,
+    bgmArmed: false, // user gesture has occurred
     warnOn: false,
 
     cards: [],
-    autostart: false,
   };
 
   // =========================
@@ -210,10 +228,8 @@
       .replace(/'/g, "&#39;");
   }
 
-  // Highlight 【...】
   function renderHighlighted(text) {
     const s = String(text ?? "");
-    // replace all occurrences of 【...】 non-greedy
     return esc(s).replace(/【(.*?)】/g, (_m, p1) => `<span class="hl">【${esc(p1)}】</span>`);
   }
 
@@ -222,11 +238,8 @@
     try {
       if (typeof volume === "number") audio.volume = volume;
       if (restart) audio.currentTime = 0;
-      // For mobile, play requires a user gesture; START button provides that.
       audio.play().catch(() => {});
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   function setWrapFx(cls, dur = 360) {
@@ -237,7 +250,6 @@
   function punch(el) {
     if (!el) return;
     el.classList.remove("punch");
-    // force reflow
     void el.offsetWidth;
     el.classList.add("punch");
   }
@@ -247,7 +259,6 @@
     toast.className = "comboToast";
     toast.textContent = "COMBO 5: OVERDRIVE";
     document.body.appendChild(toast);
-    // trigger anim
     requestAnimationFrame(() => toast.classList.add("show"));
     window.setTimeout(() => toast.remove(), 1300);
   }
@@ -264,9 +275,7 @@
   function saveCounts(counts) {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(counts));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   function addCardToCounts(cardId) {
@@ -282,12 +291,18 @@
   function updateBgmUI() {
     btnBgm.setAttribute("aria-pressed", state.bgmOn ? "true" : "false");
     btnBgm.textContent = state.bgmOn ? "BGM: ON" : "BGM: OFF";
-    noteEl.textContent = state.bgmOn ? "音：ON" : "音：OFF（BGMボタンでON）";
+    noteEl.textContent = state.bgmOn
+      ? "音：ON（STARTで再生開始）"
+      : "音：OFF";
   }
 
   function setBgm(on) {
     state.bgmOn = !!on;
     updateBgmUI();
+
+    // 実再生は「START押下済み(bgmArmed=true)」でのみ許可
+    if (!state.bgmArmed) return;
+
     if (state.bgmOn) {
       playOne(AUDIO.bgm, { restart: false });
     } else {
@@ -302,36 +317,6 @@
   // =========================
   // Start overlay flow
   // =========================
-  function hideStartOverlayWithFX() {
-    // Add leaving classes (CSS anim)
-    startOverlay.classList.add("leaving");
-    startCard.classList.add("leaving");
-
-    // Add a short canvas burst (non-black accumulating)
-    const w = fxCanvas.width;
-    const h = fxCanvas.height;
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    // quick bright ring
-    ctx.strokeStyle = "rgba(0,229,255,0.35)";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(w * 0.5, h * 0.35, 120, 0, Math.PI * 2);
-    ctx.stroke();
-    // red fragments
-    for (let i = 0; i < 28; i++) {
-      const x = w * 0.2 + Math.random() * w * 0.6;
-      const y = h * 0.2 + Math.random() * h * 0.5;
-      ctx.fillStyle = `rgba(255,45,85,${0.08 + Math.random() * 0.18})`;
-      ctx.fillRect(x, y, 8 + Math.random() * 24, 1.5 + Math.random() * 3);
-    }
-    ctx.restore();
-
-    window.setTimeout(() => {
-      startOverlay.classList.add("hidden");
-    }, 420);
-  }
-
   async function runCountdown() {
     countdownEl.classList.remove("hidden");
     const seq = ["3", "2", "1", "GO"];
@@ -340,23 +325,60 @@
       countdownEl.classList.remove("pop");
       void countdownEl.offsetWidth;
       countdownEl.classList.add("pop");
-      if (s === "GO") {
-        playOne(AUDIO.go, { volume: 0.9 });
-      }
+      if (s === "GO") playOne(AUDIO.go, { volume: 0.9 });
       await new Promise((r) => setTimeout(r, 520));
     }
     countdownEl.classList.add("hidden");
     countdownEl.textContent = "";
   }
 
+  function hideStartOverlayWithFX() {
+    // CSS leaving animation
+    startOverlay.classList.add("leaving");
+    startCard.classList.add("leaving");
+
+    // Canvas: alarm burst (red scan + dense noise)
+    drawAlarmScan("exit");
+
+    // additional burst streaks
+    const w = fxCanvas.width, h = fxCanvas.height;
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    for (let i = 0; i < 55; i++) {
+      const x = Math.random() * w;
+      const y = Math.random() * h;
+      const len = 24 + Math.random() * 80;
+      const th = 1 + Math.random() * 4;
+      ctx.fillStyle = `rgba(255,45,85,${0.06 + Math.random() * 0.10})`;
+      ctx.fillRect(x, y, len, th);
+    }
+    ctx.restore();
+
+    window.setTimeout(() => {
+      startOverlay.classList.add("hidden");
+    }, 420);
+  }
+
   async function startGameFromOverlay() {
+    // ✅ START押下が唯一の開始トリガ
     if (state.started) return;
-    // user gesture path -> safe to start audio later
+
+    // mark user gesture for autoplay restrictions
+    state.bgmArmed = true;
+
+    // hide overlay with alarm FX
     hideStartOverlayWithFX();
+
+    // if BGM is ON, start playback NOW (this is the user gesture path)
+    if (state.bgmOn) {
+      playOne(AUDIO.bgm, { restart: false });
+    }
+
     await runCountdown();
     bootRun();
   }
 
+  // Start button only
   btnStart.addEventListener("click", () => {
     startGameFromOverlay();
   });
@@ -383,9 +405,7 @@
     state.questions = questions;
     state.cards = cards;
 
-    // pick random 30
-    const picks = shuffle(questions).slice(0, TOTAL_QUESTIONS);
-    state.picks = picks;
+    state.picks = shuffle(questions).slice(0, TOTAL_QUESTIONS);
   }
 
   function normalizeQuestionRow(r) {
@@ -437,7 +457,6 @@
 
     setWarn(whole <= WARN_AT_SEC && !state.finished);
 
-    // tick only when seconds change and only in warning zone
     if (whole !== state.lastWholeSec) {
       state.lastWholeSec = whole;
       if (whole <= WARN_AT_SEC && whole >= 1) {
@@ -605,7 +624,6 @@
       resultTitle.classList.add("failed");
     }
 
-    // Show reward card if any
     if (rewardRarity === 4 || rewardRarity === 5) {
       const card = pickRandomCard(rewardRarity);
       if (card) {
@@ -622,7 +640,6 @@
         }
         cardArea.classList.remove("hidden");
       } else {
-        // if no cards found, still no crash
         cardArea.classList.add("hidden");
       }
     } else {
@@ -658,14 +675,11 @@
   // Init
   // =========================
   (async () => {
-    // Parse URL params
-    const params = new URLSearchParams(location.search);
-    state.autostart = params.get("start") === "1";
+    // ✅ BGM初期ON（UI表示）だが、START押下までは実際に鳴らさない
+    updateBgmUI();
+    try { AUDIO.bgm.pause(); } catch {}
 
-    // default BGM OFF
-    setBgm(false);
-
-    // preload minimal (non-blocking)
+    // preload (non-blocking)
     Object.values(AUDIO).forEach((a) => {
       if (!a) return;
       try { a.load(); } catch {}
@@ -684,12 +698,7 @@
       return;
     }
 
-    // autostart: still shows overlay briefly then starts (START UIを尊重しつつ自動実行)
-    if (state.autostart) {
-      // 小さく猶予（ロード/描画を落ち着かせる）
-      window.setTimeout(() => {
-        startGameFromOverlay();
-      }, 250);
-    }
+    // ✅ ここで自動開始は“しない”
+    //    （STARTを押さないのに進行する問題の根治）
   })();
 })();
