@@ -7,84 +7,36 @@
  */
 (() => {
   "use strict";
-"use strict";
 
-// ===== デバッグ時限スイッチ =====
-const DEBUG_PARAM_KEY = "debug";
-const DEBUG_STORAGE_KEY = "hklobby.v1.expertDebugUntil";
-const DEBUG_WINDOW_MS = 10 * 60 * 1000; // 10分
+  // =========================
+  // EXPERT debug bypass (time-limited, mobile-friendly)
+  // - Enable: add ?debug=1 to the expert page URL
+  // - Effect: for the next 10 minutes, HKP check/spend is bypassed
+  // - Safety: no HKP / ledger mutation in debug mode
+  // =========================
+  const DEBUG_PARAM_KEY = "debug";
+  const DEBUG_UNTIL_KEY = "hklobby.v1.expertDebugUntil";
+  const DEBUG_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
-// URLパラメータ debug=1 で期限付きデバッグをセット
-(function setupDebugMode(){
-  const params = new URLSearchParams(location.search);
-  if (params.get(DEBUG_PARAM_KEY) === "1") {
-    const until = Date.now() + DEBUG_WINDOW_MS;
-    localStorage.setItem(DEBUG_STORAGE_KEY, String(until));
+  (function setupExpertDebugWindow(){
+    try {
+      const params = new URLSearchParams(location.search);
+      if (params.get(DEBUG_PARAM_KEY) === "1") {
+        localStorage.setItem(DEBUG_UNTIL_KEY, String(Date.now() + DEBUG_WINDOW_MS));
+      }
+    } catch {}
+  })();
+
+  function isExpertDebugActive(){
+    try {
+      const until = Number(localStorage.getItem(DEBUG_UNTIL_KEY) || "0");
+      return Number.isFinite(until) && Date.now() < until;
+    } catch {
+      return false;
+    }
   }
-})();
 
-// 現在 Debug 有効か判定
-function isDebugActive(){
-  const raw = localStorage.getItem(DEBUG_STORAGE_KEY);
-  if (!raw) return false;
-  const until = Number(raw);
-  return !isNaN(until) && Date.now() < until;
-}
-// ===== Debugモード END =====
-
-const HIGACHA_COST = 3;
-const LOCAL_HKP_KEY = "hklobby.v1.hkp";
-const LOCAL_LEDGER_KEY = "hklobby.v1.ledger";
-
-// 現在の HKP を取得
-function getHKP(){
-  return Number(localStorage.getItem(LOCAL_HKP_KEY) || "0");
-}
-
-// EXPERT 挑戦判定・消費
-function canStartExpert(){
-  // Debug 有効なら制限解除
-  if (isDebugActive()) return true;
-
-  const hkp = getHKP();
-  if (hkp < HIGACHA_COST) {
-    alert("HKP が足りません (必要: " + HIGACHA_COST + ")");
-    return false;
-  }
-  return true;
-}
-
-function consumeHKPForExpert(runId){
-  // Debug 時は消費・台帳登録しない
-  if (isDebugActive()) {
-    return;
-  }
-  // 通常ルート: 1回消費
-  const ledger = JSON.parse(localStorage.getItem(LOCAL_LEDGER_KEY) || "[]");
-  if (!ledger.includes("spend3:" + runId)) {
-    ledger.push("spend3:" + runId);
-    localStorage.setItem(LOCAL_LEDGER_KEY, JSON.stringify(ledger));
-
-    const prev = getHKP();
-    localStorage.setItem(LOCAL_HKP_KEY, String(prev - HIGACHA_COST));
-  }
-}
-
-// EXPERT 開始処理
-function startExpert(){
-  if (!canStartExpert()) return;
-
-  const runId = String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
-
-  // consume (or skip if debug)
-  consumeHKPForExpert(runId);
-
-  // EXPERT 実行ルーチン（変更なし）
-  // （以降 open 効果音・初期データロード・timer 等の実装）
-  // 既存の expert.js の内容をここから先にそのまま残してください
-}
-  
-  const TOTAL_QUESTIONS = 30;
+  const TOTAL_QUESTIONS = 30;const TOTAL_QUESTIONS = 30;
   const QUESTION_TIME_SEC = 10;
   const WARN_AT_SEC = 3;
 
@@ -350,7 +302,7 @@ function startExpert(){
     try {
       if (typeof volume === "number") audio.volume = volume;
       if (restart) audio.currentTime = 0;
-      audio.play().catch(() => {});
+      audio.play().catch
     } catch {}
   }
 
@@ -445,26 +397,32 @@ function startExpert(){
   }
 
   async function startGameFromOverlay() {
-    if (state.started) return;
-
-    // ===== HKP spend (EXPERT entrance fee) =====
+    if (state.started) return;    // ===== HKP spend (EXPERT entrance fee) =====
     const runId = newRunId();
     state.runId = runId;
     setRunId(runId);
 
-    const spendKey = `spend${HKP_COST_EXPERT}:${runId}`;
-    if (!isProcessed(spendKey)) {
-      const cur = getHKP();
-      if (cur < HKP_COST_EXPERT) {
-        // No UI layout changes: use a simple alert.
-        window.alert(`HKPが不足しています（必要: ${HKP_COST_EXPERT} / 現在: ${cur}）`);
-        return;
+    const debugActive = isExpertDebugActive();
+    state.expertDebugActive = debugActive;
+
+    if (!debugActive) {
+      const spendKey = `spend${HKP_COST_EXPERT}:${runId}`;
+      if (!isProcessed(spendKey)) {
+        const cur = getHKP();
+        if (cur < HKP_COST_EXPERT) {
+          // No UI layout changes: use a simple alert.
+          window.alert(`HKPが不足しています（必要: ${HKP_COST_EXPERT} / 現在: ${cur}）`);
+          return;
+        }
+        addHKP(-HKP_COST_EXPERT);
+        markProcessed(spendKey);
+        state.hkpSpentCost = HKP_COST_EXPERT;
+      } else {
+        // Already processed for this runId (should not happen because runId is new), keep safe.
+        state.hkpSpentCost = 0;
       }
-      addHKP(-HKP_COST_EXPERT);
-      markProcessed(spendKey);
-      state.hkpSpentCost = HKP_COST_EXPERT;
     } else {
-      // Already processed for this runId (should not happen because runId is new), keep safe.
+      // Debug bypass: do not spend HKP / do not touch ledger.
       state.hkpSpentCost = 0;
     }
 
