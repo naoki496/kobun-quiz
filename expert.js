@@ -7,7 +7,83 @@
  */
 (() => {
   "use strict";
+"use strict";
 
+// ===== デバッグ時限スイッチ =====
+const DEBUG_PARAM_KEY = "debug";
+const DEBUG_STORAGE_KEY = "hklobby.v1.expertDebugUntil";
+const DEBUG_WINDOW_MS = 10 * 60 * 1000; // 10分
+
+// URLパラメータ debug=1 で期限付きデバッグをセット
+(function setupDebugMode(){
+  const params = new URLSearchParams(location.search);
+  if (params.get(DEBUG_PARAM_KEY) === "1") {
+    const until = Date.now() + DEBUG_WINDOW_MS;
+    localStorage.setItem(DEBUG_STORAGE_KEY, String(until));
+  }
+})();
+
+// 現在 Debug 有効か判定
+function isDebugActive(){
+  const raw = localStorage.getItem(DEBUG_STORAGE_KEY);
+  if (!raw) return false;
+  const until = Number(raw);
+  return !isNaN(until) && Date.now() < until;
+}
+// ===== Debugモード END =====
+
+const HIGACHA_COST = 3;
+const LOCAL_HKP_KEY = "hklobby.v1.hkp";
+const LOCAL_LEDGER_KEY = "hklobby.v1.ledger";
+
+// 現在の HKP を取得
+function getHKP(){
+  return Number(localStorage.getItem(LOCAL_HKP_KEY) || "0");
+}
+
+// EXPERT 挑戦判定・消費
+function canStartExpert(){
+  // Debug 有効なら制限解除
+  if (isDebugActive()) return true;
+
+  const hkp = getHKP();
+  if (hkp < HIGACHA_COST) {
+    alert("HKP が足りません (必要: " + HIGACHA_COST + ")");
+    return false;
+  }
+  return true;
+}
+
+function consumeHKPForExpert(runId){
+  // Debug 時は消費・台帳登録しない
+  if (isDebugActive()) {
+    return;
+  }
+  // 通常ルート: 1回消費
+  const ledger = JSON.parse(localStorage.getItem(LOCAL_LEDGER_KEY) || "[]");
+  if (!ledger.includes("spend3:" + runId)) {
+    ledger.push("spend3:" + runId);
+    localStorage.setItem(LOCAL_LEDGER_KEY, JSON.stringify(ledger));
+
+    const prev = getHKP();
+    localStorage.setItem(LOCAL_HKP_KEY, String(prev - HIGACHA_COST));
+  }
+}
+
+// EXPERT 開始処理
+function startExpert(){
+  if (!canStartExpert()) return;
+
+  const runId = String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
+
+  // consume (or skip if debug)
+  consumeHKPForExpert(runId);
+
+  // EXPERT 実行ルーチン（変更なし）
+  // （以降 open 効果音・初期データロード・timer 等の実装）
+  // 既存の expert.js の内容をここから先にそのまま残してください
+}
+  
   const TOTAL_QUESTIONS = 30;
   const QUESTION_TIME_SEC = 10;
   const WARN_AT_SEC = 3;
