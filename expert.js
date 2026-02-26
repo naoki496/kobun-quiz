@@ -14,6 +14,60 @@
 
   const LS_KEY = "hklobby.v1.cardCounts";
 
+
+  // =========================
+  // HKP (shared) + runId ledger (anti double spend/award)
+  // =========================
+  const HKP_KEY = "hklobby.v1.hkp";
+  const RUNID_KEY = "hklobby.v1.runId";
+  const LEDGER_KEY = "hklobby.v1.ledger";
+
+  const HKP_COST_EXPERT = 3;
+
+  function getHKP() {
+    const n = Number(localStorage.getItem(HKP_KEY));
+    return Number.isFinite(n) ? (n | 0) : 0;
+  }
+  function setHKP(v) {
+    localStorage.setItem(HKP_KEY, String((Number(v) | 0)));
+  }
+  function addHKP(delta) {
+    const cur = getHKP();
+    const next = (cur + (Number(delta) | 0)) | 0;
+    setHKP(next);
+    return next;
+  }
+
+  function loadLedger() {
+    try {
+      const raw = localStorage.getItem(LEDGER_KEY);
+      const obj = raw ? JSON.parse(raw) : {};
+      return obj && typeof obj === "object" ? obj : {};
+    } catch {
+      return {};
+    }
+  }
+  function saveLedger(obj) {
+    try { localStorage.setItem(LEDGER_KEY, JSON.stringify(obj || {})); } catch {}
+  }
+  function isProcessed(key) {
+    const led = loadLedger();
+    return !!led[key];
+  }
+  function markProcessed(key) {
+    const led = loadLedger();
+    led[key] = true;
+    saveLedger(led);
+  }
+
+  function newRunId() {
+    // time-based + random (good enough for local anti-double)
+    return `r${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+  function setRunId(id) {
+    localStorage.setItem(RUNID_KEY, String(id || ""));
+  }
+
   const AUDIO = {
     bgm: new Audio("./assets/bgmex.mp3"),
     correct: new Audio("./assets/correct.mp3"),
@@ -169,6 +223,9 @@
     started: false,
     finished: false,
 
+    runId: "",
+    hkpSpentCost: 0,
+
     questions: [],
     picks: [],
     idx: 0,
@@ -313,6 +370,27 @@
 
   async function startGameFromOverlay() {
     if (state.started) return;
+
+    // ===== HKP spend (EXPERT entrance fee) =====
+    const runId = newRunId();
+    state.runId = runId;
+    setRunId(runId);
+
+    const spendKey = `spend${HKP_COST_EXPERT}:${runId}`;
+    if (!isProcessed(spendKey)) {
+      const cur = getHKP();
+      if (cur < HKP_COST_EXPERT) {
+        // No UI layout changes: use a simple alert.
+        window.alert(`HKPが不足しています（必要: ${HKP_COST_EXPERT} / 現在: ${cur}）`);
+        return;
+      }
+      addHKP(-HKP_COST_EXPERT);
+      markProcessed(spendKey);
+      state.hkpSpentCost = HKP_COST_EXPERT;
+    } else {
+      // Already processed for this runId (should not happen because runId is new), keep safe.
+      state.hkpSpentCost = 0;
+    }
 
     state.bgmArmed = true; // unlock audio by gesture
     hideStartOverlayWithFX();
@@ -535,15 +613,15 @@
     rMaxCombo.textContent = String(state.maxCombo);
 
     if (rewardRarity === 5) {
-      rReward.textContent = "★5 確定";
+      rReward.textContent = state.hkpSpentCost ? `★5 確定（HKP -${state.hkpSpentCost}）` : "★5 確定";
       resultTitle.textContent = "RESULT";
       resultTitle.classList.remove("failed");
     } else if (rewardRarity === 4) {
-      rReward.textContent = "★4 確定";
+      rReward.textContent = state.hkpSpentCost ? `★4 確定（HKP -${state.hkpSpentCost}）` : "★4 確定";
       resultTitle.textContent = "RESULT";
       resultTitle.classList.remove("failed");
     } else {
-      rReward.textContent = "なし";
+      rReward.textContent = state.hkpSpentCost ? `なし（HKP -${state.hkpSpentCost}）` : "なし";
       resultTitle.textContent = "FAILED";
       resultTitle.classList.add("failed");
     }
