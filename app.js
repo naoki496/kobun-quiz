@@ -234,6 +234,75 @@ const StorageAdapter = (() => {
   };
 })();
 
+// ===== HKP (Hachioji Kokugo Point) + runId ledger (UI非変更 / 全ゲーム共通) =====
+const STORAGE_KEY_HKP    = "hklobby.v1.hkp";     // integer
+const STORAGE_KEY_LEDGER = "hklobby.v1.ledger";  // JSON object
+const STORAGE_KEY_RUNID  = "hklobby.v1.runId";   // string
+
+function loadInt(key, fallback = 0) {
+  const raw = StorageAdapter.get(key);
+  if (raw == null || raw === "") return fallback;
+  const n = Number(String(raw).trim());
+  return Number.isFinite(n) ? Math.trunc(n) : fallback;
+}
+function saveInt(key, n) {
+  const v = Number.isFinite(Number(n)) ? Math.trunc(Number(n)) : 0;
+  StorageAdapter.set(key, String(v));
+}
+
+function loadLedger() {
+  const raw = StorageAdapter.get(STORAGE_KEY_LEDGER);
+  if (!raw) return {};
+  try {
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? obj : {};
+  } catch {
+    return {};
+  }
+}
+function saveLedger(ledger) {
+  try {
+    StorageAdapter.set(STORAGE_KEY_LEDGER, JSON.stringify(ledger || {}));
+  } catch (_) {
+    StorageAdapter.set(STORAGE_KEY_LEDGER, "{}");
+  }
+}
+function createRunId() {
+  // 衝突しにくい軽量ID（時刻+乱数）
+  return `r${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+function getRunId() {
+  const v = StorageAdapter.get(STORAGE_KEY_RUNID);
+  return v ? String(v) : "";
+}
+function setRunId(id) {
+  StorageAdapter.set(STORAGE_KEY_RUNID, String(id || ""));
+}
+
+function isProcessed(key) {
+  const ledger = loadLedger();
+  return !!ledger[String(key)];
+}
+function markProcessed(key) {
+  const ledger = loadLedger();
+  ledger[String(key)] = true;
+  saveLedger(ledger);
+}
+
+function getHKP() {
+  return loadInt(STORAGE_KEY_HKP, 0);
+}
+function addHKP(delta) {
+  const cur = getHKP();
+  const next = cur + (Number.isFinite(Number(delta)) ? Math.trunc(Number(delta)) : 0);
+  // 0 未満は 0 に丸め（安全側）
+  const clamped = Math.max(0, next);
+  saveInt(STORAGE_KEY_HKP, clamped);
+  return clamped;
+}
+// ===== HKP helpers end =====
+
+
 function migrateCardCountsIfNeeded() {
   // ✅ 新キーが無く、旧キーがあるときだけ移行（1回限り）
   try {
@@ -762,6 +831,10 @@ function startWithPool(pool) {
 }
 
 function startNewSession() {
+  // runId: 通常10問モード開始時に発行（付与/消費の二重実行防止）
+  if (mode === "normal") {
+    setRunId(createRunId());
+  }
   startWithPool([...questions]);
 }
 
@@ -1018,10 +1091,33 @@ function showResultOverlay() {
     }
   }
 
+
+  // ===== HKP award (通常10問のみ / リザルト確定時のみ) =====
+  let hkpLine = "";
+  if (mode === "normal") {
+    const runId = getRunId() || createRunId();
+    if (!getRunId()) setRunId(runId);
+
+    const ledgerKey = `award:${runId}`;
+    if (maxCombo >= 4) {
+      if (!isProcessed(ledgerKey)) {
+        addHKP(1);
+        markProcessed(ledgerKey);
+        hkpLine = "HKP +1（MAX COMBO≥4達成）";
+      } else {
+        hkpLine = "HKP +0（付与済み）";
+      }
+    } else {
+      hkpLine = "HKP なし（条件：MAX COMBO≥4）";
+    }
+  }
+  // ===== HKP award end =====
+
   const details = `
     <div>正解 ${score} / ${total}</div>
     <div>最大COMBO x${maxCombo}</div>
     <div>モード ${escapeHtml(modeLabel)}</div>
+    ${hkpLine ? `<div>${escapeHtml(hkpLine)}</div>` : ""}
     ${rewardHtml}
   `;
 
