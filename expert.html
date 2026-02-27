@@ -73,10 +73,30 @@
             連続正解<strong>COMBO 5問以上</strong>で<br/>
             <strong>★5カード</strong>を確定入手します。<br/>
             <span class="startWarn">（BGMが鳴ります、注意してください）</span>
+            <div class="emLine">入場料：<b>3HKP</b>（START時に消費）</div>
           </p>
           <p class="startQ">準備はできましたか？</p>
         </div>
 
+        <!-- ===== EXPERT ENTRY GATE (add) ===== -->
+        <section class="gate" id="gate">
+          <div class="gateTop">
+            <div class="gateTitle">EXPERT ENTRY</div>
+            <div class="gateTag">挑戦契約</div>
+          </div>
+        
+          <div class="gatePills">
+            <div class="pill">消費 <b id="hkpCost">3</b> HKP</div>
+            <div class="pill">所持 <b id="hkpNow">0</b> HKP</div>
+          </div>
+        
+          <div class="gateMsg" id="gateMsg" aria-live="polite"></div>
+        
+          <div class="gateRule">
+            STARTと同時にHKPを消費します（途中離脱でも返却されません）
+          </div>
+        </section>
+        
         <div class="startActions">
           <button class="btn" id="btnStart" type="button">START</button>
         </div>
