@@ -496,7 +496,7 @@
   // ===== data loading =====
   async function loadCsv(url) {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+    if (!res.ok) throw new Error(`fetch failed: ${res.status} (${url})`);
     const text = await res.text();
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
     const head = lines.shift().split(",");
@@ -527,7 +527,19 @@
   }
 
   async function loadQuestions() {
-    const rows = await loadCsv("./expert.csv");
+    const candidates = ["./questions.csv", "./expert.csv", "questions.csv", "expert.csv"];
+    let rows = null;
+    let lastErr = null;
+    for (const url of candidates) {
+      try {
+        rows = await loadCsv(url);
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!rows) throw lastErr || new Error("fetch failed: 404");
     const qs = rows.map(normalizeRow);
     return shuffle(qs).slice(0, TOTAL_QUESTIONS);
   }
@@ -563,8 +575,25 @@
     hudCombo.textContent = "0";
     hudMaxCombo.textContent = "0";
 
-    state.questions = await loadQuestions();
-    state.cards = await loadCards();
+    try {
+      state.questions = await loadQuestions();
+      state.cards = await loadCards();
+    } catch (e) {
+      // show fatal load error (prevents infinite "loading")
+      state.finished = true;
+      stopTimer();
+      overlay.classList.remove("hidden");
+      cardArea.classList.add("hidden");
+      btnAgain.classList.add("hidden");
+      btnRetry.classList.remove("hidden");
+      resultTitle.textContent = "LOAD ERROR";
+      rCorrect.textContent = "-";
+      rMaxCombo.textContent = "-";
+      rReward.textContent = "データ読み込みに失敗しました";
+      note.textContent = String(e && e.message ? e.message : e);
+      console.error(e);
+      return;
+    }
 
     renderQ();
     startTimer();

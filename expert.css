@@ -723,3 +723,24 @@ body{
   border-color: rgba(255,255,255,.18);
   background: rgba(255,255,255,.06);
 }
+
+
+/* ===== Intimidation pulse for insufficient HKP (slow & subtle) ===== */
+@keyframes gatePulse {
+  0%   { box-shadow: 0 0 0 rgba(255,60,90,0.0), inset 0 0 0 rgba(255,60,90,0.0); }
+  50%  { box-shadow: 0 0 48px rgba(255,60,90,0.25), inset 0 0 24px rgba(255,60,90,0.18); }
+  100% { box-shadow: 0 0 0 rgba(255,60,90,0.0), inset 0 0 0 rgba(255,60,90,0.0); }
+}
+
+#gate[data-state="bad"]{
+  animation: gatePulse 4.8s ease-in-out infinite;
+}
+
+#gate[data-state="bad"] .gateHeader{
+  text-shadow: 0 0 18px rgba(255,60,90,0.35);
+}
+
+#gate[data-state="bad"] .badge-hot{
+  background: rgba(255,60,90,0.22);
+  border-color: rgba(255,60,90,0.45);
+}
