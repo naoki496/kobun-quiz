@@ -403,7 +403,14 @@ const grad = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
 
   function renderHighlighted(text) {
     const s = String(text ?? "");
-    return esc(s).replace(/〖(.*?)〗/g, (_m, p1) => `〖${esc(p1)}〗`);
+    // escape first, then safely wrap brackets with highlight span
+    const safe = esc(s);
+
+    // 【...】 highlight (yellow) — matches existing .hl in styles.css
+    const withKakko = safe.replace(/【(.*?)】/g, (_m, p1) => `<span class="hl">【${p1}】</span>`);
+
+    // keep 〖...〗 as-is (already escaped); no extra highlight by default
+    return withKakko.replace(/〖(.*?)〗/g, (_m, p1) => `〖${p1}〗`);
   }
 
   function playOne(audio, { volume, restart = true } = {}) {
