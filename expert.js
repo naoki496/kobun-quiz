@@ -7,30 +7,34 @@
  */
 (() => {
   "use strict";
-// ===== EXPERT: time-limited debug bypass (no UI changes) =====
-// Usage: open expert page with ?debug=1, then for 10 minutes HKP check/spend is bypassed (ledger untouched).
-const EXPERT_DEBUG_PARAM_KEY = "debug";
-const EXPERT_DEBUG_UNTIL_KEY = "hklobby.v1.expertDebugUntil";
-const EXPERT_DEBUG_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
-(function setupExpertDebugWindow(){
-  try{
-    const params = new URLSearchParams(location.search);
-    if (params.get(EXPERT_DEBUG_PARAM_KEY) === "1") {
-      localStorage.setItem(EXPERT_DEBUG_UNTIL_KEY, String(Date.now() + EXPERT_DEBUG_WINDOW_MS));
+  // ===== EXPERT: time-limited debug bypass (no UI changes) =====
+  // Usage: open expert page with ?debug=1, then for 10 minutes HKP check/spend is bypassed (ledger untouched).
+  const EXPERT_DEBUG_PARAM_KEY = "debug";
+  const EXPERT_DEBUG_UNTIL_KEY = "hklobby.v1.expertDebugUntil";
+  const EXPERT_DEBUG_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+  (function setupExpertDebugWindow() {
+    try {
+      const params = new URLSearchParams(location.search);
+      if (params.get(EXPERT_DEBUG_PARAM_KEY) === "1") {
+        localStorage.setItem(
+          EXPERT_DEBUG_UNTIL_KEY,
+          String(Date.now() + EXPERT_DEBUG_WINDOW_MS)
+        );
+      }
+    } catch {}
+  })();
+
+  function isExpertDebugActive() {
+    try {
+      const until = Number(localStorage.getItem(EXPERT_DEBUG_UNTIL_KEY) || "0");
+      return Number.isFinite(until) && Date.now() < until;
+    } catch {
+      return false;
     }
-  }catch{}
-})();
-
-function isExpertDebugActive(){
-  try{
-    const until = Number(localStorage.getItem(EXPERT_DEBUG_UNTIL_KEY) || "0");
-    return Number.isFinite(until) && Date.now() < until;
-  }catch{
-    return false;
   }
-}
-// ===== /EXPERT debug bypass =====
+  // ===== /EXPERT debug bypass =====
 
   const TOTAL_QUESTIONS = 30;
   const QUESTION_TIME_SEC = 10;
@@ -38,14 +42,12 @@ function isExpertDebugActive(){
 
   const LS_KEY = "hklobby.v1.cardCounts";
 
-
   // =========================
   // HKP (shared) + runId ledger (anti double spend/award)
   // =========================
   const HKP_KEY = "hklobby.v1.hkp";
   const RUNID_KEY = "hklobby.v1.runId";
   const LEDGER_KEY = "hklobby.v1.ledger";
-
   const HKP_COST_EXPERT = 3;
 
   function getHKP() {
@@ -53,7 +55,7 @@ function isExpertDebugActive(){
     return Number.isFinite(n) ? (n | 0) : 0;
   }
   function setHKP(v) {
-    localStorage.setItem(HKP_KEY, String((Number(v) | 0)));
+    localStorage.setItem(HKP_KEY, String(Number(v) | 0));
   }
   function addHKP(delta) {
     const cur = getHKP();
@@ -61,6 +63,50 @@ function isExpertDebugActive(){
     setHKP(next);
     return next;
   }
+
+  // ===== HKP Gate UI (visualize cost / balance; disable START if insufficient) =====
+  function renderGateUI() {
+    const gate = document.getElementById("gate");
+    const costEl = document.getElementById("hkpCost");
+    const nowEl = document.getElementById("hkpNow");
+    const msgEl = document.getElementById("gateMsg");
+
+    if (costEl) costEl.textContent = String(HKP_COST_EXPERT);
+
+    const cur = getHKP();
+    if (nowEl) nowEl.textContent = String(cur);
+
+    const debug = isExpertDebugActive();
+    const ok = debug || cur >= HKP_COST_EXPERT;
+
+    if (gate) {
+      gate.classList.toggle("isOk", ok);
+      gate.classList.toggle("isInsufficient", !ok);
+    }
+
+    if (msgEl) {
+      if (debug) {
+        msgEl.textContent = "DEBUG: HKPチェックを一時バイパス中（10分）";
+      } else if (ok) {
+        msgEl.textContent = "挑戦可能：STARTでHKPを消費して突入します。";
+      } else {
+        msgEl.textContent = `HKPが不足しています（必要 ${HKP_COST_EXPERT} / 所持 ${cur}）`;
+      }
+    }
+
+    // STARTボタンを無効化（形状は変えない）
+    try {
+      btnStart.disabled = !ok;
+      btnStart.setAttribute("aria-disabled", String(!ok));
+      btnStart.style.opacity = ok ? "" : "0.55";
+    } catch {}
+  }
+
+  // 他タブでHKPが変動したら反映
+  window.addEventListener("storage", (e) => {
+    if (e && e.key === HKP_KEY) renderGateUI();
+  });
+  // ===== /HKP Gate UI =====
 
   function loadLedger() {
     try {
@@ -72,7 +118,9 @@ function isExpertDebugActive(){
     }
   }
   function saveLedger(obj) {
-    try { localStorage.setItem(LEDGER_KEY, JSON.stringify(obj || {})); } catch {}
+    try {
+      localStorage.setItem(LEDGER_KEY, JSON.stringify(obj || {}));
+    } catch {}
   }
   function isProcessed(key) {
     const led = loadLedger();
@@ -111,38 +159,34 @@ function isExpertDebugActive(){
   };
 
   const wrap = requireEl("app");
-
   const hudQ = requireEl("hudQ");
   const hudCorrect = requireEl("hudCorrect");
   const hudCombo = requireEl("hudCombo");
   const hudMaxCombo = requireEl("hudMaxCombo");
-
   const meterArea = requireEl("meterArea");
   const sourceEl = requireEl("source");
   const questionEl = requireEl("question");
   const choicesEl = requireEl("choices");
-
   const btnRetry = requireEl("btnRetry");
   const btnBgm = requireEl("btnBgm");
   const noteEl = requireEl("note");
-
   const overlay = requireEl("overlay");
   const rCorrect = requireEl("rCorrect");
   const rMaxCombo = requireEl("rMaxCombo");
   const rReward = requireEl("rReward");
   const resultTitle = requireEl("resultTitle");
   const btnAgain = requireEl("btnAgain");
-
   const cardArea = requireEl("cardArea");
   const cardImg = requireEl("cardImg");
   const cardName = requireEl("cardName");
   const cardWiki = requireEl("cardWiki");
-
   const countdownEl = requireEl("countdown");
-
   const startOverlay = requireEl("startOverlay");
   const startCard = requireEl("startCard");
   const btnStart = requireEl("btnStart");
+
+  // 初期表示：HKP所持/消費を明示し、押下可否を反映
+  renderGateUI();
 
   // ===== Meter DOM =====
   const meterOuter = document.createElement("div");
@@ -154,7 +198,6 @@ function isExpertDebugActive(){
   const meterText = document.createElement("div");
   meterText.className = "meterText";
   meterText.textContent = `${QUESTION_TIME_SEC}s`;
-
   meterArea.appendChild(meterOuter);
   meterArea.appendChild(meterText);
 
@@ -205,9 +248,16 @@ function isExpertDebugActive(){
 
     const grad = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
     grad.addColorStop(0, "rgba(255,45,85,0)");
-    grad.addColorStop(0.45, mode === "exit" ? "rgba(255,45,85,0.18)" : "rgba(255,45,85,0.12)");
-    grad.addColorStop(0.55, mode === "exit" ? "rgba(255,45,85,0.18)" : "rgba(255,45,85,0.12)");
+    grad.addColorStop(
+      0.45,
+      mode === "exit" ? "rgba(255,45,85,0.18)" : "rgba(255,45,85,0.12)"
+    );
+    grad.addColorStop(
+      0.55,
+      mode === "exit" ? "rgba(255,45,85,0.18)" : "rgba(255,45,85,0.12)"
+    );
     grad.addColorStop(1, "rgba(255,45,85,0)");
+
     ctx.fillStyle = grad;
     ctx.fillRect(0, bandY, w, bandH);
 
@@ -246,7 +296,6 @@ function isExpertDebugActive(){
   const state = {
     started: false,
     finished: false,
-
     runId: "",
     hkpSpentCost: 0,
 
@@ -262,8 +311,8 @@ function isExpertDebugActive(){
     timerId: null,
     lastWholeSec: QUESTION_TIME_SEC,
 
-    bgmOn: true,      // UI default ON
-    bgmArmed: false,  // becomes true after START gesture
+    bgmOn: true, // UI default ON
+    bgmArmed: false, // becomes true after START gesture
     warnOn: false,
 
     cards: [],
@@ -290,7 +339,7 @@ function isExpertDebugActive(){
 
   function renderHighlighted(text) {
     const s = String(text ?? "");
-    return esc(s).replace(/【(.*?)】/g, (_m, p1) => `<span class="hl">【${esc(p1)}】</span>`);
+    return esc(s).replace(/〖(.*?)〗/g, (_m, p1) => `〖${esc(p1)}〗`);
   }
 
   function playOne(audio, { volume, restart = true } = {}) {
@@ -323,7 +372,9 @@ function isExpertDebugActive(){
     }
   }
   function saveCounts(counts) {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(counts)); } catch {}
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(counts));
+    } catch {}
   }
   function addCardToCounts(cardId) {
     const counts = loadCounts();
@@ -339,6 +390,7 @@ function isExpertDebugActive(){
     const span = btnBgm.querySelector(".bgmText");
     if (span) span.textContent = label;
     else btnBgm.textContent = label;
+
     noteEl.textContent = state.bgmOn ? "音：ON（STARTで再生開始）" : "音：OFF";
   }
 
@@ -350,9 +402,12 @@ function isExpertDebugActive(){
     if (!state.bgmArmed) return;
 
     if (state.bgmOn) playOne(AUDIO.bgm, { restart: false });
-    else { try { AUDIO.bgm.pause(); } catch {} }
+    else {
+      try {
+        AUDIO.bgm.pause();
+      } catch {}
+    }
   }
-
   btnBgm.addEventListener("click", () => setBgm(!state.bgmOn));
 
   // ===== Countdown (mask fixed; animate only text) =====
@@ -403,280 +458,94 @@ function isExpertDebugActive(){
     const spendKey = `spend${HKP_COST_EXPERT}:${runId}`;
     if (!isProcessed(spendKey)) {
       const cur = getHKP();
+
       if (!isExpertDebugActive() && cur < HKP_COST_EXPERT) {
-        // No UI layout changes: use a simple alert.
-        window.alert(`HKPが不足しています（必要: ${HKP_COST_EXPERT} / 現在: ${cur}）`);
+        renderGateUI();
+        try {
+          setWrapFx("fx-wrong", 260);
+        } catch {}
         return;
       }
+
       if (!isExpertDebugActive()) {
         addHKP(-HKP_COST_EXPERT);
         markProcessed(spendKey);
         state.hkpSpentCost = HKP_COST_EXPERT;
+        renderGateUI();
       }
     } else {
       // Already processed for this runId (should not happen because runId is new), keep safe.
-      state.hkpSpentCost = 0;
     }
 
-    state.bgmArmed = true; // unlock audio by gesture
-    hideStartOverlayWithFX();
+    // UI gating unlock: user gesture allows audio
+    state.bgmArmed = true;
 
+    // respect UI state
+    updateBgmUI();
     if (state.bgmOn) playOne(AUDIO.bgm, { restart: false });
 
+    hideStartOverlayWithFX();
     await runCountdown();
-    bootRun();
+
+    bootGame();
   }
 
   btnStart.addEventListener("click", startGameFromOverlay);
 
-  // ===== Data load =====
-  async function loadAll() {
-    if (!window.CSVUtil || typeof window.CSVUtil.load !== "function") {
-      throw new Error("CSVUtil.load が見つかりません（expert.html の script 順序：csv.js → expert.js）");
-    }
-
-    const qRows = await window.CSVUtil.load("./questions.csv");
-    const cRows = await window.CSVUtil.load("./cards.csv");
-
-    const questions = qRows
-      .map(normalizeQuestionRow)
-      .filter((q) => q && q.id && q.question && q.answer >= 1 && q.answer <= 4);
-
-    const cards = cRows
-      .map(normalizeCardRow)
-      .filter((c) => c && c.id && (c.rarity === 4 || c.rarity === 5));
-
-    state.questions = questions;
-    state.cards = cards;
-    state.picks = shuffle(questions).slice(0, TOTAL_QUESTIONS);
+  // ===== data loading =====
+  async function loadCsv(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+    const text = await res.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
+    const head = lines.shift().split(",");
+    return lines.map((line) => {
+      const cols = line.split(",");
+      const obj = {};
+      head.forEach((h, i) => (obj[h.trim()] = (cols[i] ?? "").trim()));
+      return obj;
+    });
   }
 
-  function normalizeQuestionRow(r) {
+  function normalizeRow(r) {
     const id = String(r.id ?? "").trim();
     const question = String(r.question ?? "").trim();
     const source = String(r.source ?? "").trim();
 
-    const c1 = String(r.choice1 ?? "").trim();
-    const c2 = String(r.choice2 ?? "").trim();
-    const c3 = String(r.choice3 ?? "").trim();
-    const c4 = String(r.choice4 ?? "").trim();
+    const choices = [
+      String(r.choice1 ?? "").trim(),
+      String(r.choice2 ?? "").trim(),
+      String(r.choice3 ?? "").trim(),
+      String(r.choice4 ?? "").trim(),
+    ];
 
     const ans = Number(String(r.answer ?? "").trim());
-    return { id, question, source, choices: [c1, c2, c3, c4], answer: ans };
+    if (!(ans >= 1 && ans <= 4)) throw new Error(`answer が 1〜4 ではありません: "${r.answer}" (id=${id})`);
+
+    return { id, question, source, choices, ans };
   }
 
-  function normalizeCardRow(r) {
-    const id = String(r.id ?? "").trim();
-    const rarity = Number(r.rarity) || 0;
-    const name = String(r.name ?? "").trim();
-    const img = String(r.img ?? "").trim();
-    const wiki = String(r.wiki ?? "").trim();
-    return { id, rarity, name, img, wiki };
+  async function loadQuestions() {
+    const rows = await loadCsv("./expert.csv");
+    const qs = rows.map(normalizeRow);
+    return shuffle(qs).slice(0, TOTAL_QUESTIONS);
   }
 
-  // ===== HUD / timer =====
-  function renderHUD() {
-    hudQ.textContent = `${Math.min(state.idx + 1, TOTAL_QUESTIONS)}/${TOTAL_QUESTIONS}`;
-    hudCorrect.textContent = String(state.correct);
-    hudCombo.textContent = String(state.combo);
-    hudMaxCombo.textContent = String(state.maxCombo);
+  async function loadCards() {
+    // cards.csv: id,rarity,name,img,wiki
+    const rows = await loadCsv("./cards.csv");
+    const cards = rows.map((r) => ({
+      id: String(r.id ?? "").trim(),
+      rarity: Number(r.rarity) || 0,
+      name: String(r.name ?? "").trim(),
+      img: String(r.img ?? "").trim(),
+      wiki: String(r.wiki ?? "").trim(),
+    }));
+    return cards.filter((c) => c.id && c.img);
   }
 
-  function setWarn(on) {
-    const yes = !!on;
-    if (state.warnOn === yes) return;
-    state.warnOn = yes;
-    if (yes) wrap.classList.add("fx-warn");
-    else wrap.classList.remove("fx-warn");
-  }
-
-  function updateMeter() {
-    const ratio = Math.max(0, Math.min(1, state.tLeft / QUESTION_TIME_SEC));
-    meterInner.style.transform = `scaleX(${ratio})`;
-
-    const whole = Math.max(0, Math.ceil(state.tLeft));
-    meterText.textContent = `${whole}s`;
-
-    setWarn(whole <= WARN_AT_SEC && !state.finished);
-
-    if (whole !== state.lastWholeSec) {
-      state.lastWholeSec = whole;
-      if (whole <= WARN_AT_SEC && whole >= 1) playOne(AUDIO.tick, { volume: 0.55 });
-    }
-  }
-
-  function stopTimer() {
-    if (state.timerId) {
-      clearInterval(state.timerId);
-      state.timerId = null;
-    }
-  }
-
-  function startTimer() {
-    stopTimer();
-    state.tLeft = QUESTION_TIME_SEC;
-    state.lastWholeSec = QUESTION_TIME_SEC;
-    updateMeter();
-
-    const startedAt = performance.now();
-    state.timerId = setInterval(() => {
-      const dt = (performance.now() - startedAt) / 1000;
-      state.tLeft = Math.max(0, QUESTION_TIME_SEC - dt);
-      updateMeter();
-
-      if (state.tLeft <= 0.0001) {
-        stopTimer();
-        onTimeout();
-      }
-    }, 50);
-  }
-
-  function lockChoices(lock) {
-    choicesEl.querySelectorAll("button.choiceBtn").forEach((b) => (b.disabled = !!lock));
-  }
-
-  // ===== game flow =====
-  function renderQuestion() {
-    renderHUD();
-    const q = state.picks[state.idx];
-    sourceEl.textContent = q.source ? `出典：${q.source}` : "";
-    questionEl.innerHTML = renderHighlighted(q.question);
-
-    choicesEl.innerHTML = "";
-    q.choices.forEach((t, i) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "choiceBtn";
-      b.innerHTML = renderHighlighted(t);
-      b.addEventListener("click", () => onAnswer(i + 1, b));
-      choicesEl.appendChild(b);
-    });
-
-    startTimer();
-  }
-
-  function onAnswer(choice, btn) {
-    if (state.finished) return;
-
-    stopTimer();
-    lockChoices(true);
-
-    const q = state.picks[state.idx];
-    const correct = choice === q.answer;
-
-    if (correct) {
-      state.correct += 1;
-      state.combo += 1;
-      state.maxCombo = Math.max(state.maxCombo, state.combo);
-
-      btn.classList.add("isCorrect");
-      setWrapFx("fx-correct", 360); // ✅ CSSの青フラッシュが出る
-      playOne(AUDIO.correct, { volume: 0.85 });
-
-      punch(hudCorrect);
-      punch(hudCombo);
-    } else {
-      state.combo = 0;
-      hudCombo.classList.add("comboReset");
-      window.setTimeout(() => hudCombo.classList.remove("comboReset"), 240);
-
-      setWrapFx("fx-wrong", 420);  // ✅ CSSの赤フラッシュが出る
-      playOne(AUDIO.wrong, { volume: 0.9 });
-
-      choicesEl.querySelectorAll("button.choiceBtn").forEach((b) => {
-        if (b !== btn) b.classList.add("isDim");
-      });
-    }
-
-    renderHUD();
-    window.setTimeout(nextStep, 420);
-  }
-
-  function onTimeout() {
-    if (state.finished) return;
-
-    state.combo = 0;
-    hudCombo.classList.add("comboReset");
-    window.setTimeout(() => hudCombo.classList.remove("comboReset"), 240);
-
-    lockChoices(true);
-
-    setWrapFx("fx-timeup", 420); // ✅ timeupも赤フラッシュ＋揺れ
-    playOne(AUDIO.timeup, { volume: 0.9 });
-
-    renderHUD();
-    window.setTimeout(nextStep, 420);
-  }
-
-  function nextStep() {
-    setWarn(false);
-    state.idx += 1;
-    if (state.idx >= TOTAL_QUESTIONS) finishGame();
-    else renderQuestion();
-  }
-
-  function chooseRewardRarity() {
-    if (state.correct >= 25 && state.maxCombo >= 5) return 5;
-    if (state.correct >= 20 && state.correct <= 24) return 4;
-    return 0;
-  }
-
-  function pickRandomCard(rarity) {
-    const pool = state.cards.filter((c) => c.rarity === rarity);
-    if (!pool.length) return null;
-    return pool[(Math.random() * pool.length) | 0];
-  }
-
-  function finishGame() {
-    state.finished = true;
-    stopTimer();
-    setWarn(false);
-    try { AUDIO.bgm.pause(); } catch {}
-
-    const rewardRarity = chooseRewardRarity();
-
-    rCorrect.textContent = String(state.correct);
-    rMaxCombo.textContent = String(state.maxCombo);
-
-    if (rewardRarity === 5) {
-      rReward.textContent = state.hkpSpentCost ? `★5 確定（HKP -${state.hkpSpentCost}）` : "★5 確定";
-      resultTitle.textContent = "RESULT";
-      resultTitle.classList.remove("failed");
-    } else if (rewardRarity === 4) {
-      rReward.textContent = state.hkpSpentCost ? `★4 確定（HKP -${state.hkpSpentCost}）` : "★4 確定";
-      resultTitle.textContent = "RESULT";
-      resultTitle.classList.remove("failed");
-    } else {
-      rReward.textContent = state.hkpSpentCost ? `なし（HKP -${state.hkpSpentCost}）` : "なし";
-      resultTitle.textContent = "FAILED";
-      resultTitle.classList.add("failed");
-    }
-
-    if (rewardRarity === 4 || rewardRarity === 5) {
-      const card = pickRandomCard(rewardRarity);
-      if (card) {
-        addCardToCounts(card.id);
-        cardImg.src = card.img || "";
-        cardName.textContent = card.name || "";
-        if (card.wiki) {
-          cardWiki.href = card.wiki;
-          cardWiki.style.display = "";
-        } else {
-          cardWiki.href = "#";
-          cardWiki.style.display = "none";
-        }
-        cardArea.classList.remove("hidden");
-      } else {
-        cardArea.classList.add("hidden");
-      }
-    } else {
-      cardArea.classList.add("hidden");
-    }
-
-    overlay.classList.remove("hidden");
-  }
-
-  function bootRun() {
+  // ===== game boot =====
+  async function bootGame() {
     state.started = true;
     state.finished = false;
 
@@ -685,33 +554,211 @@ function isExpertDebugActive(){
     state.combo = 0;
     state.maxCombo = 0;
 
+    btnRetry.classList.add("hidden");
     overlay.classList.add("hidden");
-    renderQuestion();
+    cardArea.classList.add("hidden");
+
+    hudCorrect.textContent = "0";
+    hudCombo.textContent = "0";
+    hudMaxCombo.textContent = "0";
+
+    state.questions = await loadQuestions();
+    state.cards = await loadCards();
+
+    renderQ();
+    startTimer();
   }
 
-  // ===== Controls =====
-  btnRetry.addEventListener("click", () => location.reload());
-  btnAgain.addEventListener("click", () => location.reload());
+  // ===== timer =====
+  function setMeter(t) {
+    const frac = Math.max(0, Math.min(1, t / QUESTION_TIME_SEC));
+    meterInner.style.width = `${(frac * 100).toFixed(1)}%`;
+    meterText.textContent = `${Math.max(0, t | 0)}s`;
+  }
 
-  // ===== Init =====
-  (async () => {
-    updateBgmUI();
-    try { AUDIO.bgm.pause(); } catch {}
+  function tickTimer() {
+    state.tLeft -= 0.1;
+    if (state.tLeft < 0) state.tLeft = 0;
 
-    Object.values(AUDIO).forEach((a) => {
-      if (!a) return;
-      try { a.load(); } catch {}
-    });
-
-    try {
-      await loadAll();
-      questionEl.textContent = "準備完了。STARTで開始できます。";
-      sourceEl.textContent = "";
-      renderHUD();
-    } catch (e) {
-      questionEl.textContent = "読み込みに失敗しました。csv.js / CSV / パスを確認してください。";
-      sourceEl.textContent = String(e?.message ?? e);
-      console.error(e);
+    const whole = Math.ceil(state.tLeft);
+    if (whole !== state.lastWholeSec) {
+      state.lastWholeSec = whole;
+      if (whole <= WARN_AT_SEC && whole >= 1) playOne(AUDIO.tick, { volume: 0.75 });
     }
-  })();
+
+    setMeter(state.tLeft);
+
+    if (state.tLeft <= 0) {
+      // timeout => wrong
+      stopTimer();
+      onPick(-1);
+    }
+  }
+
+  function startTimer() {
+    stopTimer();
+    state.tLeft = QUESTION_TIME_SEC;
+    state.lastWholeSec = QUESTION_TIME_SEC;
+    setMeter(state.tLeft);
+    state.timerId = window.setInterval(tickTimer, 100);
+  }
+
+  function stopTimer() {
+    if (state.timerId) {
+      window.clearInterval(state.timerId);
+      state.timerId = null;
+    }
+  }
+
+  // ===== render question =====
+  function renderQ() {
+    const q = state.questions[state.idx];
+    hudQ.textContent = `${state.idx + 1}/${TOTAL_QUESTIONS}`;
+    sourceEl.textContent = q.source || "";
+    questionEl.innerHTML = renderHighlighted(q.question);
+
+    choicesEl.innerHTML = "";
+    q.choices.forEach((c, i) => {
+      const btn = document.createElement("button");
+      btn.className = "choice";
+      btn.type = "button";
+      btn.innerHTML = `<span class="cNo">${i + 1}</span><span class="cText">${esc(c)}</span>`;
+      btn.addEventListener("click", () => onPick(i + 1));
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function lockChoices() {
+    const btns = choicesEl.querySelectorAll("button.choice");
+    btns.forEach((b) => (b.disabled = true));
+  }
+
+  function onPick(choiceNo) {
+    if (state.finished) return;
+
+    stopTimer();
+    lockChoices();
+
+    const q = state.questions[state.idx];
+    const isCorrect = choiceNo === q.ans;
+
+    if (isCorrect) {
+      state.correct += 1;
+      state.combo += 1;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
+      playOne(AUDIO.correct, { volume: 0.9 });
+      setWrapFx("fx-correct", 320);
+    } else {
+      state.combo = 0;
+      playOne(AUDIO.wrong, { volume: 0.9 });
+      setWrapFx("fx-wrong", 360);
+    }
+
+    hudCorrect.textContent = String(state.correct);
+    hudCombo.textContent = String(state.combo);
+    hudMaxCombo.textContent = String(state.maxCombo);
+
+    punch(hudCorrect);
+    punch(hudCombo);
+
+    state.picks.push({ id: q.id, pick: choiceNo, ans: q.ans });
+
+    window.setTimeout(() => {
+      state.idx += 1;
+      if (state.idx >= TOTAL_QUESTIONS) finishGame();
+      else {
+        renderQ();
+        startTimer();
+      }
+    }, 260);
+  }
+
+  // ===== reward =====
+  function pickRewardRarity() {
+    // ★5 if >=25 & maxCombo>=5, ★4 if 20..24, else none
+    if (state.correct >= 25 && state.maxCombo >= 5) return 5;
+    if (state.correct >= 20 && state.correct <= 24) return 4;
+    return 0;
+  }
+
+  function pickCardByRarity(rarity) {
+    const pool = state.cards.filter((c) => Number(c.rarity) === Number(rarity));
+    if (!pool.length) return null;
+    return pool[(Math.random() * pool.length) | 0];
+  }
+
+  function awardCard(card) {
+    if (!card) return;
+    addCardToCounts(card.id);
+  }
+
+  function showCard(card) {
+    if (!card) return;
+    cardArea.classList.remove("hidden");
+    cardImg.src = card.img;
+    cardName.textContent = card.name || "";
+    cardWiki.href = card.wiki || "#";
+  }
+
+  function finishGame() {
+    state.finished = true;
+    stopTimer();
+
+    overlay.classList.remove("hidden");
+
+    rCorrect.textContent = String(state.correct);
+    rMaxCombo.textContent = String(state.maxCombo);
+
+    const rarity = pickRewardRarity();
+    let rewardText = "報酬なし";
+    if (rarity === 5) rewardText = "★5確定";
+    else if (rarity === 4) rewardText = "★4";
+
+    rReward.textContent = rewardText;
+    resultTitle.textContent = rarity ? "CLEAR" : "RESULT";
+
+    let card = null;
+    if (rarity) {
+      const runId = state.runId || "";
+      const awardKey = `award${rarity}:${runId}`;
+      if (!isProcessed(awardKey)) {
+        card = pickCardByRarity(rarity);
+        if (card) {
+          awardCard(card);
+          markProcessed(awardKey);
+        }
+      }
+    }
+
+    if (card) showCard(card);
+    else cardArea.classList.add("hidden");
+
+    btnAgain.classList.remove("hidden");
+  }
+
+  btnAgain.addEventListener("click", () => {
+    // restart from overlay (new runId)
+    state.started = false;
+    state.finished = false;
+    state.picks = [];
+    state.questions = [];
+    state.idx = 0;
+
+    overlay.classList.add("hidden");
+    startOverlay.classList.remove("hidden");
+    startOverlay.classList.remove("leaving");
+    startCard.classList.remove("leaving");
+    btnRetry.classList.add("hidden");
+
+    // refresh gate view
+    renderGateUI();
+  });
+
+  btnRetry.addEventListener("click", () => {
+    location.reload();
+  });
+
+  // ===== init =====
+  // arm UI
+  updateBgmUI();
 })();
