@@ -164,6 +164,29 @@
   const hudCorrect = requireEl("hudCorrect");
   const hudCombo = requireEl("hudCombo");
   const hudMaxCombo = requireEl("hudMaxCombo");
+
+// ===== HUD compact (mobile only) =====
+function applyHudCompactIfMobile() {
+  if (!window.matchMedia || !window.matchMedia("(max-width: 520px)").matches) return;
+
+  const nodes = [hudQ, hudCorrect, hudCombo, hudMaxCombo].filter(Boolean);
+  nodes.forEach((n) => {
+    const cell = n && n.parentElement;
+    if (!cell) return;
+    cell.style.padding = "6px 8px";
+    cell.style.lineHeight = "1.1";
+    cell.style.minHeight = "0";
+  });
+
+  // best-effort: reduce gap on common ancestor
+  const a = hudQ && (hudQ.closest && (hudQ.closest(".hud") || hudQ.closest(".hudGrid"))) ||
+            (hudQ && hudQ.parentElement && hudQ.parentElement.parentElement);
+  if (a && a.style) {
+    a.style.gap = "6px";
+    a.style.marginBottom = "10px";
+  }
+}
+
   const meterArea = requireEl("meterArea");
   const sourceEl = requireEl("source");
   const questionEl = requireEl("question");
@@ -227,6 +250,15 @@
 
   let fxT = 0;
 
+
+// ===== warn sweep trigger (once per second in last WARN_AT_SEC) =====
+let alarmSweepActive = false;
+let alarmSweepStart = 0;
+function triggerAlarmSweep() {
+  alarmSweepActive = true;
+  alarmSweepStart = performance.now();
+}
+
   function drawAlarmScan(mode = "warn") {
     const w = fxCanvas.width;
     const h = fxCanvas.height;
@@ -243,11 +275,42 @@
     }
 
     // sweep band（上→下）
-    const bandH = mode === "exit" ? 170 : 135;
-    const speed = mode === "exit" ? 11 : 8;
-    const bandY = (fxT * speed) % (h + bandH) - bandH;
+if (mode === "warn") {
+  if (!alarmSweepActive) { ctx.restore(); return; }
 
-    const grad = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
+  const bandH = 135;
+  const p = (performance.now() - alarmSweepStart) / 1000;
+  if (p >= 1.05) { alarmSweepActive = false; ctx.restore(); return; }
+
+  const bandY = (-bandH) + (h + bandH) * p;
+
+  const grad = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
+  grad.addColorStop(0, "rgba(255,45,85,0)");
+  grad.addColorStop(0.5, "rgba(255,45,85,0.14)");
+  grad.addColorStop(1, "rgba(255,45,85,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, bandY, w, bandH);
+
+  // noise blocks (warn)
+  const n = 45;
+  for (let i = 0; i < n; i++) {
+    const x = Math.random() * w;
+    const y = Math.random() * h;
+    const rw = 10 + Math.random() * 22;
+    const rh = 1 + Math.random() * 3;
+    ctx.fillStyle = "rgba(255,45,85,0.028)";
+    ctx.fillRect(x, y, rw, rh);
+  }
+
+  ctx.restore();
+  return;
+}
+
+const bandH = 170;
+const speed = 11;
+const bandY = (fxT * speed) % (h + bandH) - bandH;
+
+const grad = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
     grad.addColorStop(0, "rgba(255,45,85,0)");
     grad.addColorStop(
       0.45,
@@ -560,6 +623,7 @@
   // ===== game boot =====
   async function bootGame() {
     state.started = true;
+    applyHudCompactIfMobile();
     state.finished = false;
 
     state.idx = 0;
@@ -606,39 +670,57 @@
     meterText.textContent = `${Math.max(0, t | 0)}s`;
   }
 
-  function tickTimer() {
-    state.tLeft -= 0.1;
-    if (state.tLeft < 0) state.tLeft = 0;
 
-    const whole = Math.ceil(state.tLeft);
+
+// NOTE: timer is rAF-based to keep meter smooth on mobile.
+function startTimer() {
+  stopTimer();
+
+  const start = performance.now();
+  const end = start + QUESTION_TIME_SEC * 1000;
+
+  state.tLeft = QUESTION_TIME_SEC;
+  state.lastWholeSec = QUESTION_TIME_SEC;
+  setMeter(state.tLeft);
+
+  const loop = () => {
+    if (state.finished) return;
+
+    const now = performance.now();
+    const left = Math.max(0, (end - now) / 1000);
+    state.tLeft = left;
+
+    const whole = Math.ceil(left);
     if (whole !== state.lastWholeSec) {
       state.lastWholeSec = whole;
-      if (whole <= WARN_AT_SEC && whole >= 1) playOne(AUDIO.tick, { volume: 0.75 });
+      if (whole <= WARN_AT_SEC && whole >= 1) {
+        playOne(AUDIO.tick, { volume: 0.75 });
+        triggerAlarmSweep(); // ✅ 3,2,1... each second
+      }
     }
 
-    setMeter(state.tLeft);
+    setMeter(left);
 
-    if (state.tLeft <= 0) {
-      // timeout => wrong
+    if (left <= 0) {
       stopTimer();
       onPick(-1);
+      return;
     }
-  }
 
-  function startTimer() {
-    stopTimer();
-    state.tLeft = QUESTION_TIME_SEC;
-    state.lastWholeSec = QUESTION_TIME_SEC;
-    setMeter(state.tLeft);
-    state.timerId = window.setInterval(tickTimer, 100);
-  }
+    state.timerId = requestAnimationFrame(loop);
+  };
 
-  function stopTimer() {
-    if (state.timerId) {
-      window.clearInterval(state.timerId);
-      state.timerId = null;
-    }
+  state.timerId = requestAnimationFrame(loop);
+}
+
+function stopTimer() {
+  if (state.timerId) {
+    try { cancelAnimationFrame(state.timerId); } catch {}
+    try { window.clearInterval(state.timerId); } catch {} // compat
+    state.timerId = null;
   }
+}
+
 
   // ===== render question =====
   function renderQ() {
@@ -652,7 +734,8 @@
       const btn = document.createElement("button");
       btn.className = "choice";
       btn.type = "button";
-      btn.innerHTML = `<span class="cNo">${i + 1}</span><span class="cText">${esc(c)}</span>`;
+      const cleaned = String(c ?? "").replace(/^\s*[1-4][\.\)\］\]\、,:：\-]?\s*/, "");
+      btn.innerHTML = `<span class="cNo">${i + 1}</span><span class="cText">${esc(cleaned)}</span>`;
       btn.addEventListener("click", () => onPick(i + 1));
       choicesEl.appendChild(btn);
     });
