@@ -1017,3 +1017,116 @@ h1{
   0%{ transform: scale(.85); filter: blur(.6px); opacity: .7; }
   100%{ transform: scale(1); filter: blur(0); opacity: 1; }
 }
+
+/* ===== EXPERT ENTRY GATE (add-on) ===== */
+.gate{
+  margin: 12px 0 14px;
+  padding: 12px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(0,229,255,.26);
+  background:
+    radial-gradient(520px 240px at 20% 10%, rgba(0,229,255,.16), transparent 60%),
+    radial-gradient(520px 240px at 80% 80%, rgba(255,45,85,.14), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.10));
+  box-shadow: 0 0 0 1px rgba(255,255,255,.06) inset, 0 18px 45px rgba(0,0,0,.35);
+  position: relative;
+  overflow:hidden;
+}
+
+.gate::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(0,229,255,.10) 0px,
+    rgba(0,229,255,.10) 8px,
+    rgba(0,0,0,0) 8px,
+    rgba(0,0,0,0) 16px
+  );
+  opacity:.35;
+  pointer-events:none;
+}
+
+.gateTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  position:relative;
+  z-index:1;
+  margin-bottom:8px;
+}
+
+.gateTitle{
+  font-weight: 950;
+  letter-spacing: .10em;
+}
+
+.gateTag{
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing:.10em;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(0,0,0,.22);
+  box-shadow: 0 0 16px rgba(0,229,255,.10);
+}
+
+.gatePills{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  position:relative;
+  z-index:1;
+}
+
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  font-weight: 850;
+}
+
+.gateMsg{
+  margin-top: 10px;
+  min-height: 1.2em;
+  font-weight: 900;
+  letter-spacing:.02em;
+  position:relative;
+  z-index:1;
+}
+
+.gateRule{
+  margin-top: 8px;
+  opacity: .78;
+  font-size: 12px;
+  position:relative;
+  z-index:1;
+}
+
+/* ゆっくり脈動（チカチカ禁止） */
+@keyframes gatePulse{
+  0%{ box-shadow: 0 0 0 1px rgba(255,255,255,.06) inset, 0 18px 45px rgba(0,0,0,.35); }
+  50%{ box-shadow: 0 0 0 1px rgba(0,229,255,.14) inset, 0 18px 55px rgba(0,229,255,.08); }
+  100%{ box-shadow: 0 0 0 1px rgba(255,255,255,.06) inset, 0 18px 45px rgba(0,0,0,.35); }
+}
+.gate{ animation: gatePulse 3.2s ease-in-out infinite; }
+
+/* HKP不足のときは赤寄りで警告 */
+.gate.isInsufficient{
+  border-color: rgba(255,45,85,.35);
+}
+.gate.isInsufficient .gateMsg{
+  color: rgba(255,180,190,.98);
+  text-shadow: 0 0 18px rgba(255,45,85,.16);
+}
+.gate.isOk .gateMsg{
+  color: rgba(220,255,255,.98);
+  text-shadow: 0 0 18px rgba(0,229,255,.18);
+}
