@@ -82,15 +82,16 @@
     if (gate) {
       gate.classList.toggle("isOk", ok);
       gate.classList.toggle("isInsufficient", !ok);
+      gate.dataset.state = debug ? "debug" : (ok ? "ok" : "bad");
     }
 
     if (msgEl) {
       if (debug) {
-        msgEl.textContent = "DEBUG: HKPチェックを一時バイパス中（10分）";
+        msgEl.textContent = "DEBUG ACCESS：HKPチェックを一時バイパス中（10分）";
       } else if (ok) {
-        msgEl.textContent = "挑戦可能：STARTでHKPを消費して突入します。";
+        msgEl.textContent = "契約承認：STARTでHKPを消費し、EXPERTへ突入します。";
       } else {
-        msgEl.textContent = `HKPが不足しています（必要 ${HKP_COST_EXPERT} / 所持 ${cur}）`;
+        msgEl.textContent = `契約不成立：HKP不足（必要 ${HKP_COST_EXPERT} / 所持 ${cur}）`;
       }
     }
 

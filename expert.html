@@ -78,22 +78,30 @@
           <p class="startQ">準備はできましたか？</p>
         </div>
 
-        <!-- ===== EXPERT ENTRY GATE (add) ===== -->
-        <section class="gate" id="gate">
+        <!-- ===== EXPERT ENTRY GATE (enhanced) ===== -->
+        <section class="gate" id="gate" aria-label="EXPERT入場ゲート">
           <div class="gateTop">
             <div class="gateTitle">EXPERT ENTRY</div>
             <div class="gateTag">挑戦契約</div>
           </div>
-        
+
+          <div class="gateBadges" aria-hidden="true">
+            <span class="badge b-hkp">HKP SPEND</span>
+            <span class="badge b-sound">SOUND ON</span>
+            <span class="badge b-hard">HARD MODE</span>
+          </div>
+
           <div class="gatePills">
             <div class="pill">消費 <b id="hkpCost">3</b> HKP</div>
             <div class="pill">所持 <b id="hkpNow">0</b> HKP</div>
           </div>
-        
+
           <div class="gateMsg" id="gateMsg" aria-live="polite"></div>
-        
-          <div class="gateRule">
-            STARTと同時にHKPを消費します（途中離脱でも返却されません）
+
+          <div class="gateRules">
+            <div class="ruleItem">STARTで <b>即時にHKPを消費</b>（途中離脱でも返却されません）</div>
+            <div class="ruleItem">BGMが鳴ります（<b>音量注意</b>）</div>
+            <div class="ruleItem">成功条件：正解 <b>25+</b> ＆ MAX COMBO <b>5+</b> → ★5確定</div>
           </div>
         </section>
         
