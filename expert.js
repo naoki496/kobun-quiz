@@ -89,7 +89,7 @@
       if (debug) {
         msgEl.textContent = "DEBUG ACCESS：HKPチェックを一時バイパス中（10分）";
       } else if (ok) {
-        msgEl.textContent = "契約承認：STARTでHKPを消費し、EXPERTへ突入します。";
+        msgEl.textContent = "契約承認：STARTでHKPを消費、EXPERTへ突入。";
       } else {
         msgEl.textContent = `契約不成立：HKP不足（必要 ${HKP_COST_EXPERT} / 所持 ${cur}）`;
       }
